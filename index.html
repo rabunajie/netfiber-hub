@@ -673,19 +673,16 @@ const SB_SVC='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZ
 let sb, sbA;
 let CU=null,CP=null;
 
-window.addEventListener('load', function() {
-  // Bind login button
-  var loginBtn = document.getElementById('btn');
-  if(loginBtn) loginBtn.addEventListener('click', doLogin);
-  var loginPass = document.getElementById('login-pass') || document.getElementById('login-pass-field');
-  if(loginPass) loginPass.addEventListener('keydown', function(e){ if(e.key==='Enter') doLogin(); });
-
+// Initialize Supabase immediately
+try {
   sb = supabase.createClient(SB_URL, SB_KEY);
   sbA = supabase.createClient(SB_URL, SB_SVC);
   sb.auth.getSession().then(function(r) {
     if(r.data && r.data.session) initApp(r.data.session.user);
   });
-});
+} catch(e) {
+  console.error('Supabase init failed:', e);
+}
 let editBidId=null,editGCId=null,editRetailId=null,editPPId=null,editMatId=null,currentProjId=null,currentBidId=null;
 const today=new Date();today.setHours(0,0,0,0);
 const todayStr=today.toISOString().split('T')[0];
