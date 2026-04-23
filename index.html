@@ -659,12 +659,13 @@ tr:hover td{background:#fafcff}
 
 <script>
 // Bind auth button immediately before anything else runs
-document.addEventListener('DOMContentLoaded', function() {
+// Bind auth buttons directly - scripts run after HTML so elements exist
+(function() {
   var btn = document.getElementById('signin-btn');
-  if(btn) btn.addEventListener('click', function() { if(typeof doLogin==='function') doLogin(); });
+  if(btn) btn.onclick = function() { doLogin(); };
   var pass = document.getElementById('login-pass');
-  if(pass) pass.addEventListener('keydown', function(e) { if(e.key==='Enter' && typeof doLogin==='function') doLogin(); });
-});
+  if(pass) pass.onkeydown = function(e) { if(e.key==='Enter') doLogin(); };
+})();
 
 const SB_URL='https://vaubqkmsjsgfqeqbqbvy.supabase.co';
 const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZhdWJxa21zanNnZnFlcWJxYnZ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY5MDQxNzAsImV4cCI6MjA5MjQ4MDE3MH0.FjZ6oK-6fG_T38oZDGukAVj7cBJsarGh8Stwp14wCZM';
@@ -694,7 +695,7 @@ function canAccess(p){return(GROUPS[CP?.group_name||'staff']||['dashboard','task
 
 // TIME
 function updateTime(){const n=new Date();document.getElementById('tb-time').textContent=n.toLocaleString('en-US',{weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});}
-if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",function(){setInterval(updateTime,1000);updateTime();});}else{setInterval(updateTime,1000);updateTime();}
+setInterval(updateTime,1000);updateTime();
 
 // AUTH
 async function doLogin(){
