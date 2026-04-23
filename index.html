@@ -607,8 +607,8 @@ function filterBids(){
       html+='<td style="max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:11px;color:#999">'+lastNote+'</td>';
       html+='<td style="font-size:11px;color:#1B5E9B;font-weight:500">'+(r.assigned_name||'—')+'</td>';
       html+='<td style="display:flex;gap:4px;white-space:nowrap">';
-      html+='<button class="btn-sm" onclick="editBid(''+rid+'')">Edit</button>';
-      html+='<button class="btn-danger" onclick="delBid(''+rid+'',''+pname+'')">×</button>';
+      html+='<button class="btn-sm" onclick="editBid(\'' + rid + '\')">Edit</button>';
+      html+='<button class="btn-danger" onclick="delBid(\'' + rid + '\',\'' + pname + '\')">×</button>';
       html+='</td>';
       html+='</tr>';
     }
