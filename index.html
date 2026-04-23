@@ -341,8 +341,8 @@ tr:hover td{background:#fafcff}
     </div>
     <div class="auth-err" id="auth-err"></div>
     <div class="afield"><label>Email</label><input type="email" id="login-email" placeholder="your@email.com"></div>
-    <div class="afield"><label>Password</label><input type="password" id="login-pass" placeholder="Password" id="login-pass-field"></div>
-    <button class="auth-btn" onclick="doLogin()">Sign In</button>
+    <div class="afield"><label>Password</label><input type="password" id="login-pass" placeholder="Password"></div>
+    <button class="auth-btn" id="signin-btn">Sign In</button>
   </div>
 </div>
 
@@ -658,6 +658,14 @@ tr:hover td{background:#fafcff}
 </div>
 
 <script>
+// Bind auth button immediately before anything else runs
+document.addEventListener('DOMContentLoaded', function() {
+  var btn = document.getElementById('signin-btn');
+  if(btn) btn.addEventListener('click', function() { if(typeof doLogin==='function') doLogin(); });
+  var pass = document.getElementById('login-pass');
+  if(pass) pass.addEventListener('keydown', function(e) { if(e.key==='Enter' && typeof doLogin==='function') doLogin(); });
+});
+
 const SB_URL='https://vaubqkmsjsgfqeqbqbvy.supabase.co';
 const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZhdWJxa21zanNnZnFlcWJxYnZ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY5MDQxNzAsImV4cCI6MjA5MjQ4MDE3MH0.FjZ6oK-6fG_T38oZDGukAVj7cBJsarGh8Stwp14wCZM';
 const SB_SVC='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZhdWJxa21zanNnZnFlcWJxYnZ5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjkwNDE3MCwiZXhwIjoyMDkyNDgwMTcwfQ.G6eeRJSCzRSm0e9r9hxcV7fGkwGWSp-bUMpTRylxrqM';
@@ -1217,7 +1225,6 @@ async function logFollowUp(){const type=document.getElementById('fu-type').value
 async function loadUsersDropdown(selId,selectedId){const {data:users=[]}=await sbA.from('profiles').select('id,full_name').order('full_name');const sel=document.getElementById(selId);if(!sel)return;sel.innerHTML='<option value="">— Unassigned —</option>'+users.map(u=>`<option value="${u.id}"${selectedId&&u.id===selectedId?' selected':''}>${u.full_name||u.id}</option>`).join('');}
 
 
-// proposals loaded from proposals.js
 </script>
 <script>
 // PROPOSALS MODULE
