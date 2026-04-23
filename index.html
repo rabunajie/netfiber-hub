@@ -563,10 +563,14 @@ async function renderBids(){
 let _bids=[];
 async function loadBids(){
   const {data:rows,error}=await sb.from('bids').select('*').order('created_at',{ascending:false});
-  if(error){console.error('Bids error:',error);_bids=[];filterBids();return;}
-  // Get assignee names separately
+  if(error){
+    console.error('Bids error:',error);
+    var tb=document.getElementById('bid-body');
+    if(tb)tb.innerHTML='<tr><td colspan="11" style="color:red;padding:1rem">Error: '+error.message+'</td></tr>';
+    return;
+  }
   _bids=rows||[];
-  console.log('Bids loaded:', _bids.length);
+  console.log('Bids loaded:', _bids.length);;
   filterBids();
 }
 function filterBids(){
@@ -640,7 +644,7 @@ async function renderGC(){
   await loadGC();
 }
 let _gcs=[];
-async function loadGC(){const {data:rows,error}=await sb.from('gc_contacts').select('*').order('created_at',{ascending:false});if(error){console.error('GC error:',error);}_gcs=rows||[];filterGC();}
+async function loadGC(){const {data:rows,error}=await sb.from('gc_contacts').select('*').order('created_at',{ascending:false});if(error){console.error('GC error:',error);var tb=document.getElementById('gc-body');if(tb)tb.innerHTML='<tr><td colspan="10" style="color:red;padding:1rem">Error: '+error.message+'</td></tr>';return;}_gcs=rows||[];filterGC();}
 function filterGC(){const search=(document.getElementById('gc-search')?.value||'').toLowerCase();const filter=document.getElementById('gc-filter')?.value||'';let rows=[..._gcs];if(filter)rows=rows.filter(r=>r.replied===filter);if(search)rows=rows.filter(r=>(r.company+r.contact+r.email).toLowerCase().includes(search));const tbody=document.getElementById('gc-body');if(!tbody)return;tbody.innerHTML=rows.map(r=>`<tr><td style="font-weight:600">${r.company||''}</td><td style="font-size:12px">${(r.contact||'').split('\n')[0]}</td><td style="font-size:12px"><a href="mailto:${(r.email||'').split('\n')[0]}" style="color:#1B5E9B">${(r.email||'').split('\n')[0]}</a></td><td style="font-size:12px">${(r.phone||'').split('\n')[0]}</td><td style="font-size:12px">${(r.city||'').split('\n')[0]}</td><td><span class="${r.priority==='1st'?'pri-1':r.priority==='2nd'?'pri-2':'pri-3'}">${r.priority||'—'}</span></td><td><span class="badge ${r.replied==='Yes'?'b-yes':'b-no'}">${r.replied||'No'}</span></td><td class="note-cell">${r.note||''}</td><td class="by-cell">${r.updater?.full_name||r.creator?.full_name||'—'}</td><td style="display:flex;gap:4px"><button class="btn-sm" onclick="editGC('${r.id}')">Edit</button><button class="btn-danger" onclick="delGC('${r.id}','${(r.company||'').replace(/'/g,'`')}')">×</button></td></tr>`).join('')||'<tr><td colspan="10" style="text-align:center;padding:2rem;color:#bbb">No contacts found.</td></tr>';}
 function openGCModal(){editGCId=null;document.getElementById('gc-modal-title').textContent='New GC Contact';['company','contact','email','phone','city','notes','fdate'].forEach(f=>document.getElementById('gm-'+f).value='');document.getElementById('gm-priority').value='1st';document.getElementById('gm-replied').value='No';document.getElementById('gc-modal').classList.add('open');}
 async function editGC(id){const {data:r}=await sb.from('gc_contacts').select('*').eq('id',id).single();if(!r)return;editGCId=id;document.getElementById('gc-modal-title').textContent='Edit GC';['company','contact','email','phone','city'].forEach(f=>document.getElementById('gm-'+f).value=r[f]||'');document.getElementById('gm-priority').value=r.priority||'1st';document.getElementById('gm-replied').value=r.replied||'No';document.getElementById('gm-notes').value=r.note||'';document.getElementById('gm-fdate').value=r.first_email||'';document.getElementById('gc-modal').classList.add('open');}
