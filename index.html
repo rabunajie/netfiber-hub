@@ -362,7 +362,7 @@ tr:hover td{background:#fafcff}
       <div class="sb-sec">Overview</div>
       <div class="sb-item on" data-page="dashboard" onclick="showPage('dashboard')"><div class="sb-dot"></div>Dashboard</div>
       <div class="sb-sec">Sales</div>
-      <div class="sb-item" data-page="bids" data-groups="admin,sales" onclick="showPage('bids')"><div class="sb-dot"></div>Sales Tracker<span class="sb-badge" id="sb-bids-badge" style="background:#E24B4A;display:none"></span></div>
+      <div class="sb-item" data-page="bids" data-groups="admin,sales" onclick="showPage('bids')"><div class="sb-dot"></div>Bid Opportunities<span class="sb-badge" id="sb-bids-badge" style="background:#E24B4A;display:none"></span></div>
       <div class="sb-item" data-page="gc" data-groups="admin,sales" onclick="showPage('gc')"><div class="sb-dot"></div>GC Contacts</div>
       <div class="sb-item" data-page="retail" data-groups="admin,sales,staff" onclick="showPage('retail')"><div class="sb-dot"></div>Retail Contacts</div>
       <div class="sb-sec">Operations</div>
@@ -655,7 +655,7 @@ async function renderDashboard(){
       <div class="fbody" style="display:grid;grid-template-columns:repeat(auto-fill,110px);gap:10px;padding:16px;min-height:260px;align-content:start">
         ${canAccess('bids')?`<div class="mod-btn" onclick="showPage('bids')" style="border-top:3px solid #1B5E9B">
           ${overdueFollowups.length?`<span class="mod-btn-badge" style="background:#FCEBEB;color:#A32D2D">${overdueFollowups.length}</span>`:''}
-          <span class="mod-btn-name">Sales Tracker</span>
+          <span class="mod-btn-name">Bid Opportunities</span>
         </div>`:''}
         ${canAccess('gc')?`<div class="mod-btn" onclick="showPage('gc')" style="border-top:3px solid #1D9E75">
           <span class="mod-btn-name">GC Contacts</span>
@@ -743,7 +743,7 @@ async function renderDashboard(){
 async function renderBids(){
   const mc=document.getElementById('main-content');
   mc.innerHTML=`
-    <div class="page-hdr"><div><div class="page-title">Sales Tracker</div><div class="page-sub">All bids and follow-ups</div></div><button class="btn btn-blue" onclick="openBidModal()">+ New Bid</button></div>
+    <div class="page-hdr"><div><div class="page-title">Bid Opportunities</div><div class="page-sub">All bids and follow-ups</div></div><button class="btn btn-blue" onclick="openBidModal()">+ New Bid</button></div>
     <div class="toolbar">
       <input type="text" id="bid-search" placeholder="Search project, GC, ref..." oninput="filterBids()" style="flex:1;min-width:180px">
       <select id="bid-filter" onchange="filterBids()"><option value="">All statuses</option><option>Under Review</option><option>Bid Sent</option><option>Win</option><option>Lost</option></select>
@@ -1028,7 +1028,7 @@ async function renderMgmt(){
     <div class="mgmt-sec">
       <div class="mgmt-hdr"><h3>Group Permissions</h3></div>
       <div style="padding:14px;overflow-x:auto">
-        <table><thead><tr><th>Group</th><th>Sales Tracker</th><th>GC Contacts</th><th>Retail</th><th>Purchases</th><th>To-Do</th><th>Activity Log</th><th>Management</th></tr></thead>
+        <table><thead><tr><th>Group</th><th>Bid Opportunities</th><th>GC Contacts</th><th>Retail</th><th>Purchases</th><th>To-Do</th><th>Activity Log</th><th>Management</th></tr></thead>
         <tbody>
           <tr><td><span class="gbadge g-admin">Admin</span></td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr>
           <tr><td><span class="gbadge g-sales">Sales</span></td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>—</td><td>—</td></tr>
