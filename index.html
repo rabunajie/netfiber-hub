@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -213,10 +212,10 @@ tr:hover td{background:#fafcff}
 @keyframes spin{to{transform:rotate(360deg)}}
 
 /* MOD BUTTON */
-.mod-btn{border-radius:11px;border:0.5px solid #e8ecf2;cursor:pointer;background:#FAFBFD;display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-end;padding:14px 16px;width:120px;height:90px;position:relative;transition:all 0.15s;flex-shrink:0;overflow:hidden}
+.mod-btn{border-radius:11px;border:0.5px solid #e8ecf2;cursor:pointer;background:#FAFBFD;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:10px;width:110px;height:90px;position:relative;transition:all 0.15s;flex-shrink:0;overflow:hidden}
 .mod-btn:hover{border-color:#1B5E9B;background:#F2F7FD;transform:translateY(-2px);box-shadow:0 6px 16px rgba(27,94,155,0.1)}
-.mod-btn-name{font-size:12px;font-weight:700;color:#111;letter-spacing:-0.2px;line-height:1.3}
-.mod-btn-badge{position:absolute;top:10px;right:10px;font-size:9px;font-weight:700;padding:2px 6px;border-radius:20px;min-width:16px;text-align:center}
+.mod-btn-name{font-size:11px;font-weight:700;color:#111;letter-spacing:-0.1px;line-height:1.35;text-align:center}
+.mod-btn-badge{position:absolute;top:8px;right:8px;font-size:9px;font-weight:700;padding:2px 6px;border-radius:20px;min-width:16px;text-align:center}
 
 /* FU PANEL */
 .fu-panel{background:#fff;border-radius:14px;padding:1.5rem;width:92%;max-width:680px;max-height:90vh;overflow-y:auto}
@@ -564,7 +563,7 @@ async function renderDashboard(){
         <div class="ftitle"><div class="fbar" style="background:#1B5E9B"></div><span style="color:#1B5E9B">Modules</span></div>
         <span class="fcount">All sections</span>
       </div>
-      <div class="fbody" style="display:grid;grid-template-columns:repeat(auto-fill,120px);gap:10px;padding:16px;min-height:220px;align-content:start">
+      <div class="fbody" style="display:grid;grid-template-columns:repeat(auto-fill,110px);gap:10px;padding:16px;min-height:260px;align-content:start">
         ${canAccess('bids')?`<div class="mod-btn" onclick="showPage('bids')" style="border-top:3px solid #1B5E9B">
           ${overdueFollowups.length?`<span class="mod-btn-badge" style="background:#FCEBEB;color:#A32D2D">${overdueFollowups.length}</span>`:''}
           <span class="mod-btn-name">Sales Tracker</span>
@@ -593,8 +592,10 @@ async function renderDashboard(){
 
   const opsModules='';
 
-  const overdueSorted=overdueFollowups.sort((a,b)=>ddiff(a.fu_next_date)-ddiff(b.fu_next_date)).slice(0,4);
+  const overdueSorted=[...overdueFollowups].sort((a,b)=>ddiff(a.fu_next_date)-ddiff(b.fu_next_date)).slice(0,4);
   const tasksSorted=tasks.filter(t=>!t.done&&(t.deadline===todayStr||t.priority==='high')).sort((a,b)=>{const po={high:0,medium:1,low:2};return(po[a.priority]||1)-(po[b.priority]||1);}).slice(0,4);
+  const emailsDue=bids.filter(b=>b.fu_next_date&&ddiff(b.fu_next_date)<=0&&(b.fu_status==='email'||b.fu_status==='new'||b.fu_status==='call')&&b.status!=='Win'&&b.status!=='Lost').sort((a,b)=>ddiff(a.fu_next_date)-ddiff(b.fu_next_date)).slice(0,4);
+  const waitingTooLong=bids.filter(b=>b.fu_status==='waiting'&&b.last_ping&&ddiff(b.last_ping)<-7&&b.status!=='Win'&&b.status!=='Lost').slice(0,4);
 
   mc.innerHTML=`
     <div class="greeting">
@@ -609,19 +610,27 @@ async function renderDashboard(){
       <div class="kpi"><div class="kpi-lbl">Tasks due today</div><div class="kpi-v" style="color:${tasksDueToday.length?'#BA7517':'#1D9E75'}">${tasksDueToday.length}</div><div class="kpi-sub" style="color:${tasksDueToday.length?'#BA7517':'#888'}">${pendingTasks.length} total pending</div></div>
     </div>`:''}
     ${salesModules}
-    ${(canAccess('bids')&&overdueSorted.length)||tasksSorted.length?`
-    <div class="alert-row-grid">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:0">
       ${canAccess('bids')&&overdueSorted.length?`
       <div class="acard">
         <div class="achdr"><div class="acdot" style="background:#E24B4A"></div>Follow-ups overdue</div>
-        ${overdueSorted.map(b=>{const d=ddiff(b.fu_next_date);return`<div class="aitem"><div class="adot" style="background:${d<-1?'#E24B4A':'#BA7517'}"></div>${(b.project||b.ref||'').substring(0,28)}<span class="atag" style="background:${d<0?'#FCEBEB':'#FEF3E2'};color:${d<0?'#A32D2D':'#854F0B'}">${d<0?Math.abs(d)+'d late':'Today'}</span></div>`;}).join('')}
-      </div>`:'<div></div>'}
+        ${overdueSorted.map(b=>{const d=ddiff(b.fu_next_date);return`<div class="aitem"><div class="adot" style="background:${d<-1?'#E24B4A':'#BA7517'}"></div><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${(b.project||b.ref||'').substring(0,24)}</span><span class="atag" style="background:${d<0?'#FCEBEB':'#FEF3E2'};color:${d<0?'#A32D2D':'#854F0B'}">${d<0?Math.abs(d)+'d late':'Today'}</span></div>`;}).join('')}
+        ${!overdueSorted.length?'<div class="aitem" style="color:#bbb">All clear</div>':''}
+      </div>`:`<div class="acard"><div class="achdr"><div class="acdot" style="background:#E24B4A"></div>Follow-ups overdue</div><div class="aitem" style="color:#bbb">All clear</div></div>`}
+
       ${tasksSorted.length?`
       <div class="acard">
         <div class="achdr"><div class="acdot" style="background:#BA7517"></div>Tasks needing attention</div>
-        ${tasksSorted.map(t=>`<div class="aitem"><div class="adot" style="background:${t.priority==='high'?'#E24B4A':t.priority==='medium'?'#BA7517':'#aaa'}"></div>${t.name.substring(0,30)}<span class="atag" style="background:${t.priority==='high'?'#FCEBEB':t.priority==='medium'?'#FEF3E2':'#f5f5f5'};color:${t.priority==='high'?'#A32D2D':t.priority==='medium'?'#854F0B':'#888'}">${t.priority}</span></div>`).join('')}
-      </div>`:''}
-    </div>`:''}
+        ${tasksSorted.map(t=>`<div class="aitem"><div class="adot" style="background:${t.priority==='high'?'#E24B4A':t.priority==='medium'?'#BA7517':'#aaa'}"></div><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.name.substring(0,26)}</span><span class="atag" style="background:${t.priority==='high'?'#FCEBEB':t.priority==='medium'?'#FEF3E2':'#f5f5f5'};color:${t.priority==='high'?'#A32D2D':t.priority==='medium'?'#854F0B':'#888'}">${t.priority}</span></div>`).join('')}
+      </div>`:`<div class="acard"><div class="achdr"><div class="acdot" style="background:#BA7517"></div>Tasks needing attention</div><div class="aitem" style="color:#bbb">No urgent tasks</div></div>`}
+
+      <div class="acard">
+        <div class="achdr"><div class="acdot" style="background:#185FA5"></div>Email monitor</div>
+        ${emailsDue.length?emailsDue.map(b=>`<div class="aitem"><div class="adot" style="background:#185FA5"></div><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${(b.project||b.ref||'').substring(0,22)}</span><a href="mailto:${(b.email||'').split('\n')[0]}?subject=Follow Up — ${encodeURIComponent(b.project||b.ref||'')}" style="font-size:10px;font-weight:700;color:#1B5E9B;text-decoration:none;padding:2px 6px;background:#E6F1FB;border-radius:6px;white-space:nowrap">Send</a></div>`).join(''):''}
+        ${waitingTooLong.length?waitingTooLong.map(b=>`<div class="aitem"><div class="adot" style="background:#888"></div><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${(b.project||b.ref||'').substring(0,22)}</span><span class="atag" style="background:#f5f5f5;color:#888">Silent ${Math.abs(ddiff(b.last_ping))}d</span></div>`).join(''):''}
+        ${!emailsDue.length&&!waitingTooLong.length?'<div class="aitem" style="color:#bbb">No emails due today</div>':''}
+      </div>
+    </div>
   `;
 }
 
