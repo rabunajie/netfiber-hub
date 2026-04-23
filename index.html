@@ -628,10 +628,11 @@ function showPage(p){
 // DASHBOARD
 async function renderDashboard(){
   const mc=document.getElementById('main-content');
-  const [{data:bids=[]},{data:tasks=[]}]=await Promise.all([
+  const [{data:bidsR},{data:tasksR}]=await Promise.all([
     sb.from('bids').select('*'),
     sb.from('tasks').select('*')
   ]);
+  const bids=bidsR||[];const tasks=tasksR||[];
   const wins=bids.filter(b=>b.status==='Win'||b.status==='Won');
   const overdueFollowups=bids.filter(b=>b.fu_next_date&&ddiff(b.fu_next_date)<0&&b.status!=='Win'&&b.status!=='Lost');
   const tasksDueToday=tasks.filter(t=>!t.done&&t.deadline===todayStr);
@@ -701,25 +702,38 @@ async function renderDashboard(){
       <div class="kpi"><div class="kpi-lbl">Tasks due today</div><div class="kpi-v" style="color:${tasksDueToday.length?'#BA7517':'#1D9E75'}">${tasksDueToday.length}</div><div class="kpi-sub" style="color:${tasksDueToday.length?'#BA7517':'#888'}">${pendingTasks.length} total pending</div></div>
     </div>`:''}
     ${salesModules}
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:0">
-      ${canAccess('bids')&&overdueSorted.length?`
-      <div class="acard">
-        <div class="achdr"><div class="acdot" style="background:#E24B4A"></div>Follow-ups overdue</div>
-        ${overdueSorted.map(b=>{const d=ddiff(b.fu_next_date);return`<div class="aitem"><div class="adot" style="background:${d<-1?'#E24B4A':'#BA7517'}"></div><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${(b.project||b.ref||'').substring(0,24)}</span><span class="atag" style="background:${d<0?'#FCEBEB':'#FEF3E2'};color:${d<0?'#A32D2D':'#854F0B'}">${d<0?Math.abs(d)+'d late':'Today'}</span></div>`;}).join('')}
-        ${!overdueSorted.length?'<div class="aitem" style="color:#bbb">All clear</div>':''}
-      </div>`:`<div class="acard"><div class="achdr"><div class="acdot" style="background:#E24B4A"></div>Follow-ups overdue</div><div class="aitem" style="color:#bbb">All clear</div></div>`}
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px">
 
-      ${tasksSorted.length?`
       <div class="acard">
-        <div class="achdr"><div class="acdot" style="background:#BA7517"></div>Tasks needing attention</div>
-        ${tasksSorted.map(t=>`<div class="aitem"><div class="adot" style="background:${t.priority==='high'?'#E24B4A':t.priority==='medium'?'#BA7517':'#aaa'}"></div><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.name.substring(0,26)}</span><span class="atag" style="background:${t.priority==='high'?'#FCEBEB':t.priority==='medium'?'#FEF3E2':'#f5f5f5'};color:${t.priority==='high'?'#A32D2D':t.priority==='medium'?'#854F0B':'#888'}">${t.priority}</span></div>`).join('')}
-      </div>`:`<div class="acard"><div class="achdr"><div class="acdot" style="background:#BA7517"></div>Tasks needing attention</div><div class="aitem" style="color:#bbb">No urgent tasks</div></div>`}
+        <div class="achdr"><div class="acdot" style="background:#E24B4A"></div>Follow-ups — due &amp; overdue</div>
+        ${overdueFollowups.length===0?'<div class="aitem" style="color:#bbb">All clear — no overdue follow-ups</div>':''}
+        ${[...overdueFollowups].sort((a,b)=>ddiff(a.fu_next_date)-ddiff(b.fu_next_date)).slice(0,5).map(b=>{const d=ddiff(b.fu_next_date);const fu=FU[b.fu_status||'new']||FU.new;return`<div class="aitem" style="cursor:pointer" onclick="showPage('bids')"><div class="adot" style="background:${d<0?'#E24B4A':'#BA7517'}"></div><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${(b.project||b.ref||'').substring(0,22)}</span><span class="atag" style="background:${d<0?'#FCEBEB':'#FEF3E2'};color:${d<0?'#A32D2D':'#854F0B'}">${d===0?'Today':d<0?Math.abs(d)+'d late':'Soon'}</span></div>`;}).join('')}
+      </div>
+
+      <div class="acard">
+        <div class="achdr"><div class="acdot" style="background:#854F0B"></div>Bids due today &amp; overdue</div>
+        ${(()=>{const bidsDue=bids.filter(b=>b.due_date&&ddiff(b.due_date)<=0&&b.status!=='Win'&&b.status!=='Lost').sort((a,b2)=>ddiff(a.due_date)-ddiff(b2.due_date)).slice(0,5);return bidsDue.length?bidsDue.map(b=>{const d=ddiff(b.due_date);return`<div class="aitem" style="cursor:pointer" onclick="showPage('bids')"><div class="adot" style="background:${d<0?'#854F0B':'#E24B4A'}"></div><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${(b.project||b.ref||'').substring(0,22)}</span><span class="atag" style="background:${d===0?'#FCEBEB':'#FAEEDA'};color:${d===0?'#A32D2D':'#633806'}">${d===0?'Due today':Math.abs(d)+'d ago'}</span></div>`;}).join(''):'<div class="aitem" style="color:#bbb">No bids overdue</div>';})()}
+      </div>
 
       <div class="acard">
         <div class="achdr"><div class="acdot" style="background:#185FA5"></div>Email monitor</div>
         ${emailsDue.length?emailsDue.map(b=>`<div class="aitem"><div class="adot" style="background:#185FA5"></div><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${(b.project||b.ref||'').substring(0,22)}</span><a href="mailto:${(b.email||'').split('\n')[0]}?subject=Follow Up — ${encodeURIComponent(b.project||b.ref||'')}" style="font-size:10px;font-weight:700;color:#1B5E9B;text-decoration:none;padding:2px 6px;background:#E6F1FB;border-radius:6px;white-space:nowrap">Send</a></div>`).join(''):''}
         ${waitingTooLong.length?waitingTooLong.map(b=>`<div class="aitem"><div class="adot" style="background:#888"></div><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${(b.project||b.ref||'').substring(0,22)}</span><span class="atag" style="background:#f5f5f5;color:#888">Silent ${Math.abs(ddiff(b.last_ping))}d</span></div>`).join(''):''}
         ${!emailsDue.length&&!waitingTooLong.length?'<div class="aitem" style="color:#bbb">No emails due today</div>':''}
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="acard">
+        <div class="achdr"><div class="acdot" style="background:#BA7517"></div>Tasks needing attention</div>
+        ${tasksSorted.length?tasksSorted.map(t=>`<div class="aitem"><div class="adot" style="background:${t.priority==='high'?'#E24B4A':t.priority==='medium'?'#BA7517':'#aaa'}"></div><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.name.substring(0,30)}</span><span class="atag" style="background:${t.priority==='high'?'#FCEBEB':t.priority==='medium'?'#FEF3E2':'#f5f5f5'};color:${t.priority==='high'?'#A32D2D':t.priority==='medium'?'#854F0B':'#888'}">${t.priority}</span></div>`).join(''):'<div class="aitem" style="color:#bbb">No urgent tasks</div>'}
+      </div>
+      <div class="acard">
+        <div class="achdr"><div class="acdot" style="background:#1D9E75"></div>Quick stats</div>
+        <div class="aitem"><div class="adot" style="background:#1B5E9B"></div>Total bids submitted<span class="atag" style="background:#E6F1FB;color:#0C447C">${bids.length}</span></div>
+        <div class="aitem"><div class="adot" style="background:#1D9E75"></div>Projects won<span class="atag" style="background:#EAF3DE;color:#27500A">${wins.length}</span></div>
+        <div class="aitem"><div class="adot" style="background:#E24B4A"></div>Lost bids<span class="atag" style="background:#FCEBEB;color:#A32D2D">${bids.filter(b=>b.status==='Lost').length}</span></div>
+        <div class="aitem"><div class="adot" style="background:#888"></div>Pending decisions<span class="atag" style="background:#f5f5f5;color:#888">${bids.filter(b=>b.status==='Bid Sent'||b.status==='Under Review').length}</span></div>
       </div>
     </div>
   `;
@@ -742,8 +756,11 @@ async function renderBids(){
 }
 let _bids=[];
 async function loadBids(){
-  const {data:rows=[]}=await sb.from('bids').select('*,assignee:assigned_to(full_name)');
-  _bids=rows;filterBids();
+  const {data:rows,error}=await sb.from('bids').select('*').order('created_at',{ascending:false});
+  if(error){console.error('Bids error:',error);_bids=[];filterBids();return;}
+  // Get assignee names separately
+  _bids=rows||[];
+  filterBids();
 }
 function filterBids(){
   const search=(document.getElementById('bid-search')?.value||'').toLowerCase();
@@ -766,7 +783,7 @@ function filterBids(){
       <td style="color:#1D9E75;font-weight:700">${fmt$(r.profit)}</td>
       <td style="font-size:11px;color:#aaa">${fmtD(r.last_ping)}</td>
       <td class="note-cell" style="max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:11px">${lastNote}</td>
-      <td class="by-cell">${r.assignee?.full_name||'—'}</td>
+      <td class="by-cell">${r.assigned_name||'—'}</td>
       <td style="display:flex;gap:4px;white-space:nowrap"><button class="btn-sm" onclick="editBid('${r.id}')">Edit</button><button class="btn-danger" onclick="delBid('${r.id}','${(r.project||'').replace(/'/g,'`')}')">×</button></td>
     </tr>`;
   }).join('')||'<tr><td colspan="11" style="text-align:center;padding:2rem;color:#bbb">No bids found.</td></tr>';
@@ -792,7 +809,7 @@ async function renderGC(){
   await loadGC();
 }
 let _gcs=[];
-async function loadGC(){const {data:rows=[]}=await sb.from('gc_contacts').select('*,updater:updated_by(full_name),creator:created_by(full_name)').order('created_at',{ascending:false});_gcs=rows;filterGC();}
+async function loadGC(){const {data:rows,error}=await sb.from('gc_contacts').select('*').order('created_at',{ascending:false});if(error){console.error('GC error:',error);}_gcs=rows||[];filterGC();}
 function filterGC(){const search=(document.getElementById('gc-search')?.value||'').toLowerCase();const filter=document.getElementById('gc-filter')?.value||'';let rows=[..._gcs];if(filter)rows=rows.filter(r=>r.replied===filter);if(search)rows=rows.filter(r=>(r.company+r.contact+r.email).toLowerCase().includes(search));const tbody=document.getElementById('gc-body');if(!tbody)return;tbody.innerHTML=rows.map(r=>`<tr><td style="font-weight:600">${r.company||''}</td><td style="font-size:12px">${(r.contact||'').split('\n')[0]}</td><td style="font-size:12px"><a href="mailto:${(r.email||'').split('\n')[0]}" style="color:#1B5E9B">${(r.email||'').split('\n')[0]}</a></td><td style="font-size:12px">${(r.phone||'').split('\n')[0]}</td><td style="font-size:12px">${(r.city||'').split('\n')[0]}</td><td><span class="${r.priority==='1st'?'pri-1':r.priority==='2nd'?'pri-2':'pri-3'}">${r.priority||'—'}</span></td><td><span class="badge ${r.replied==='Yes'?'b-yes':'b-no'}">${r.replied||'No'}</span></td><td class="note-cell">${r.note||''}</td><td class="by-cell">${r.updater?.full_name||r.creator?.full_name||'—'}</td><td style="display:flex;gap:4px"><button class="btn-sm" onclick="editGC('${r.id}')">Edit</button><button class="btn-danger" onclick="delGC('${r.id}','${(r.company||'').replace(/'/g,'`')}')">×</button></td></tr>`).join('')||'<tr><td colspan="10" style="text-align:center;padding:2rem;color:#bbb">No contacts found.</td></tr>';}
 function openGCModal(){editGCId=null;document.getElementById('gc-modal-title').textContent='New GC Contact';['company','contact','email','phone','city','notes','fdate'].forEach(f=>document.getElementById('gm-'+f).value='');document.getElementById('gm-priority').value='1st';document.getElementById('gm-replied').value='No';document.getElementById('gc-modal').classList.add('open');}
 async function editGC(id){const {data:r}=await sb.from('gc_contacts').select('*').eq('id',id).single();if(!r)return;editGCId=id;document.getElementById('gc-modal-title').textContent='Edit GC';['company','contact','email','phone','city'].forEach(f=>document.getElementById('gm-'+f).value=r[f]||'');document.getElementById('gm-priority').value=r.priority||'1st';document.getElementById('gm-replied').value=r.replied||'No';document.getElementById('gm-notes').value=r.note||'';document.getElementById('gm-fdate').value=r.first_email||'';document.getElementById('gc-modal').classList.add('open');}
@@ -812,7 +829,7 @@ async function renderRetail(){
   await loadRetail();
 }
 let _retail=[];
-async function loadRetail(){const {data:rows=[]}=await sb.from('retail_contacts').select('*,updater:updated_by(full_name),creator:created_by(full_name)').order('created_at',{ascending:false});_retail=rows;filterRetail();}
+async function loadRetail(){const {data:rows,error}=await sb.from('retail_contacts').select('*').order('created_at',{ascending:false});if(error){console.error('Retail error:',error);}_retail=rows||[];filterRetail();}
 function filterRetail(){const search=(document.getElementById('ret-search')?.value||'').toLowerCase();let rows=[..._retail];if(search)rows=rows.filter(r=>(r.company+r.contact+r.email).toLowerCase().includes(search));const tbody=document.getElementById('ret-body');if(!tbody)return;tbody.innerHTML=rows.map(r=>`<tr><td style="font-weight:600">${r.company||''}</td><td>${r.contact||''}</td><td style="font-size:11px;color:#aaa">${r.role||''}</td><td style="font-size:12px"><a href="mailto:${r.email||''}" style="color:#1B5E9B">${r.email||''}</a></td><td style="font-size:12px">${r.phone||''}</td><td><span class="badge ${r.replied==='Yes'?'b-yes':'b-no'}">${r.replied||'No'}</span></td><td class="note-cell">${r.note||''}</td><td class="by-cell">${r.updater?.full_name||r.creator?.full_name||'—'}</td><td style="display:flex;gap:4px"><button class="btn-sm" onclick="editRetail('${r.id}')">Edit</button><button class="btn-danger" onclick="delRetail('${r.id}','${(r.company||'').replace(/'/g,'`')}')">×</button></td></tr>`).join('')||'<tr><td colspan="9" style="text-align:center;padding:2rem;color:#bbb">No contacts.</td></tr>';}
 function openRetailModal(){editRetailId=null;document.getElementById('retail-modal-title').textContent='New Retail Contact';['company','contact','email','phone','role','notes'].forEach(f=>document.getElementById('rm-'+f).value='');document.getElementById('rm-replied').value='No';document.getElementById('retail-modal').classList.add('open');}
 async function editRetail(id){const {data:r}=await sb.from('retail_contacts').select('*').eq('id',id).single();if(!r)return;editRetailId=id;document.getElementById('retail-modal-title').textContent='Edit Retail Contact';['company','contact','email','phone','role'].forEach(f=>document.getElementById('rm-'+f).value=r[f]||'');document.getElementById('rm-replied').value=r.replied||'No';document.getElementById('rm-notes').value=r.note||'';document.getElementById('retail-modal').classList.add('open');}
@@ -945,7 +962,7 @@ async function renderTasks(){
   await loadTasks();
 }
 let _tasks=[];
-async function loadTasks(){const {data:rows=[]}=await sb.from('tasks').select('*,creator:created_by(full_name)').order('created_at',{ascending:false});_tasks=rows;filterTasks();}
+async function loadTasks(){const {data:rows,error}=await sb.from('tasks').select('*').order('created_at',{ascending:false});if(error){console.error('Tasks error:',error);}_tasks=rows;filterTasks();}
 function filterTasks(){
   const search=(document.getElementById('task-search')?.value||'').toLowerCase();
   const filter=document.getElementById('task-filter')?.value||'all';
