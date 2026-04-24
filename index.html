@@ -1016,7 +1016,12 @@ function filterBids(){
     const search=(document.getElementById('bid-search')?.value||'').toLowerCase();
     const filter=document.getElementById('bid-filter')?.value||'';
     let rows=[..._bids];
-    if(filter) rows=rows.filter(function(r){return r.status===filter;});
+    // Handle special filter values
+    if(filter==='due_today') rows=rows.filter(function(r){return r.due_date&&ddiff(r.due_date)<=0&&r.status==='Under Review';});
+    else if(filter==='due_overdue') rows=rows.filter(function(r){return r.due_date&&ddiff(r.due_date)<0&&r.status==='Under Review';});
+    else if(filter==='fu_today') rows=rows.filter(function(r){return r.fu_next_date&&ddiff(r.fu_next_date)<=0&&r.status!=='Win'&&r.status!=='Lost';});
+    else if(filter==='fu_overdue') rows=rows.filter(function(r){return r.fu_next_date&&ddiff(r.fu_next_date)<0&&r.status!=='Win'&&r.status!=='Lost';});
+    else if(filter) rows=rows.filter(function(r){return r.status===filter;});
     if(search) rows=rows.filter(function(r){return ((r.project||'')+(r.gc||'')+(r.ref||'')+(r.poc||'')).toLowerCase().indexOf(search)>=0;});
     rows.sort(function(a,b){
       var da=a.fu_next_date?new Date(a.fu_next_date):new Date('2099-01-01');
