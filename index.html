@@ -419,17 +419,7 @@ document.querySelectorAll('.modal-bg').forEach(m=>m.addEventListener('click',fun
 async function logAct(action,table,rid,details){await sb.from('activity_log').insert({user_id:CU.id,user_name:CP.full_name||CU.email,action,table_name:table,record_id:rid,details});}
 
 function statusBadge(s){
-  const m={
-    'Under Review':'b-review',
-    'Bid Sent':'b-sent',
-    'Follow Up - Email Sent':'b-email',
-    'Follow Up - Called':'b-called',
-    'Reply - Waiting on Owner':'b-waiting',
-    'Reply - Reviewing':'b-reviewing',
-    'Win':'b-win','Lost':'b-lost',
-    'Submitted':'b-sent','Won':'b-win','WON':'b-win','LOST':'b-lost',
-    'Replied':'b-sent','Did Not replay':'b-review'
-  };
+  const m={'Under Review':'b-review','Bid Sent':'b-sent','Win':'b-win','Lost':'b-lost','Submitted':'b-sent','Won':'b-win','WON':'b-win','LOST':'b-lost','Replied':'b-sent','Did Not replay':'b-review'};
   return`<span class="badge ${m[s]||'b-review'}">${s||'Under Review'}</span>`;
 }
 
@@ -525,20 +515,13 @@ async function renderDashboard(){
   const overdueSorted=[...overdueFollowups].sort((a,b)=>ddiff(a.fu_next_date)-ddiff(b.fu_next_date)).slice(0,4);
   const bidsDueList=bids.filter(function(b){return b.due_date&&ddiff(b.due_date)<=0&&b.status==='Under Review';}).sort(function(a,b2){return ddiff(a.due_date)-ddiff(b2.due_date);}).slice(0,6);
 
-  // Follow-up due logic: based on status + days since last_ping
-  var FU_DAYS={'Bid Sent':4,'Follow Up - Email Sent':7,'Follow Up - Called':5,'Reply - Waiting on Owner':7,'Reply - Reviewing':10};
+  // Follow-up due: bids where fu_next_date is today or past and not won/lost
   var fuDueList=bids.filter(function(b){
-    if(b.status==='Win'||b.status==='Lost'||b.status==='Under Review') return false;
-    var daysAllowed=FU_DAYS[b.status];
-    if(!daysAllowed) return false;
-    var lastContact=b.last_ping||b.updated_at;
-    if(!lastContact) return true;
-    var daysSince=Math.round((today-new Date(lastContact))/86400000);
-    return daysSince>=daysAllowed;
+    if(b.status==='Win'||b.status==='Lost') return false;
+    if(!b.fu_next_date) return false;
+    return ddiff(b.fu_next_date)<=0;
   }).sort(function(a,b2){
-    var da=a.last_ping?Math.round((today-new Date(a.last_ping))/86400000):999;
-    var db=b2.last_ping?Math.round((today-new Date(b2.last_ping))/86400000):999;
-    return db-da;
+    return ddiff(a.fu_next_date)-ddiff(b2.fu_next_date);
   }).slice(0,6);
   const tasksSorted=tasks.filter(t=>!t.done&&(t.deadline===todayStr||t.priority==='high')).sort((a,b)=>{const po={high:0,medium:1,low:2};return(po[a.priority]||1)-(po[b.priority]||1);}).slice(0,4);
   const emailsDue=bids.filter(b=>b.fu_next_date&&ddiff(b.fu_next_date)<=0&&(b.fu_status==='email'||b.fu_status==='new'||b.fu_status==='call')&&b.status!=='Win'&&b.status!=='Lost').sort((a,b)=>ddiff(a.fu_next_date)-ddiff(b.fu_next_date)).slice(0,4);
@@ -563,24 +546,21 @@ async function renderDashboard(){
         <div class="achdr"><div class="acdot" style="background:#E24B4A"></div>Follow-ups due &amp; overdue</div>
         ${(function(){
           if(!fuDueList.length) return '<div class="aitem" style="color:#bbb">All clear — no follow-ups due</div>';
-          var nextAction={
-            'Bid Sent':'Send follow-up email',
-            'Follow Up - Email Sent':'Call the GC',
-            'Follow Up - Called':'Follow up again',
-            'Reply - Waiting on Owner':'Check back with GC',
-            'Reply - Reviewing':'Follow up on decision'
-          };
+          var fuLabels={new:'Send Bid',email:'Email sent — awaiting reply',call:'Call needed',waiting:'Waiting on reply',replied:'Replied',closed:'Closed'};
+          var fuAction={new:'Send the bid',email:'Follow up by phone',call:'Call again or escalate',waiting:'Check if decision made',replied:'Log the reply',closed:'Done'};
           return fuDueList.map(function(b){
-            var daysSince=b.last_ping?Math.round((today-new Date(b.last_ping))/86400000):0;
-            var action=nextAction[b.status]||'Follow up';
-            var overdue=daysSince>=(FU_DAYS[b.status]||4);
-            return '<div class="aitem" style="cursor:pointer;flex-direction:column;align-items:flex-start;padding:8px 16px" onclick="showPage("bids")" >'
+            var d=ddiff(b.fu_next_date);
+            var fuKey=b.fu_status||'new';
+            var label=fuLabels[fuKey]||fuKey;
+            var action=fuAction[fuKey]||'Follow up';
+            var isOv=d<0;
+            return '<div class="aitem" style="cursor:pointer;display:flex;flex-direction:column;align-items:flex-start;gap:3px" onclick="showPage(this.dataset.p)" data-p="bids">'
               +'<div style="display:flex;align-items:center;gap:8px;width:100%">'
-              +'<div class="adot" style="background:'+(overdue?'#E24B4A':'#BA7517')+'"></div>'
-              +'<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600">'+(b.project||b.ref||'').substring(0,24)+'</span>'
-              +'<span class="atag" style="background:'+(overdue?'#FCEBEB':'#FEF3E2')+';color:'+(overdue?'#A32D2D':'#854F0B')+'">'+daysSince+'d ago</span>'
+              +'<div class="adot" style="background:'+(isOv?'#E24B4A':'#BA7517')+'"></div>'
+              +'<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600">'+(b.project||b.ref||'').substring(0,22)+'</span>'
+              +'<span class="atag" style="background:'+(isOv?'#FCEBEB':'#FEF3E2')+';color:'+(isOv?'#A32D2D':'#854F0B')+'">'+(d===0?'Today':Math.abs(d)+'d '+(isOv?'late':''))+'</span>'
               +'</div>'
-              +'<div style="font-size:10px;color:#888;margin-top:3px;margin-left:16px">→ '+action+'</div>'
+              +'<div style="font-size:10px;color:#888;padding-left:16px">'+(label)+' → '+action+'</div>'
               +'</div>';
           }).join('');
         })()}
@@ -635,17 +615,7 @@ async function renderBids(){
     <div class="page-hdr"><div><div class="page-title">Bid Opportunities</div><div class="page-sub">All bids · Track follow-ups · Update status as you go</div></div><button class="btn btn-blue" onclick="openBidModal()">+ New Bid</button></div>
     <div class="toolbar">
       <input type="text" id="bid-search" placeholder="Search project, GC, ref..." oninput="filterBids()" style="flex:1;min-width:180px">
-      <select id="bid-filter" onchange="filterBids()">
-  <option value="">All statuses</option>
-  <option>Under Review</option>
-  <option>Bid Sent</option>
-  <option>Follow Up - Email Sent</option>
-  <option>Follow Up - Called</option>
-  <option>Reply - Waiting on Owner</option>
-  <option>Reply - Reviewing</option>
-  <option>Win</option>
-  <option>Lost</option>
-</select>
+      <select id="bid-filter" onchange="filterBids()"><option value="">All statuses</option><option>Under Review</option><option>Bid Sent</option><option>Win</option><option>Lost</option></select>
     </div>
     <div class="tbl-wrap" style="overflow-x:auto">
       <table><thead><tr><th>Ref #</th><th>Project</th><th>GC</th><th>Status</th><th>Follow-Up</th><th>Price</th><th>Profit</th><th>Last Ping</th><th>Last Note</th><th>Employee</th><th></th></tr></thead>
@@ -1488,16 +1458,7 @@ document.addEventListener('input',function(e){if(e.target&&e.target.id==='ped-ta
       <div class="frow"><label>Ref #</label><input id="bm-ref" placeholder="GC26-22-xxx"></div>
       <div class="frow"><label>Source</label><select id="bm-source"><option>PlanHub</option><option>ConstructConnect</option><option>Buildingconnect</option><option>Reach out</option><option>Other</option></select></div>
       <div class="frow"><label>Project Name</label><input id="bm-project"></div>
-      <div class="frow"><label>Status</label><select id="bm-status">
-  <option value="Under Review">Under Review</option>
-  <option value="Bid Sent">Bid Sent</option>
-  <option value="Follow Up - Email Sent">Follow Up - Email Sent</option>
-  <option value="Follow Up - Called">Follow Up - Called</option>
-  <option value="Reply - Waiting on Owner">Reply - Waiting on Owner</option>
-  <option value="Reply - Reviewing">Reply - Reviewing</option>
-  <option value="Win">Win</option>
-  <option value="Lost">Lost</option>
-</select></div>
+      <div class="frow"><label>Status</label><select id="bm-status"><option value="Under Review">Under Review</option><option value="Bid Sent">Bid Sent</option><option value="Win">Win</option><option value="Lost">Lost</option></select></div>
       <div class="frow"><label>GC / Client</label><input id="bm-gc"></div>
       <div class="frow"><label>POC Name</label><input id="bm-poc"></div>
       <div class="frow"><label>Email</label><input id="bm-email"></div>
