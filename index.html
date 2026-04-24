@@ -358,13 +358,16 @@ document.addEventListener("DOMContentLoaded",function(){setInterval(updateTime,1
 // AUTH
 async function doLogin(){
   if(!sb){showAE('Still connecting... please try again in a moment.');return;}
-  var e=document.getElementById('login-email').value.trim(),p=document.getElementById('login-pass').value;
+  var emailEl=document.getElementById('login-email');
+  var passEl=document.getElementById('login-pass');
+  var e=emailEl?emailEl.value.trim():'';
+  var p=passEl?passEl.value:'';
   if(!e||!p){showAE('Please enter email and password');return;}
-  document.getElementById('signin-btn').textContent='Signing in...';document.getElementById('signin-btn').disabled=true;
-  document.querySelector('.auth-btn').disabled=true;
+  var btn=document.getElementById('signin-btn')||document.querySelector('.auth-btn');
+  if(btn){btn.textContent='Signing in...';btn.disabled=true;}
   try{
     var loginRes=await sb.auth.signInWithPassword({email:e,password:p});var data=loginRes.data;var error=loginRes.error;
-    if(error){showAE('Invalid email or password: '+error.message);document.getElementById('signin-btn').textContent='Sign In';document.getElementById('signin-btn').disabled=false;return;}
+    if(error){showAE('Invalid email or password: '+error.message);var b=document.getElementById('signin-btn')||document.querySelector('.auth-btn');if(b){b.textContent='Sign In';b.disabled=false;}return;}
     await initApp(data.user);
   }catch(err){showAE('Connection error. Please try again.');document.getElementById('signin-btn').textContent='Sign In';document.getElementById('signin-btn').disabled=false;}
 }
@@ -1330,7 +1333,7 @@ document.addEventListener('input',function(e){if(e.target&&e.target.id==='ped-ta
     <div class="auth-err" id="auth-err"></div>
     <div class="afield"><label>Email</label><input type="email" id="login-email" placeholder="your@email.com"></div>
     <div class="afield"><label>Password</label><input type="password" id="login-pass" placeholder="Password" onkeydown="if(event.key==='Enter')doLogin()"></div>
-    <button class="auth-btn" onclick="doLogin()" onmousedown="this.style.opacity='0.7'">Sign In</button>
+    <button class="auth-btn" id="signin-btn" onclick="doLogin()" onmousedown="this.style.opacity='0.7'">Sign In</button>
   </div>
 </div>
 
