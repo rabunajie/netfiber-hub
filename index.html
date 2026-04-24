@@ -188,6 +188,14 @@ tr:hover td{background:#fafcff}
 .g-staff{background:#EAF3DE;color:#27500A}
 .g-field{background:#EEEDFE;color:#3C3489}
 
+/* GC FOLLOW-UP */
+.gc-fu-badge{font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;white-space:nowrap;display:inline-flex;align-items:center;gap:4px;cursor:pointer}
+.gc-fu-intro{background:#E6F1FB;color:#0C447C}
+.gc-fu-form{background:#FEF3E2;color:#854F0B}
+.gc-fu-call{background:#FCEBEB;color:#A32D2D}
+.gc-fu-active{background:#EAF3DE;color:#27500A}
+.gc-fu-inactive{background:#F1EFE8;color:#5F5E5A}
+
 /* FOLLOW-UP */
 .fu-badge{font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;white-space:nowrap;display:inline-flex;align-items:center;gap:4px;cursor:pointer}
 .fu-new{background:#EEEDFE;color:#3C3489}
@@ -423,6 +431,38 @@ function statusBadge(s){
   return`<span class="badge ${m[s]||'b-review'}">${s||'Under Review'}</span>`;
 }
 
+var GC_FU={
+  intro:   {l:'Send Intro Email', c:'fu-new',    days:0},
+  emailed: {l:'Email Sent',       c:'fu-email',  days:7},
+  form:    {l:'Vendor Form',      c:'fu-waiting',days:14},
+  call1:   {l:'1st Call Due',     c:'fu-call',   days:14},
+  nurture: {l:'Nurture Call',     c:'fu-email',  days:14},
+  active:  {l:'Active GC',        c:'fu-replied',days:30},
+  inactive:{l:'Inactive',         c:'fu-closed', days:0}
+};
+
+var GC_FU={
+  none:   {l:'Not Contacted',  c:'gc-fu-inactive', days:0},
+  intro:  {l:'Intro Email Sent',c:'gc-fu-intro',   days:3},
+  form:   {l:'Form Needed',    c:'gc-fu-form',     days:7},
+  call:   {l:'Call Scheduled', c:'gc-fu-call',     days:14},
+  active: {l:'Active — Bidding', c:'gc-fu-active',  days:30},
+  nointerest:{l:'Not Interested',c:'gc-fu-inactive',days:0}
+};
+function gcFuBadge(gc){
+  if(!gc||!GC_FU) return '';
+  var key=gc.gc_fu_status||'none';
+  var f=GC_FU[key]||{l:'Follow Up',c:'gc-fu-call'};
+  var diff=gc.gc_next_followup?ddiff(gc.gc_next_followup):null;
+  var extra='';
+  if(diff!==null&&key!=='none'&&key!=='nointerest'){
+    if(diff<0) extra=' <span style="font-size:10px;font-weight:700;color:#E24B4A">'+Math.abs(diff)+'d overdue</span>';
+    else if(diff===0) extra=' <span style="font-size:10px;font-weight:700;color:#BA7517">Today</span>';
+    else if(diff<=3) extra=' <span style="font-size:10px;color:#888">in '+diff+'d</span>';
+  }
+  return '<span class="gc-fu-badge '+f.c+'" onclick="openGCFU(event,\"'+gc.id+'\")" title="Click to log follow-up">'+f.l+extra+'</span>';
+}
+
 var FU={
   none:   {l:'No Follow-Up',    c:'fu-new'},
   sent:   {l:'Bid Sent — Follow Up',c:'fu-email'},
@@ -456,6 +496,26 @@ function fuBadge(bid){
   return '<span class="fu-badge ' + cls + '" onclick="openFU(event,\'' + bid.id + '\')" title="Double-click row or click badge to log follow-up">' + f.l + extra + '</span>';
 }
 // fuBadge defined below
+function gcFuBadge(gc){
+  if(!gc||!GC_FU) return '';
+  var key = gc.gc_fu_status || 'intro';
+  var f = GC_FU[key] || {l:'Follow Up',c:'fu-new'};
+  var diff = gc.gc_fu_next_date ? ddiff(gc.gc_fu_next_date) : null;
+  var extra = '';
+  var cls = f.c;
+  if(diff !== null){
+    if(diff < 0){
+      extra = ' <span style="font-size:10px;font-weight:700;color:#E24B4A">'+Math.abs(diff)+'d overdue</span>';
+      cls = 'fu-call';
+    } else if(diff === 0){
+      extra = ' <span style="font-size:10px;font-weight:700;color:#BA7517">Today</span>';
+    } else if(diff <= 3){
+      extra = ' <span style="font-size:10px;color:#888">in '+diff+'d</span>';
+    }
+  }
+  return '<span class="fu-badge '+cls+'" onclick="openGCFU(event,\"'+gc.id+'\")" title="Click to log contact">'+f.l+extra+'</span>';
+}
+
 function rowCls(bid){if(!bid.fu_next_date)return'';const d=ddiff(bid.fu_next_date);if(d<0)return'ov-row';if(d===0)return'tod-row';return'';}
 
 // NAVIGATION
@@ -535,7 +595,30 @@ async function renderDashboard(){
   const opsModules='';
 
   const overdueSorted=[...overdueFollowups].sort((a,b)=>ddiff(a.fu_next_date)-ddiff(b.fu_next_date)).slice(0,4);
-  const bidsDueList=bids.filter(function(b){return b.due_date&&ddiff(b.due_date)<=0&&b.status==='Under Review';}).sort(function(a,b2){return ddiff(a.due_date)-ddiff(b2.due_date);}).slice(0,6);
+  // GC follow-ups due
+  var gcFuDueList=typeof _gcs!=='undefined'?_gcs.filter(function(g){
+    if(g.gc_fu_status==='inactive'||g.gc_fu_status==='active') return false;
+    if(g.gc_fu_next_date) return ddiff(g.gc_fu_next_date)<=0;
+    // Catch GCs with no follow-up scheduled - intro not sent yet
+    if(!g.gc_fu_status||g.gc_fu_status==='intro') return true;
+    return false;
+  }).sort(function(a,b){
+    var da=a.gc_fu_next_date?ddiff(a.gc_fu_next_date):1;
+    var db=b.gc_fu_next_date?ddiff(b.gc_fu_next_date):1;
+    return da-db;
+  }).slice(0,6):[];
+
+  // GC follow-ups due
+  var gcDueList=[];
+  if(typeof _gcs !== 'undefined' && _gcs.length){
+    gcDueList=_gcs.filter(function(g){
+      if(g.gc_fu_status==='nointerest'||g.gc_fu_status==='none'||!g.gc_fu_status) return false;
+      if(!g.gc_next_followup) return false;
+      return ddiff(g.gc_next_followup)<=0;
+    }).sort(function(a,b){return ddiff(a.gc_next_followup)-ddiff(b.gc_next_followup);}).slice(0,5);
+  }
+
+    const bidsDueList=bids.filter(function(b){return b.due_date&&ddiff(b.due_date)<=0&&b.status==='Under Review';}).sort(function(a,b2){return ddiff(a.due_date)-ddiff(b2.due_date);}).slice(0,6);
 
   // Follow-up due: bids where fu_next_date is today or past, not won/lost
   // Also include Bid Sent bids older than 4 days with no fu_next_date set
@@ -621,17 +704,53 @@ async function renderDashboard(){
       </div>
     </div>
 
+    <div style="margin-bottom:12px">
+      <div class="acard" style="border-radius:12px;overflow:hidden">
+        <div class="achdr" style="background:#fff"><div class="acdot" style="background:#534AB7"></div>GC Relationship Follow-Ups — due &amp; overdue</div>
+        ${(function(){
+          if(!gcFuDueList.length) return '<div class="aitem" style="color:#bbb">All GC follow-ups are up to date</div>';
+          var actionMap={intro:'Send intro email',emailed:'Call to follow up',form:'Check on vendor form',call1:'Call again',nurture:'Sonia — scheduled nurture call'};
+          return gcFuDueList.map(function(g){
+            var d=g.gc_fu_next_date?ddiff(g.gc_fu_next_date):null;
+            var isOv=d!==null&&d<0;
+            var key=g.gc_fu_status||'intro';
+            var f=GC_FU[key]||{l:'Contact',c:'fu-new'};
+            var action=actionMap[key]||'Follow up';
+            return '<div class="aitem" style="display:flex;flex-direction:column;align-items:flex-start;gap:3px;cursor:pointer" onclick="showPage(\"gc\")">'
+              +'<div style="display:flex;align-items:center;gap:8px;width:100%">'
+              +'<div class="adot" style="background:'+(isOv?'#E24B4A':'#534AB7')+'"></div>'
+              +'<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600">'+(g.company||'').substring(0,26)+'</span>'
+              +'<span class="atag" style="background:'+(isOv?'#FCEBEB':'#EEEDFE')+';color:'+(isOv?'#A32D2D':'#3C3489')+'">'+(d===null?'No date set':d===0?'Today':isOv?Math.abs(d)+'d late':d+'d')+'</span>'
+              +'</div>'
+              +'<div style="font-size:10px;color:#888;padding-left:16px">'+f.l+' → '+action+'</div>'
+              +'</div>';
+          }).join('');
+        })()}
+      </div>
+    </div>
+
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
       <div class="acard">
         <div class="achdr"><div class="acdot" style="background:#BA7517"></div>Tasks needing attention</div>
         ${tasksSorted.length?tasksSorted.map(t=>`<div class="aitem"><div class="adot" style="background:${t.priority==='high'?'#E24B4A':t.priority==='medium'?'#BA7517':'#aaa'}"></div><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.name.substring(0,30)}</span><span class="atag" style="background:${t.priority==='high'?'#FCEBEB':t.priority==='medium'?'#FEF3E2':'#f5f5f5'};color:${t.priority==='high'?'#A32D2D':t.priority==='medium'?'#854F0B':'#888'}">${t.priority}</span></div>`).join(''):'<div class="aitem" style="color:#bbb">No urgent tasks</div>'}
       </div>
       <div class="acard">
-        <div class="achdr"><div class="acdot" style="background:#1D9E75"></div>Quick stats</div>
-        <div class="aitem"><div class="adot" style="background:#1B5E9B"></div>Total bids submitted<span class="atag" style="background:#E6F1FB;color:#0C447C">${bids.length}</span></div>
-        <div class="aitem"><div class="adot" style="background:#1D9E75"></div>Projects won<span class="atag" style="background:#EAF3DE;color:#27500A">${wins.length}</span></div>
-        <div class="aitem"><div class="adot" style="background:#E24B4A"></div>Lost bids<span class="atag" style="background:#FCEBEB;color:#A32D2D">${bids.filter(b=>b.status==='Lost').length}</span></div>
-        <div class="aitem"><div class="adot" style="background:#888"></div>Pending decisions<span class="atag" style="background:#f5f5f5;color:#888">${bids.filter(b=>b.status==='Bid Sent'||b.status==='Under Review').length}</span></div>
+        <div class="achdr"><div class="acdot" style="background:#1D9E75"></div>GC Calls due &amp; overdue</div>
+        ${(function(){
+          if(!gcDueList||!gcDueList.length) return '<div class="aitem" style="color:#bbb">No GC calls due today</div>';
+          return gcDueList.map(function(g){
+            var d=ddiff(g.gc_next_followup);
+            var f=GC_FU[g.gc_fu_status]||{l:'Call',c:'gc-fu-call'};
+            return '<div class="aitem" style="cursor:pointer;display:flex;flex-direction:column;align-items:flex-start;gap:2px" onclick="showPage("gc")">'
+              +'<div style="display:flex;align-items:center;gap:8px;width:100%">'
+              +'<div class="adot" style="background:'+(d<0?'#E24B4A':'#BA7517')+'"></div>'
+              +'<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600">'+(g.company||'').substring(0,22)+'</span>'
+              +'<span class="atag" style="background:'+(d<0?'#FCEBEB':'#FEF3E2')+';color:'+(d<0?'#A32D2D':'#854F0B')+'">'+(d===0?'Today':Math.abs(d)+'d '+(d<0?'late':''))+'</span>'
+              +'</div>'
+              +'<div style="font-size:10px;color:#888;padding-left:16px">'+(g.contact||'Sonia')+'</div>'
+              +'</div>';
+          }).join('');
+        })()}
       </div>
     </div>
   `;
@@ -735,14 +854,14 @@ async function renderGC(){
       <select id="gc-filter" onchange="filterGC()"><option value="">All</option><option value="Yes">Replied</option><option value="No">No reply</option></select>
     </div>
     <div class="tbl-wrap" style="overflow-x:auto">
-      <table><thead><tr><th>Company</th><th>Contact</th><th>Email</th><th>Phone</th><th>City</th><th>Priority</th><th>Replied</th><th>Notes</th><th>By</th><th></th></tr></thead>
+      <table><thead><tr><th>Company</th><th>Contact</th><th>Email</th><th>Phone</th><th>City</th><th>Priority</th><th>Replied</th><th>Follow-Up</th><th>Next Contact</th><th></th></tr></thead>
       <tbody id="gc-body"><tr><td colspan="10" class="loading"><span class="spinner"></span></td></tr></tbody></table>
     </div>`;
   await loadGC();
 }
 var _gcs=[];
 async function loadGC(){const {data:rows,error}=await sb.from('gc_contacts').select('*').order('created_at',{ascending:false});if(error){console.error('GC error:',error);var tb=document.getElementById('gc-body');if(tb)tb.innerHTML='<tr><td colspan="10" style="color:red;padding:1rem">Error: '+error.message+'</td></tr>';return;}_gcs=rows||[];filterGC();}
-function filterGC(){const search=(document.getElementById('gc-search')?.value||'').toLowerCase();const filter=document.getElementById('gc-filter')?.value||'';let rows=[..._gcs];if(filter)rows=rows.filter(r=>r.replied===filter);if(search)rows=rows.filter(r=>(r.company+r.contact+r.email).toLowerCase().includes(search));const tbody=document.getElementById('gc-body');if(!tbody)return;tbody.innerHTML=rows.map(r=>`<tr><td style="font-weight:600">${r.company||''}</td><td style="font-size:12px">${(r.contact||'').split('\n')[0]}</td><td style="font-size:12px"><a href="mailto:${(r.email||'').split('\n')[0]}" style="color:#1B5E9B">${(r.email||'').split('\n')[0]}</a></td><td style="font-size:12px">${(r.phone||'').split('\n')[0]}</td><td style="font-size:12px">${(r.city||'').split('\n')[0]}</td><td><span class="${r.priority==='1st'?'pri-1':r.priority==='2nd'?'pri-2':'pri-3'}">${r.priority||'—'}</span></td><td><span class="badge ${r.replied==='Yes'?'b-yes':'b-no'}">${r.replied||'No'}</span></td><td class="note-cell">${r.note||''}</td><td class="by-cell">${r.updater?.full_name||r.creator?.full_name||'—'}</td><td style="display:flex;gap:4px"><button class="btn-sm" onclick="editGC('${r.id}')">Edit</button><button class="btn-danger" onclick="delGC('${r.id}','${(r.company||'').replace(/'/g,'`')}')">×</button></td></tr>`).join('')||'<tr><td colspan="10" style="text-align:center;padding:2rem;color:#bbb">No contacts found.</td></tr>';}
+function filterGC(){const search=(document.getElementById('gc-search')?.value||'').toLowerCase();const filter=document.getElementById('gc-filter')?.value||'';let rows=[..._gcs];if(filter)rows=rows.filter(r=>r.replied===filter);if(search)rows=rows.filter(r=>(r.company+r.contact+r.email).toLowerCase().includes(search));const tbody=document.getElementById('gc-body');if(!tbody)return;tbody.innerHTML=rows.map(r=>`<tr><td style="font-weight:600">${r.company||''}</td><td style="font-size:12px">${(r.contact||'').split('\n')[0]}</td><td style="font-size:12px"><a href="mailto:${(r.email||'').split('\n')[0]}" style="color:#1B5E9B">${(r.email||'').split('\n')[0]}</a></td><td style="font-size:12px">${(r.phone||'').split('\n')[0]}</td><td style="font-size:12px">${(r.city||'').split('\n')[0]}</td><td><span class="${r.priority==='1st'?'pri-1':r.priority==='2nd'?'pri-2':'pri-3'}">${r.priority||'—'}</span></td><td><span class="badge ${r.replied==='Yes'?'b-yes':'b-no'}">${r.replied||'No'}</span></td><td class="note-cell">${r.note||''}</td><td class="by-cell">${r.updater?.full_name||r.creator?.full_name||'—'}</td><td>${gcFuBadge(r)}</td><td style="font-size:11px;color:#888">${r.gc_fu_next_date?fmtD(r.gc_fu_next_date):'—'}</td><td style="display:flex;gap:4px"><button class="btn-sm" onclick="editGC('${r.id}')">Edit</button><button class="btn-danger" onclick="delGC('${r.id}','${(r.company||'').replace(/'/g,'`')}')">×</button></td></tr>`).join('')||'<tr><td colspan="10" style="text-align:center;padding:2rem;color:#bbb">No contacts found.</td></tr>';}
 function openGCModal(){editGCId=null;document.getElementById('gc-modal-title').textContent='New GC Contact';['company','contact','email','phone','city','notes','fdate'].forEach(f=>document.getElementById('gm-'+f).value='');document.getElementById('gm-priority').value='1st';document.getElementById('gm-replied').value='No';document.getElementById('gc-modal').classList.add('open');}
 async function editGC(id){const {data:r}=await sb.from('gc_contacts').select('*').eq('id',id).single();if(!r)return;editGCId=id;document.getElementById('gc-modal-title').textContent='Edit GC';['company','contact','email','phone','city'].forEach(f=>document.getElementById('gm-'+f).value=r[f]||'');document.getElementById('gm-priority').value=r.priority||'1st';document.getElementById('gm-replied').value=r.replied||'No';document.getElementById('gm-notes').value=r.note||'';document.getElementById('gm-fdate').value=r.first_email||'';document.getElementById('gc-modal').classList.add('open');}
 async function saveGC(){const obj={company:document.getElementById('gm-company').value,contact:document.getElementById('gm-contact').value,email:document.getElementById('gm-email').value,phone:document.getElementById('gm-phone').value,city:document.getElementById('gm-city').value,priority:document.getElementById('gm-priority').value,replied:document.getElementById('gm-replied').value,note:document.getElementById('gm-notes').value,first_email:document.getElementById('gm-fdate').value||null,updated_by:CU.id,updated_at:new Date().toISOString()};if(editGCId){await sb.from('gc_contacts').update(obj).eq('id',editGCId);await logAct('Updated GC','gc_contacts',editGCId,`Updated ${obj.company}`);}else{obj.created_by=CU.id;const {data}=await sb.from('gc_contacts').insert(obj).select().single();await logAct('Added GC','gc_contacts',data?.id,`Added ${obj.company}`);}closeModal('gc-modal');await loadGC();}
@@ -1453,6 +1572,78 @@ async function printInvoice(){
 }
 
 document.addEventListener('input',function(e){if(e.target&&e.target.id==='ped-taxrate')calcTotals();});
+
+// GC FOLLOW-UP SYSTEM
+var currentGCId = null;
+
+async function openGCFU(e, gcId){
+  e.stopPropagation();
+  currentGCId = gcId;
+  var res = await sb.from('gc_contacts').select('*').eq('id', gcId).single();
+  var gc = res.data;
+  if(!gc) return;
+  document.getElementById('gc-fu-company').textContent = gc.company || 'GC Contact';
+  document.getElementById('gc-fu-contact').textContent = gc.contact || '';
+  var key = gc.gc_fu_status || 'none';
+  var f = GC_FU[key] || {l:'Not Contacted', c:'gc-fu-inactive'};
+  document.getElementById('gc-fu-cur-status').innerHTML = '<span class="gc-fu-badge '+f.c+'">'+f.l+'</span>';
+  var nd = gc.gc_next_followup;
+  if(nd){
+    var diff = ddiff(nd);
+    document.getElementById('gc-fu-next-action').innerHTML = diff<0
+      ? '<span style="color:#E24B4A;font-weight:700">'+Math.abs(diff)+'d overdue — Call now!</span>'
+      : diff===0 ? '<span style="color:#BA7517;font-weight:700">Due TODAY — Call Sonia</span>'
+      : 'In '+diff+' day'+(diff!==1?'s':'')+' ('+fmtD(nd)+')';
+    document.getElementById('gc-fu-next-date').value = nd;
+  } else {
+    document.getElementById('gc-fu-next-action').textContent = 'Not scheduled';
+    var def = new Date(); def.setDate(def.getDate()+14);
+    document.getElementById('gc-fu-next-date').value = def.toISOString().split('T')[0];
+  }
+  document.getElementById('gc-fu-last-contact').textContent = gc.last_contact ? fmtD(gc.last_contact) : 'Never';
+  await loadGCFUHistory(gcId);
+  document.getElementById('gc-fu-modal').classList.add('open');
+}
+
+async function loadGCFUHistory(gcId){
+  var res = await sb.from('activity_log').select('*').eq('table_name','gc_followup').eq('record_id',gcId).order('created_at',{ascending:false});
+  var logs = res.data || [];
+  var typeLabel = {email:'Email',call:'Phone Call',visit:'In Person',note:'Note'};
+  var typeClass = {email:'ftp-email',call:'ftp-call',visit:'ftp-meeting',note:'ftp-note'};
+  document.getElementById('gc-fu-history').innerHTML = logs.length ? logs.map(function(l){
+    var p = {};
+    try{ p = JSON.parse(l.details); }catch(ex){ p = {note:l.details}; }
+    return '<div class="fu-log-item"><span class="fu-type-pill '+(typeClass[p.type]||'ftp-note')+'">'+(typeLabel[p.type]||'Note')+'</span><div style="flex:1"><div style="font-size:13px">'+(p.note||'')+'</div><div style="font-size:11px;color:#bbb;margin-top:3px">'+l.user_name+' · '+new Date(l.created_at).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})+'</div></div></div>';
+  }).join('') : '<div style="color:#bbb;font-size:13px;padding:1rem 0">No activity yet. Double-click a GC row to log your first follow-up.</div>';
+}
+
+async function logGCFollowUp(){
+  var type = document.getElementById('gc-fu-type').value;
+  var note = document.getElementById('gc-fu-note-input').value.trim();
+  var statusAfter = document.getElementById('gc-fu-status-after').value;
+  var nextDateEl = document.getElementById('gc-fu-next-date');
+  var autoDays = {intro:3, form:7, call:14, active:30, nointerest:0};
+  var days = autoDays[statusAfter] || 14;
+  var nextDate;
+  if(nextDateEl && nextDateEl.value){
+    nextDate = nextDateEl.value;
+  } else if(days > 0){
+    var nd2 = new Date(); nd2.setDate(nd2.getDate()+days);
+    nextDate = nd2.toISOString().split('T')[0];
+  } else { nextDate = null; }
+  if(!note){ alert('Please write a note about what happened.'); return; }
+  await sb.from('gc_contacts').update({gc_fu_status:statusAfter, gc_next_followup:nextDate, last_contact:new Date().toISOString().split('T')[0], updated_by:CU.id, updated_at:new Date().toISOString()}).eq('id', currentGCId);
+  await logAct('GC follow-up','gc_followup',currentGCId,JSON.stringify({type:type,note:note,status:statusAfter,next:nextDate}));
+  document.getElementById('gc-fu-note-input').value = '';
+  var gcRes2 = await sb.from('gc_contacts').select('*').eq('id',currentGCId).single();
+  var gc2 = gcRes2.data;
+  var f3 = GC_FU[statusAfter]||{l:'Follow Up',c:'gc-fu-call'};
+  document.getElementById('gc-fu-cur-status').innerHTML = '<span class="gc-fu-badge '+f3.c+'">'+f3.l+'</span>';
+  if(gc2) document.getElementById('gc-fu-last-contact').textContent = fmtD(gc2.last_contact);
+  await loadGCFUHistory(currentGCId);
+  await loadGC();
+}
+
 </script>
 </head>
 <body>
@@ -1784,5 +1975,106 @@ document.addEventListener('input',function(e){if(e.target&&e.target.id==='ped-ta
     </div>
   </div>
 </div>
+
+<div class="modal-bg" id="gc-fu-modal">
+  <div class="fu-panel">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+      <div>
+        <div id="gc-fu-company" style="font-size:16px;font-weight:700;color:#1B5E9B"></div>
+        <div id="gc-fu-contact" style="font-size:12px;color:#aaa;margin-top:2px"></div>
+      </div>
+      <button class="btn btn-sm" onclick="closeModal('gc-fu-modal')">Close</button>
+    </div>
+    <div style="display:flex;gap:10px;padding:12px 14px;background:#f9fafb;border-radius:10px;border:0.5px solid #eee;margin-bottom:1rem">
+      <div style="flex:1"><div style="font-size:10px;font-weight:700;color:#aaa;text-transform:uppercase;margin-bottom:4px">Status</div><div id="gc-fu-cur-status"></div></div>
+      <div style="flex:1"><div style="font-size:10px;font-weight:700;color:#aaa;text-transform:uppercase;margin-bottom:4px">Next Action</div><div id="gc-fu-next-action" style="font-size:13px;font-weight:600;color:#1a1a1a"></div></div>
+      <div style="flex:1"><div style="font-size:10px;font-weight:700;color:#aaa;text-transform:uppercase;margin-bottom:4px">Last Contact</div><div id="gc-fu-last-contact" style="font-size:13px;color:#555"></div></div>
+    </div>
+    <div style="background:#F0F7FF;border:1px solid #B5D4F4;border-radius:10px;padding:14px;margin-bottom:1rem">
+      <div style="font-size:12px;font-weight:700;color:#1B5E9B;margin-bottom:10px">Log Contact</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+        <div style="flex:0 0 130px"><div style="font-size:10px;font-weight:700;color:#555;margin-bottom:4px;text-transform:uppercase">Type</div>
+          <select id="gc-fu-type" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:8px;font-size:12px;outline:none">
+            <option value="email">Email</option>
+            <option value="call">Phone Call</option>
+            <option value="form">Vendor Form</option>
+            <option value="meeting">Meeting</option>
+            <option value="note">Note</option>
+          </select>
+        </div>
+        <div style="flex:0 0 160px"><div style="font-size:10px;font-weight:700;color:#555;margin-bottom:4px;text-transform:uppercase">Status After</div>
+          <select id="gc-fu-status-after" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:8px;font-size:12px;outline:none">
+            <option value="emailed">Intro email sent (call in 7d)</option>
+            <option value="form">They asked for vendor form</option>
+            <option value="call1">1st call done (call again in 14d)</option>
+            <option value="nurture">Nurture — call every 2 weeks</option>
+            <option value="active">Active — working together</option>
+            <option value="inactive">Inactive — no response</option>
+          </select>
+        </div>
+        <div style="flex:0 0 140px"><div style="font-size:10px;font-weight:700;color:#555;margin-bottom:4px;text-transform:uppercase">Next Contact</div>
+          <input type="date" id="gc-fu-next-date" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:8px;font-size:12px;outline:none">
+        </div>
+        <div style="flex:1;min-width:160px"><div style="font-size:10px;font-weight:700;color:#555;margin-bottom:4px;text-transform:uppercase">Note</div>
+          <input type="text" id="gc-fu-note" placeholder="What happened? Who did you speak with?" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:8px;font-size:12px;outline:none" onkeydown="if(event.key==='Enter')logGCFollowUp()">
+        </div>
+        <button class="btn btn-blue" onclick="logGCFollowUp()" style="padding:7px 14px;font-size:12px">Log it</button>
+      </div>
+    </div>
+    <div style="font-size:12px;font-weight:700;color:#555;margin-bottom:10px">History</div>
+    <div id="gc-fu-history" style="border-left:2px solid #eee;padding-left:14px;margin-left:6px"></div>
+  </div>
+</div>
+
+
+<!-- GC FOLLOW-UP MODAL -->
+<div class="modal-bg" id="gc-fu-modal">
+  <div class="fu-panel">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+      <div>
+        <div id="gc-fu-company" style="font-size:16px;font-weight:700;color:#1B5E9B"></div>
+        <div id="gc-fu-contact" style="font-size:12px;color:#aaa;margin-top:2px"></div>
+      </div>
+      <button class="btn btn-sm" onclick="closeModal('gc-fu-modal')">Close</button>
+    </div>
+    <div style="display:flex;gap:10px;padding:12px 14px;background:#f9fafb;border-radius:10px;border:0.5px solid #eee;margin-bottom:1rem">
+      <div style="flex:1"><div style="font-size:10px;font-weight:700;color:#aaa;text-transform:uppercase;margin-bottom:4px">Status</div><div id="gc-fu-cur-status"></div></div>
+      <div style="flex:1"><div style="font-size:10px;font-weight:700;color:#aaa;text-transform:uppercase;margin-bottom:4px">Next Follow-Up</div><div id="gc-fu-next-action" style="font-size:13px;font-weight:600;color:#1a1a1a"></div></div>
+      <div style="flex:1"><div style="font-size:10px;font-weight:700;color:#aaa;text-transform:uppercase;margin-bottom:4px">Last Contact</div><div id="gc-fu-last-contact" style="font-size:13px;color:#555"></div></div>
+    </div>
+    <div style="background:#F0F7FF;border:1px solid #B5D4F4;border-radius:10px;padding:14px;margin-bottom:1rem">
+      <div style="font-size:12px;font-weight:700;color:#1B5E9B;margin-bottom:10px">Log Activity</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+        <div style="flex:0 0 130px"><div style="font-size:10px;font-weight:700;color:#555;margin-bottom:4px;text-transform:uppercase">Type</div>
+          <select id="gc-fu-type" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:8px;font-size:12px;outline:none">
+            <option value="email">Email</option>
+            <option value="call">Phone Call</option>
+            <option value="visit">In Person</option>
+            <option value="note">Note</option>
+          </select>
+        </div>
+        <div style="flex:0 0 160px"><div style="font-size:10px;font-weight:700;color:#555;margin-bottom:4px;text-transform:uppercase">Update Status</div>
+          <select id="gc-fu-status-after" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:8px;font-size:12px;outline:none">
+            <option value="intro">Intro Email Sent</option>
+            <option value="form">GC Needs Form Filled</option>
+            <option value="call">Called — follow up in 14 days</option>
+            <option value="active">Active — providing bids</option>
+            <option value="nointerest">Not Interested</option>
+          </select>
+        </div>
+        <div style="flex:0 0 140px"><div style="font-size:10px;font-weight:700;color:#555;margin-bottom:4px;text-transform:uppercase">Next Follow-Up</div>
+          <input type="date" id="gc-fu-next-date" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:8px;font-size:12px;outline:none">
+        </div>
+        <div style="flex:1;min-width:160px"><div style="font-size:10px;font-weight:700;color:#555;margin-bottom:4px;text-transform:uppercase">Note</div>
+          <input type="text" id="gc-fu-note-input" placeholder="What happened? Who did you speak with?" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:8px;font-size:12px;outline:none" onkeydown="if(event.key==='Enter')logGCFollowUp()">
+        </div>
+        <button class="btn btn-blue" onclick="logGCFollowUp()" style="padding:7px 14px;font-size:12px">Log it</button>
+      </div>
+    </div>
+    <div style="font-size:12px;font-weight:700;color:#555;margin-bottom:10px">History</div>
+    <div id="gc-fu-history" style="border-left:2px solid #eee;padding-left:14px;margin-left:6px"></div>
+  </div>
+</div>
+
 </body>
 </html>
