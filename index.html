@@ -1578,23 +1578,18 @@ async function saveEditTask(){
 var _pc={};
 function renderPipelinePage(){
   var mc=document.getElementById('main-content');
-  mc.innerHTML='<div style="padding:0"><div class="page-hdr"><div><div class="page-title">Business Pipeline Report</div><div class="page-sub">Track performance and drive growth</div></div>'
+  mc.innerHTML='<div style="padding:0">'
+    +'<div class="page-hdr"><div><div class="page-title">Business Pipeline Report</div><div class="page-sub">Track performance and drive growth</div></div>'
     +'<div style="display:flex;gap:8px"><select id="pipeline-range" onchange="renderPipeline()" style="padding:8px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px;background:#fff"><option value="3">Last 3 months</option><option value="6" selected>Last 6 months</option><option value="12">Last 12 months</option><option value="0">All time</option></select>'
     +'<button class="btn btn-blue" onclick="exportPipelinePDF()">Download PDF</button></div></div>'
     +'<div id="pipeline-kpis" style="display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:20px"></div>'
-    +'<div style="display:grid;grid-template-columns:1.5fr 1fr;gap:16px;margin-bottom:16px">'
-    +'<div class="card" style="padding:20px"><div style="font-size:13px;font-weight:700;margin-bottom:16px">Bids Sent per Month</div><canvas id="chart-bids-monthly" height="200"></canvas></div>'
-    +'<div class="card" style="padding:20px"><div style="font-size:13px;font-weight:700;margin-bottom:16px">Won vs Lost per Month</div><canvas id="chart-bid-status" height="200"></canvas></div>'
-    +'</div>'
-    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">'
-    +'<div class="card" style="padding:20px"><div style="font-size:13px;font-weight:700;margin-bottom:16px">GC Response Rate</div><canvas id="chart-gc-response" height="200"></canvas></div>'
-    +'<div class="card" style="padding:20px"><div style="font-size:13px;font-weight:700;margin-bottom:16px">Revenue Pipeline ($)</div><canvas id="chart-revenue" height="200"></canvas></div>'
-    +'</div>'
-    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">'
-    +'<div class="card" style="padding:20px"><div style="font-size:13px;font-weight:700;margin-bottom:16px">Win Rate % per Month</div><canvas id="chart-win-rate" height="200"></canvas></div>'
-    +'<div class="card" style="padding:20px"><div style="font-size:13px;font-weight:700;margin-bottom:16px">New GC Contacts per Month</div><canvas id="chart-gc-status" height="200"></canvas></div>'
-    +'</div>'
-    +'<div class="card" style="padding:20px;margin-bottom:40px"><div style="font-size:13px;font-weight:700;margin-bottom:14px">Key Insights</div><div id="pipeline-insights" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px"></div></div>'
+    +'<div class="card" style="padding:24px;margin-bottom:16px"><div style="font-size:13px;font-weight:700;color:#1a1a2e;margin-bottom:20px">&#128202; Bids Sent per Month</div><canvas id="chart-bids-monthly" height="100"></canvas></div>'
+    +'<div class="card" style="padding:24px;margin-bottom:16px"><div style="font-size:13px;font-weight:700;color:#1a1a2e;margin-bottom:20px">&#127942; Won vs Lost per Month</div><canvas id="chart-bid-status" height="100"></canvas></div>'
+    +'<div class="card" style="padding:24px;margin-bottom:16px"><div style="font-size:13px;font-weight:700;color:#1a1a2e;margin-bottom:20px">&#128200; Win Rate % per Month</div><canvas id="chart-win-rate" height="100"></canvas></div>'
+    +'<div class="card" style="padding:24px;margin-bottom:16px"><div style="font-size:13px;font-weight:700;color:#1a1a2e;margin-bottom:20px">&#128176; Revenue Pipeline ($)</div><canvas id="chart-revenue" height="100"></canvas></div>'
+    +'<div class="card" style="padding:24px;margin-bottom:16px"><div style="font-size:13px;font-weight:700;color:#1a1a2e;margin-bottom:20px">&#128222; GC Response Rate</div><canvas id="chart-gc-response" height="100"></canvas></div>'
+    +'<div class="card" style="padding:24px;margin-bottom:16px"><div style="font-size:13px;font-weight:700;color:#1a1a2e;margin-bottom:20px">&#129309; New GC Contacts per Month</div><canvas id="chart-gc-status" height="100"></canvas></div>'
+    +'<div class="card" style="padding:24px;margin-bottom:40px"><div style="font-size:13px;font-weight:700;color:#1a1a2e;margin-bottom:14px">&#128161; Key Insights</div><div id="pipeline-insights" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px"></div></div>'
     +'</div>';
   setTimeout(renderPipeline,150);
 }
