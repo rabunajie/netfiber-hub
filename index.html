@@ -1142,218 +1142,26 @@ async function delBid(id,name){if(!confirm(`Delete bid "${name}"?`))return;await
 async function renderGC(){
   const mc=document.getElementById('main-content');
   mc.innerHTML=`
-    <div id="gc-summary-badges" style="display:flex;gap:10px;padding:10px 24px 0;flex-wrap:wrap"></div>
+    <div id="gc-summary-badges" style="display:flex;gap:10px;padding:10px 0 4px;flex-wrap:wrap"></div>
     <div class="page-hdr"><div><div class="page-title">GC Contacts</div><div class="page-sub">General contractor relationships</div></div><button class="btn btn-blue" onclick="openGCModal()">+ New GC</button></div>
     <div class="toolbar">
       <input type="text" id="gc-search" placeholder="Search company, contact..." oninput="filterGC()" style="flex:1;min-width:180px">
-      <select id="gc-filter" onchange="filterGC()" style="padding:8px 12px;border:1px solid #e0e6f0;border-radius:8px;font-size:13px;background:#fff;color:#333;cursor:pointer;min-width:210px">
-  <option value="">All GC Contacts</option>
-  <optgroup label="── By Reply ──">
-    <option value="replied_yes">✅ Replied</option>
-    <option value="replied_no">❌ No Reply</option>
+      <select id="gc-filter" onchange="filterGC()" style="padding:8px 12px;border:1px solid #e0e6f0;border-radius:8px;font-size:13px;background:#fff;color:#333;cursor:pointer">
+  <option value="">All Contacts</option>
+  <optgroup label="Email Follow-Up">
+    <option value="email_today">📧 Email Due Today</option>
+    <option value="email_overdue">📧 Email Overdue</option>
   </optgroup>
-  <optgroup label="── By Follow-Up Status ──">
-    <option value="fu_none">💤 Not Contacted</option>
-    <option value="fu_intro">📧 Intro Email Sent</option>
-    <option value="fu_form">📋 Form Needed</option>
-    <option value="fu_call">📞 Called</option>
-    <option value="fu_active">🟢 Active — Bidding</option>
-    <option value="fu_nointerest">🚫 Not Interested</option>
+  <optgroup label="Phone Follow-Up">
+    <option value="call_today">📞 Call Due Today</option>
+    <option value="call_overdue">📞 Call Overdue</option>
   </optgroup>
-  <optgroup label="── By Call Schedule ──">
-    <option value="call_today">📅 Call Due Today</option>
-    <option value="call_overdue">🔴 Call Overdue</option>
-    <option value="call_upcoming">⏰ Call in Next 7 Days</option>
-    <option value="no_call">💤 No Call Scheduled</option>
+  <optgroup label="GC Sent a Bid">
+    <option value="fu_estimation">📋 Sent to Estimation</option>
+    <option value="fu_est_yes">Estimation — We Bid</option>
+    <option value="fu_est_no">Estimation — Pass</option>
   </optgroup>
-  <optgroup label="── By Priority ──">
-    <option value="pri_1st">🥇 1st Priority</option>
-    <option value="pri_2nd">🥈 2nd Priority</option>
-    <option value="pri_3rd">🥉 3rd Priority</option>
-  </optgroup>
-</select
-    </div>
-    <div class="tbl-wrap" style="overflow-x:auto">
-      <table><thead><tr><th>Company</th><th>Contact</th><th>Email</th><th>Phone</th><th>City</th><th>Priority</th><th>Replied</th><th>Follow-Up</th><th>Next Call</th><th></th></tr></thead>
-      <tbody id="gc-body"><tr><td colspan="10" class="loading"><span class="spinner"></span></td></tr></tbody></table>
-    </div>`;
-  await loadGC();
-}
-var _gcs=[];
-async function loadGC(){
-  var gcRes=await sb.from('gc_contacts').select('*').order('created_at',{ascending:false});
-  if(gcRes.error){console.error('GC error:',gcRes.error);return;}
-  _gcs=gcRes.data||[];
-  var rows=_gcs;
-  var now=new Date();now.setHours(0,0,0,0);
-  var emailDue=rows.filter(function(r){if(!r.gc_next_followup)return false;var d=new Date(r.gc_next_followup);d.setHours(0,0,0,0);return d<=now&&(r.gc_fu_status==='intro'||r.gc_fu_status==='email_due');}).length;
-  var callDue=rows.filter(function(r){if(!r.gc_next_followup)return false;var d=new Date(r.gc_next_followup);d.setHours(0,0,0,0);return d<=now&&(r.gc_fu_status==='call'||r.gc_fu_status==='call_due');}).length;
-  var estWaiting=rows.filter(function(r){return r.gc_fu_status==='estimation';}).length;
-  var badges=document.getElementById('gc-summary-badges');
-  if(badges){
-    var b='';
-    if(emailDue>0) b+='<span class="gc-action-badge" style="background:#FEF3E2;border:1px solid #F5C37A;color:#854F0B" onclick="gcFilterBadge(&quot;email_due&quot;)">📧 '+emailDue+' Email Follow-Up'+(emailDue>1?'s':'')+' Due Today</span>';
-    if(callDue>0) b+='<span class="gc-action-badge" style="background:#FCEBEB;border:1px solid #F5A3A3;color:#A32D2D" onclick="gcFilterBadge(&quot;call_due&quot;)">📞 '+callDue+' Phone Call'+(callDue>1?'s':'')+' Due Today</span>';
-    if(estWaiting>0) b+='<span class="gc-action-badge" style="background:#EDE8FD;border:1px solid #C4B5F8;color:#5B3FCC" onclick="gcFilterBadge(&quot;fu_estimation&quot;)">📋 '+estWaiting+' Bid'+(estWaiting>1?'s':'')+' Waiting on Estimation</span>';
-    if(!b) b='<span style="font-size:12px;color:#aaa;padding:7px 0">All clear — no actions due today</span>';
-    badges.innerHTML=b;
-  }
-  filterGC();
-}
-function filterGC(){const search=(document.getElementById('gc-search')?.value||'').toLowerCase();const filter=document.getElementById('gc-filter')?.value||'';let rows=[..._gcs];if(filter==='replied_yes') rows=rows.filter(function(r){return r.replied==='Yes';});
-    else if(filter==='replied_no') rows=rows.filter(function(r){return r.replied!=='Yes';});
-    else if(filter==='fu_none') rows=rows.filter(function(r){return !r.gc_fu_status||r.gc_fu_status==='none';});
-    else if(filter==='fu_intro') rows=rows.filter(function(r){return r.gc_fu_status==='intro';});
-    else if(filter==='email_due') rows=rows.filter(function(r){return r.gc_fu_status==='email_due'||r.gc_fu_status==='intro';});
-    else if(filter==='call_due') rows=rows.filter(function(r){return r.gc_fu_status==='call'||r.gc_fu_status==='call_due';});
-    else if(filter==='fu_form') rows=rows.filter(function(r){return r.gc_fu_status==='form';});
-    else if(filter==='fu_call') rows=rows.filter(function(r){return r.gc_fu_status==='call'||r.gc_fu_status==='call_due';});
-    else if(filter==='fu_active') rows=rows.filter(function(r){return r.gc_fu_status==='active';});
-    else if(filter==='fu_estimation') rows=rows.filter(function(r){return r.gc_fu_status==='estimation';});
-    else if(filter==='fu_nointerest') rows=rows.filter(function(r){return r.gc_fu_status==='nointerest';});
-    else if(filter==='call_today') rows=rows.filter(function(r){return r.gc_next_followup&&ddiff(r.gc_next_followup)===0;});
-    else if(filter==='call_overdue') rows=rows.filter(function(r){return r.gc_next_followup&&ddiff(r.gc_next_followup)<0&&r.gc_fu_status!=='nointerest';});
-    else if(filter==='call_upcoming') rows=rows.filter(function(r){var d=r.gc_next_followup?ddiff(r.gc_next_followup):null;return d!==null&&d>0&&d<=7;});
-    else if(filter==='no_call') rows=rows.filter(function(r){return !r.gc_next_followup&&r.gc_fu_status&&r.gc_fu_status!=='none'&&r.gc_fu_status!=='nointerest';});
-    else if(filter==='pri_1st') rows=rows.filter(function(r){return r.priority==='1st';});
-    else if(filter==='pri_2nd') rows=rows.filter(function(r){return r.priority==='2nd';});
-    else if(filter==='pri_3rd') rows=rows.filter(function(r){return r.priority==='3rd';});if(search)rows=rows.filter(r=>(r.company+r.contact+r.email).toLowerCase().includes(search));const tbody=document.getElementById('gc-body');if(!tbody)return;(function(){var gcRows='';for(var gi=0;gi<rows.length;gi++){var r=rows[gi];var nextC=r.gc_next_followup?fmtD(r.gc_next_followup):'—';var nextCCls=r.gc_next_followup&&ddiff(r.gc_next_followup)<0?'color:#E24B4A;font-weight:700':r.gc_next_followup&&ddiff(r.gc_next_followup)===0?'color:#BA7517;font-weight:700':'color:#888';gcRows+='<tr ondblclick="openGCFU(event,&quot;'+r.id+'&quot;)">'+'<td style="font-weight:600">'+(r.company||'')+'</td>'+'<td style="font-size:12px">'+(r.contact||'').split('\n')[0]+'</td>'+'<td style="font-size:12px"><a href="mailto:'+(r.email||'').split('\n')[0]+'" style="color:#1B5E9B">'+(r.email||'').split('\n')[0]+'</a></td>'+'<td style="font-size:12px">'+(r.phone||'').split('\n')[0]+'</td>'+'<td style="font-size:12px">'+(r.city||'').split('\n')[0]+'</td>'+'<td><span class="'+(r.priority==='1st'?'pri-1':r.priority==='2nd'?'pri-2':'pri-3')+'">'+(r.priority||'—')+'</span></td>'+'<td><span class="badge '+(r.replied==='Yes'?'b-yes':'b-no')+'">'+(r.replied||'No')+'</span></td>'+'<td>'+gcFuBadge(r)+'</td>'+'<td style="font-size:11px;'+nextCCls+'">'+nextC+'</td>'+'<td style="display:flex;gap:4px"><button class="btn-sm" onclick="editGC(this.dataset.id)" data-id="'+r.id+'">Edit</button><button class="btn-danger" onclick="delGC(this.dataset.id,this.dataset.name)" data-id="'+r.id+'" data-name="'+(r.company||'').replace(/"/g,'')+'">×</button></td>'
-      +'</tr>';}tbody.innerHTML=gcRows||'<tr><td colspan="10" style="text-align:center;padding:2rem;color:#bbb">No contacts found.</td></tr>'})()||'<tr><td colspan="10" style="text-align:center;padding:2rem;color:#bbb">No contacts found.</td></tr>';}
-function openGCModal(){editGCId=null;document.getElementById('gc-modal-title').textContent='New GC Contact';['company','contact','email','phone','city','notes','fdate'].forEach(f=>document.getElementById('gm-'+f).value='');document.getElementById('gm-priority').value='1st';document.getElementById('gm-replied').value='No';document.getElementById('gc-modal').classList.add('open');}
-async function editGC(id){const {data:r}=await sb.from('gc_contacts').select('*').eq('id',id).single();if(!r)return;editGCId=id;document.getElementById('gc-modal-title').textContent='Edit GC';['company','contact','email','phone','city'].forEach(f=>document.getElementById('gm-'+f).value=r[f]||'');document.getElementById('gm-priority').value=r.priority||'1st';document.getElementById('gm-replied').value=r.replied||'No';document.getElementById('gm-notes').value=r.note||'';document.getElementById('gm-fdate').value=r.first_email||'';document.getElementById('gc-modal').classList.add('open');}
-async function saveGC(){const obj={company:document.getElementById('gm-company').value,contact:document.getElementById('gm-contact').value,email:document.getElementById('gm-email').value,phone:document.getElementById('gm-phone').value,city:document.getElementById('gm-city').value,priority:document.getElementById('gm-priority').value,replied:document.getElementById('gm-replied').value,note:document.getElementById('gm-notes').value,first_email:document.getElementById('gm-fdate').value||null,updated_by:CU.id,updated_at:new Date().toISOString()};if(editGCId){await sb.from('gc_contacts').update(obj).eq('id',editGCId);await logAct('Updated GC','gc_contacts',editGCId,`Updated ${obj.company}`);}else{obj.created_by=CU.id;const {data}=await sb.from('gc_contacts').insert(obj).select().single();await logAct('Added GC','gc_contacts',data?.id,`Added ${obj.company}`);}closeModal('gc-modal');await loadGC();}
-async function delGC(id,name){if(!confirm(`Delete "${name}"?`))return;await sb.from('gc_contacts').delete().eq('id',id);await logAct('Deleted GC','gc_contacts',null,`Deleted: ${name}`);await loadGC();}
-
-// RETAIL
-async function renderRetail(){
-  const mc=document.getElementById('main-content');
-  mc.innerHTML=`
-    <div class="page-hdr"><div><div class="page-title">Retail Contacts</div><div class="page-sub">Direct retail accounts</div></div><button class="btn btn-blue" onclick="openRetailModal()">+ New Contact</button></div>
-    <div class="toolbar"><input type="text" id="ret-search" placeholder="Search..." oninput="filterRetail()" style="flex:1"></div>
-    <div class="tbl-wrap" style="overflow-x:auto">
-      <table><thead><tr><th>Company</th><th>Contact</th><th>Role</th><th>Email</th><th>Phone</th><th>Replied</th><th>Notes</th><th>By</th><th></th></tr></thead>
-      <tbody id="ret-body"><tr><td colspan="9" class="loading"><span class="spinner"></span></td></tr></tbody></table>
-    </div>`;
-  await loadRetail();
-}
-var _retail=[];
-async function loadRetail(){const {data:rows,error}=await sb.from('retail_contacts').select('*').order('created_at',{ascending:false});if(error){console.error('Retail error:',error);}_retail=rows||[];filterRetail();}
-function filterRetail(){const search=(document.getElementById('ret-search')?.value||'').toLowerCase();let rows=[..._retail];if(search)rows=rows.filter(r=>(r.company+r.contact+r.email).toLowerCase().includes(search));const tbody=document.getElementById('ret-body');if(!tbody)return;tbody.innerHTML=rows.map(r=>`<tr><td style="font-weight:600">${r.company||''}</td><td>${r.contact||''}</td><td style="font-size:11px;color:#aaa">${r.role||''}</td><td style="font-size:12px"><a href="mailto:${r.email||''}" style="color:#1B5E9B">${r.email||''}</a></td><td style="font-size:12px">${r.phone||''}</td><td><span class="badge ${r.replied==='Yes'?'b-yes':'b-no'}">${r.replied||'No'}</span></td><td class="note-cell">${r.note||''}</td><td class="by-cell">${r.updater?.full_name||r.creator?.full_name||'—'}</td><td style="display:flex;gap:4px"><button class="btn-sm" onclick="editRetail('${r.id}')">Edit</button><button class="btn-danger" onclick="delRetail('${r.id}','${(r.company||'').replace(/'/g,'`')}')">×</button></td></tr>`).join('')||'<tr><td colspan="9" style="text-align:center;padding:2rem;color:#bbb">No contacts.</td></tr>';}
-function openRetailModal(){editRetailId=null;document.getElementById('retail-modal-title').textContent='New Retail Contact';['company','contact','email','phone','role','notes'].forEach(f=>document.getElementById('rm-'+f).value='');document.getElementById('rm-replied').value='No';document.getElementById('retail-modal').classList.add('open');}
-async function editRetail(id){const {data:r}=await sb.from('retail_contacts').select('*').eq('id',id).single();if(!r)return;editRetailId=id;document.getElementById('retail-modal-title').textContent='Edit Retail Contact';['company','contact','email','phone','role'].forEach(f=>document.getElementById('rm-'+f).value=r[f]||'');document.getElementById('rm-replied').value=r.replied||'No';document.getElementById('rm-notes').value=r.note||'';document.getElementById('retail-modal').classList.add('open');}
-async function saveRetail(){const obj={company:document.getElementById('rm-company').value,contact:document.getElementById('rm-contact').value,email:document.getElementById('rm-email').value,phone:document.getElementById('rm-phone').value,role:document.getElementById('rm-role').value,replied:document.getElementById('rm-replied').value,note:document.getElementById('rm-notes').value,updated_by:CU.id,updated_at:new Date().toISOString()};if(editRetailId){await sb.from('retail_contacts').update(obj).eq('id',editRetailId);await logAct('Updated retail','retail_contacts',editRetailId,`Updated ${obj.company}`);}else{obj.created_by=CU.id;const {data}=await sb.from('retail_contacts').insert(obj).select().single();await logAct('Added retail','retail_contacts',data?.id,`Added ${obj.company}`);}closeModal('retail-modal');await loadRetail();}
-async function delRetail(id,name){if(!confirm(`Delete "${name}"?`))return;await sb.from('retail_contacts').delete().eq('id',id);await logAct('Deleted retail','retail_contacts',null,`Deleted: ${name}`);await loadRetail();}
-
-// PURCHASES
-async function renderPurchases(){
-  const mc=document.getElementById('main-content');
-  mc.innerHTML=`
-    <div class="page-hdr"><div><div class="page-title">Purchases</div><div class="page-sub">Project material costs and orders</div></div><button class="btn btn-blue" onclick="openPPModal()">+ New Project</button></div>
-    <div id="purchases-body"><div class="loading"><span class="spinner"></span></div></div>`;
-  await loadPurchases();
-}
-var _projects=[];
-async function loadPurchases(){
-  const {data:rows=[]}=await sb.from('purchase_projects').select('*').order('created_at',{ascending:false});
-  _projects=rows;
-  const body=document.getElementById('purchases-body');if(!body)return;
-  if(!rows.length){body.innerHTML='<div class="tbl-wrap loading">No projects yet. Add your first project.</div>';return;}
-  const totalSold=rows.reduce((s,r)=>s+(r.sold_amount||0),0);
-  const totalCost=rows.reduce((s,r)=>s+(r.total_cost||0),0);
-  const totalProfit=rows.reduce((s,r)=>s+(r.profit||0),0);
-  const totalPaid=rows.reduce((s,r)=>s+(r.paid_to_date||0),0);
-  body.innerHTML=`
-    <div class="summary-row">
-      <div class="kpi"><div class="kpi-lbl">Total sold</div><div class="kpi-v">${fmt$(totalSold)}</div></div>
-      <div class="kpi"><div class="kpi-lbl">Total cost</div><div class="kpi-v" style="color:#E24B4A">${fmt$(totalCost)}</div></div>
-      <div class="kpi"><div class="kpi-lbl">Total profit</div><div class="kpi-v" style="color:#1D9E75">${fmt$(totalProfit)}</div></div>
-      <div class="kpi"><div class="kpi-lbl">Collected</div><div class="kpi-v" style="color:#1D9E75">${fmt$(totalPaid)}</div></div>
-    </div>
-    <div class="proj-grid">${rows.map(r=>`
-      <div class="proj-card" onclick="openProject('${r.id}')">
-        <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:4px">
-          <div class="proj-name">${r.project_name||''}</div>
-          <span class="badge ${r.status==='Complete'?'b-complete':r.status==='In Progress'?'b-progress':'b-notstart'}" style="flex-shrink:0;margin-left:8px">${r.status||'Not Started'}</span>
-        </div>
-        <div class="proj-gc">${r.gc||''} · ${r.estimate_no||''}</div>
-        <div class="proj-stats">
-          <div class="pstat"><div class="pstat-v">${fmt$(r.sold_amount)}</div><div class="pstat-l">Sold</div></div>
-          <div class="pstat"><div class="pstat-v" style="color:#1D9E75">${fmt$(r.profit)}</div><div class="pstat-l">Profit</div></div>
-          <div class="pstat"><div class="pstat-v" style="color:#E24B4A">${fmt$(r.total_cost)}</div><div class="pstat-l">Cost</div></div>
-          <div class="pstat"><div class="pstat-v">${fmt$(r.balance_remaining)}</div><div class="pstat-l">Balance</div></div>
-        </div>
-      </div>`).join('')}
-    </div>`;
-}
-
-async function openProject(id){
-  currentProjId=id;
-  const proj=_projects.find(p=>p.id===id);
-  const mc=document.getElementById('main-content');
-  mc.innerHTML=`
-    <div class="page-hdr">
-      <div>
-        <button class="btn-back" onclick="renderPurchases()">← Back to Projects</button>
-        <div class="page-title" style="margin-top:6px">${proj?.project_name||''}</div>
-        <div class="page-sub">${proj?.gc||''} · ${proj?.estimate_no||''}</div>
-      </div>
-      <div style="display:flex;gap:8px">
-        <button class="btn btn-sm" onclick="editPPModal('${id}')">Edit Project</button>
-        <button class="btn btn-blue" onclick="openMatModal()">+ Add Item</button>
-      </div>
-    </div>
-    <div class="summary-row">
-      <div class="kpi"><div class="kpi-lbl">Sold amount</div><div class="kpi-v">${fmt$(proj?.sold_amount)}</div></div>
-      <div class="kpi"><div class="kpi-lbl">Total cost</div><div class="kpi-v" style="color:#E24B4A">${fmt$(proj?.total_cost)}</div></div>
-      <div class="kpi"><div class="kpi-lbl">Profit</div><div class="kpi-v" style="color:#1D9E75">${fmt$(proj?.profit)}</div></div>
-      <div class="kpi"><div class="kpi-lbl">Balance remaining</div><div class="kpi-v">${fmt$(proj?.balance_remaining)}</div></div>
-    </div>
-    <div class="tbl-wrap" style="overflow-x:auto">
-      <table><thead><tr><th>#</th><th>Item</th><th>Description</th><th>Qty</th><th>Unit Cost</th><th>Total (ex tax)</th><th>Tax</th><th>Total (incl tax)</th><th>Paid</th><th>Manufacturer</th><th>Vendor</th><th>Notes</th><th></th></tr></thead>
-      <tbody id="mat-body"><tr><td colspan="13" class="loading"><span class="spinner"></span></td></tr></tbody></table>
-    </div>`;
-  await loadMaterials(id);
-}
-
-async function loadMaterials(projId){
-  const {data:rows=[]}=await sb.from('purchase_materials').select('*').eq('project_id',projId).order('created_at',{ascending:true});
-  const tbody=document.getElementById('mat-body');if(!tbody)return;
-  tbody.innerHTML=rows.map((r,i)=>`<tr>
-    <td style="font-size:12px;color:#aaa">${i+1}</td>
-    <td style="font-weight:600;font-size:13px">${r.item||''}</td>
-    <td class="note-cell" style="max-width:200px">${r.description||''}</td>
-    <td style="font-size:12px">${r.quantity||0}</td>
-    <td style="font-size:12px">${fmt$(r.unit_cost)}</td>
-    <td style="font-weight:600">${fmt$(r.total_ex_tax)}</td>
-    <td style="font-size:12px;color:#aaa">${fmt$(r.tax)}</td>
-    <td style="font-weight:600">${fmt$(r.total_incl_tax)}</td>
-    <td><span class="badge ${r.paid_status==='Paid'?'b-paid':'b-unpaid'}">${r.paid_status||'Not Paid'}</span></td>
-    <td style="font-size:11px;color:#aaa">${r.manufacturer||''}</td>
-    <td style="font-size:11px;color:#aaa">${r.vendor||''}</td>
-    <td class="note-cell" style="max-width:120px">${r.notes||''}</td>
-    <td style="display:flex;gap:4px"><button class="btn-sm" onclick="editMat('${r.id}')">Edit</button><button class="btn-danger" onclick="delMat('${r.id}')">×</button></td>
-  </tr>`).join('')||'<tr><td colspan="13" style="text-align:center;padding:2rem;color:#bbb">No materials yet.</td></tr>';
-}
-
-function openPPModal(){editPPId=null;document.getElementById('pp-modal-title').textContent='New Project';['ref','name','gc'].forEach(f=>document.getElementById('pp-'+f).value='');['sold','cost','paid'].forEach(f=>document.getElementById('pp-'+f).value='0');document.getElementById('pp-status').value='Not Started';document.getElementById('purchase-project-modal').classList.add('open');}
-async function editPPModal(id){const proj=_projects.find(p=>p.id===id);if(!proj)return;editPPId=id;document.getElementById('pp-modal-title').textContent='Edit Project';document.getElementById('pp-ref').value=proj.estimate_no||'';document.getElementById('pp-name').value=proj.project_name||'';document.getElementById('pp-gc').value=proj.gc||'';document.getElementById('pp-sold').value=proj.sold_amount||0;document.getElementById('pp-cost').value=proj.total_cost||0;document.getElementById('pp-paid').value=proj.paid_to_date||0;document.getElementById('pp-status').value=proj.status||'Not Started';document.getElementById('purchase-project-modal').classList.add('open');}
-async function savePurchaseProject(){const sold=parseFloat(document.getElementById('pp-sold').value)||0;const cost=parseFloat(document.getElementById('pp-cost').value)||0;const paid=parseFloat(document.getElementById('pp-paid').value)||0;const obj={estimate_no:document.getElementById('pp-ref').value,project_name:document.getElementById('pp-name').value,gc:document.getElementById('pp-gc').value,sold_amount:sold,total_cost:cost,paid_to_date:paid,balance_remaining:sold-paid,profit:sold-cost,status:document.getElementById('pp-status').value,updated_by:CU.id};if(editPPId){await sb.from('purchase_projects').update(obj).eq('id',editPPId);}else{obj.created_by=CU.id;await sb.from('purchase_projects').insert(obj);}closeModal('purchase-project-modal');await loadPurchases();}
-
-function openMatModal(){editMatId=null;document.getElementById('mat-modal-title').textContent='New Material Item';['item','desc','mfr','vendor','notes'].forEach(f=>document.getElementById('mm-'+f).value='');['qty'].forEach(f=>document.getElementById('mm-'+f).value='1');['unit','tax'].forEach(f=>document.getElementById('mm-'+f).value='0');document.getElementById('mm-paid').value='Not Paid';document.getElementById('material-modal').classList.add('open');}
-async function editMat(id){const {data:r}=await sb.from('purchase_materials').select('*').eq('id',id).single();if(!r)return;editMatId=id;document.getElementById('mat-modal-title').textContent='Edit Item';document.getElementById('mm-item').value=r.item||'';document.getElementById('mm-desc').value=r.description||'';document.getElementById('mm-qty').value=r.quantity||1;document.getElementById('mm-unit').value=r.unit_cost||0;document.getElementById('mm-tax').value=r.tax||0;document.getElementById('mm-mfr').value=r.manufacturer||'';document.getElementById('mm-vendor').value=r.vendor||'';document.getElementById('mm-notes').value=r.notes||'';document.getElementById('mm-paid').value=r.paid_status||'Not Paid';document.getElementById('material-modal').classList.add('open');}
-async function saveMaterial(){const qty=parseFloat(document.getElementById('mm-qty').value)||0;const unit=parseFloat(document.getElementById('mm-unit').value)||0;const tax=parseFloat(document.getElementById('mm-tax').value)||0;const totalEx=qty*unit;const totalIncl=totalEx+tax;const obj={project_id:currentProjId,item:document.getElementById('mm-item').value,description:document.getElementById('mm-desc').value,quantity:qty,unit_cost:unit,total_ex_tax:totalEx,tax,total_incl_tax:totalIncl,manufacturer:document.getElementById('mm-mfr').value,vendor:document.getElementById('mm-vendor').value,notes:document.getElementById('mm-notes').value,paid_status:document.getElementById('mm-paid').value,updated_by:CU.id};if(editMatId){await sb.from('purchase_materials').update(obj).eq('id',editMatId);}else{obj.created_by=CU.id;await sb.from('purchase_materials').insert(obj);}closeModal('material-modal');await loadMaterials(currentProjId);}
-async function delMat(id){if(!confirm('Remove this item?'))return;await sb.from('purchase_materials').delete().eq('id',id);await loadMaterials(currentProjId);}
-
-// TASKS
-async function renderTasks(){
-  const mc=document.getElementById('main-content');
-  mc.innerHTML=`
-    <div class="page-hdr"><div><div class="page-title">To-Do</div><div class="page-sub">Tasks and deadlines</div></div></div>
-    <div style="background:#fff;border-radius:12px;border:0.5px solid #e4e8f0;padding:14px;margin-bottom:12px">
-      <div style="font-size:12px;font-weight:700;color:#555;margin-bottom:10px">Add new task</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <input type="text" id="new-task" placeholder="Task description..." onkeydown="if(event.key==='Enter')addTask()" style="flex:1;min-width:200px;padding:8px 12px;border:1px solid #e0e0e0;border-radius:8px;font-size:13px;outline:none">
-        <select id="new-pri" style="padding:8px 10px;border:1px solid #e0e0e0;border-radius:8px;font-size:13px;outline:none"><option value="high">High</option><option value="medium" selected>Medium</option><option value="low">Low</option></select>
+</select>
         <input type="date" id="new-date" style="padding:8px 10px;border:1px solid #e0e0e0;border-radius:8px;font-size:13px;outline:none">
         <button class="btn btn-blue" onclick="addTask()">+ Add</button>
       </div>
@@ -2518,4 +2326,11 @@ document.addEventListener('input',function(e){if(e.target&&e.target.id==='ped-ta
 </div>
 
 </body>
-</html>
+</htmlif(filter==='email_today') rows=rows.filter(function(r){return r.gc_next_followup&&ddiff(r.gc_next_followup)===0&&(r.gc_fu_status==='intro'||r.gc_fu_status==='email_due');});
+    else if(filter==='email_overdue') rows=rows.filter(function(r){return r.gc_next_followup&&ddiff(r.gc_next_followup)<0&&(r.gc_fu_status==='intro'||r.gc_fu_status==='email_due');});
+    else if(filter==='call_today') rows=rows.filter(function(r){return r.gc_next_followup&&ddiff(r.gc_next_followup)===0&&(r.gc_fu_status==='call'||r.gc_fu_status==='call_due');});
+    else if(filter==='call_overdue') rows=rows.filter(function(r){return r.gc_next_followup&&ddiff(r.gc_next_followup)<0&&(r.gc_fu_status==='call'||r.gc_fu_status==='call_due'||r.gc_fu_status==='active');});
+    else if(filter==='fu_estimation') rows=rows.filter(function(r){return r.gc_fu_status==='estimation';});
+    else if(filter==='fu_est_yes') rows=rows.filter(function(r){return r.gc_fu_status==='est_yes';});
+    else if(filter==='fu_est_no') rows=rows.filter(function(r){return r.gc_fu_status==='est_no';});
+    >
