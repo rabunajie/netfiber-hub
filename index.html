@@ -424,8 +424,8 @@ function statusBadge(s){
 }
 
 var FU={
-  new:    {l:'Bid Not Sent',    c:'fu-new'},
-  sent:   {l:'Bid Sent',        c:'fu-waiting'},
+  none:   {l:'No Follow-Up',    c:'fu-new'},
+  sent:   {l:'Bid Sent — Follow Up',c:'fu-email'},
   email:  {l:'Email Sent',      c:'fu-email'},
   call:   {l:'Call Needed',     c:'fu-call'},
   waiting:{l:'Waiting on Owner',c:'fu-waiting'},
@@ -436,10 +436,10 @@ var FU={
 function fuBadge(bid){
   if(!bid) return '';
   if(!FU) return '';
-  var fuKey = bid.fu_status || 'new';
+  var fuKey = bid.fu_status || 'none';
   // Auto-detect: if bid sent but no follow-up logged yet
-  if(fuKey === 'new' && bid.status === 'Bid Sent') fuKey = 'sent';
-  var f = FU[fuKey] || FU['new'];
+  if((fuKey === 'none'||fuKey === 'new') && (bid.status === 'Bid Sent'||bid.status === 'Submitted')) fuKey = 'sent';
+  var f = FU[fuKey] || FU['none'] || {l:'Follow Up',c:'fu-new'};
   var diff = bid.fu_next_date ? ddiff(bid.fu_next_date) : null;
   var extra = '';
   var cls = f.c;
@@ -553,7 +553,7 @@ async function renderDashboard(){
     return da-db;
   }).slice(0,6);
   const tasksSorted=tasks.filter(t=>!t.done&&(t.deadline===todayStr||t.priority==='high')).sort((a,b)=>{const po={high:0,medium:1,low:2};return(po[a.priority]||1)-(po[b.priority]||1);}).slice(0,4);
-  const emailsDue=bids.filter(b=>b.fu_next_date&&ddiff(b.fu_next_date)<=0&&(b.fu_status==='email'||b.fu_status==='new'||b.fu_status==='call')&&b.status!=='Win'&&b.status!=='Lost').sort((a,b)=>ddiff(a.fu_next_date)-ddiff(b.fu_next_date)).slice(0,4);
+  const emailsDue=bids.filter(b=>b.fu_next_date&&ddiff(b.fu_next_date)<=0&&(b.fu_status==='email'||b.fu_status==='none'||!b.fu_status||b.fu_status==='call')&&b.status!=='Win'&&b.status!=='Lost').sort((a,b)=>ddiff(a.fu_next_date)-ddiff(b.fu_next_date)).slice(0,4);
   const waitingTooLong=bids.filter(b=>b.fu_status==='waiting'&&b.last_ping&&ddiff(b.last_ping)<-7&&b.status!=='Win'&&b.status!=='Lost').slice(0,4);
 
   mc.innerHTML=`
@@ -579,7 +579,7 @@ async function renderDashboard(){
           var fuAction={new:'Send the bid',email:'Follow up by phone',call:'Call again or escalate',waiting:'Check if decision made',replied:'Log the reply',closed:'Done'};
           return fuDueList.map(function(b){
             var d=ddiff(b.fu_next_date);
-            var fuKey=b.fu_status||'new';
+            var fuKey=b.fu_status||'none';
             var label=fuLabels[fuKey]||fuKey;
             var action=fuAction[fuKey]||'Follow up';
             var isOv=d<0;
@@ -978,7 +978,7 @@ async function saveUser(){const id=document.getElementById('eu-id').value;const 
 async function deleteUser(id,name){if(!confirm(`Remove "${name}"? They will lose access immediately.`))return;await sbA.auth.admin.deleteUser(id);await logAct('Deleted user','profiles',null,`Removed: ${name}`);await loadUsers();}
 
 // FOLLOW-UP
-async function openFU(e,bidId){e.stopPropagation();currentBidId=bidId;const {data:bid}=await sb.from('bids').select('*').eq('id',bidId).single();if(!bid)return;document.getElementById('fu-proj-name').textContent=bid.project||bid.ref||'Project';document.getElementById('fu-proj-gc').textContent=bid.gc||'';const cfg=FU[bid.fu_status||'new']||FU.new;document.getElementById('fu-cur-status').innerHTML=`<span class="fu-badge ${cfg.c}">${cfg.l}</span>`;const nd=bid.fu_next_date;if(nd){const diff=ddiff(nd);document.getElementById('fu-next-action').innerHTML=diff<0?`<span style="color:#E24B4A">${Math.abs(diff)}d overdue — Act now!</span>`:diff===0?`<span style="color:#BA7517">Due TODAY</span>`:`In ${diff} day${diff!==1?'s':''} (${fmtD(nd)})`;document.getElementById('fu-next-date').value=nd;}else{document.getElementById('fu-next-action').textContent='Not scheduled';const s=new Date();s.setDate(s.getDate()+4);document.getElementById('fu-next-date').value=s.toISOString().split('T')[0];}document.getElementById('fu-last-contact').textContent=bid.last_ping?fmtD(bid.last_ping):'Never';await loadFUHistory(bidId);document.getElementById('fu-modal').classList.add('open');}
+async function openFU(e,bidId){e.stopPropagation();currentBidId=bidId;const {data:bid}=await sb.from('bids').select('*').eq('id',bidId).single();if(!bid)return;document.getElementById('fu-proj-name').textContent=bid.project||bid.ref||'Project';document.getElementById('fu-proj-gc').textContent=bid.gc||'';const cfg=FU[bid.fu_status||'none']||FU.new;document.getElementById('fu-cur-status').innerHTML=`<span class="fu-badge ${cfg.c}">${cfg.l}</span>`;const nd=bid.fu_next_date;if(nd){const diff=ddiff(nd);document.getElementById('fu-next-action').innerHTML=diff<0?`<span style="color:#E24B4A">${Math.abs(diff)}d overdue — Act now!</span>`:diff===0?`<span style="color:#BA7517">Due TODAY</span>`:`In ${diff} day${diff!==1?'s':''} (${fmtD(nd)})`;document.getElementById('fu-next-date').value=nd;}else{document.getElementById('fu-next-action').textContent='Not scheduled';const s=new Date();s.setDate(s.getDate()+4);document.getElementById('fu-next-date').value=s.toISOString().split('T')[0];}document.getElementById('fu-last-contact').textContent=bid.last_ping?fmtD(bid.last_ping):'Never';await loadFUHistory(bidId);document.getElementById('fu-modal').classList.add('open');}
 async function loadFUHistory(bidId){const {data:logs=[]}=await sb.from('activity_log').select('*').eq('table_name','followup').eq('record_id',bidId).order('created_at',{ascending:false});const tc={email:'ftp-email',call:'ftp-call',meeting:'ftp-meeting',note:'ftp-note'};const tl={email:'Email',call:'Phone Call',meeting:'Meeting',note:'Note'};document.getElementById('fu-history').innerHTML=logs.length?logs.map(l=>{let p={};try{p=JSON.parse(l.details);}catch(e){p={note:l.details};}return`<div class="fu-log-item"><span class="fu-type-pill ${tc[p.type]||'ftp-note'}">${tl[p.type]||'Note'}</span><div style="flex:1"><div style="font-size:13px;color:#1a1a1a">${p.note||''}</div><div style="font-size:11px;color:#bbb;margin-top:3px">${l.user_name} · ${new Date(l.created_at).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})}</div></div></div>`;}).join(''):'<div style="color:#bbb;font-size:13px;padding:1rem 0">No follow-ups logged yet. Double-click a bid row to get started.</div>';}
 async function logFollowUp(){
   var type=document.getElementById('fu-type').value;
@@ -1001,7 +1001,7 @@ async function logFollowUp(){
   document.getElementById('fu-note-input').value='';
   var bidRes=await sb.from('bids').select('*').eq('id',currentBidId).single();
   var bid=bidRes.data;
-  var cfg=FU[statusAfter]||FU.new;
+  var cfg=FU[statusAfter]||FU['none']||{l:'No Follow-Up',c:'fu-new'};
   document.getElementById('fu-cur-status').innerHTML='<span class="fu-badge '+cfg.c+'">'+cfg.l+'</span>';
   document.getElementById('fu-last-contact').textContent=fmtD(bid.last_ping);
   // Show next follow-up date in the panel
@@ -1639,7 +1639,7 @@ document.addEventListener('input',function(e){if(e.target&&e.target.id==='ped-ta
       <div style="font-size:12px;font-weight:700;color:#1B5E9B;margin-bottom:10px">Log Follow-Up</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
         <div style="flex:0 0 120px"><div style="font-size:10px;font-weight:700;color:#555;margin-bottom:4px;text-transform:uppercase">Type</div><select id="fu-type" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:8px;font-size:12px;outline:none"><option value="email">Email</option><option value="call">Phone Call</option><option value="meeting">Meeting</option><option value="note">Note</option></select></div>
-        <div style="flex:0 0 140px"><div style="font-size:10px;font-weight:700;color:#555;margin-bottom:4px;text-transform:uppercase">Status after</div><select id="fu-status-after" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:8px;font-size:12px;outline:none"><option value="email">Email sent — waiting reply (4 days)</option>
+        <div style="flex:0 0 140px"><div style="font-size:10px;font-weight:700;color:#555;margin-bottom:4px;text-transform:uppercase">Status after</div><select id="fu-status-after" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:8px;font-size:12px;outline:none"><option value="email">Email Sent — awaiting reply</option>
 <option value="call">Need to call — no reply (4 days)</option>
 <option value="waiting">GC waiting on owner decision</option>
 <option value="replied">GC replied — interested</option>
