@@ -351,7 +351,7 @@ function initSupabase(){
   }
   sb = supabase.createClient(SB_URL, SB_KEY);
   sbA = supabase.createClient(SB_URL, SB_SVC);
-  sb.auth.getSession().then(({data:{session}})=>{if(session)initApp(session.user);});
+  sb.auth.getSession().then(function(r){if(r.data&&r.data.session)initApp(r.data.session.user);});
 }
 window.addEventListener('load', initSupabase);
 var editBidId=null,editGCId=null,editRetailId=null,editPPId=null,editMatId=null,currentProjId=null,currentBidId=null;
@@ -399,7 +399,7 @@ async function initApp(user){
   applyPermissions();
   showPage('dashboard');
 }
-sb.auth.getSession().then(({data:{session}})=>{if(session)initApp(session.user);});
+
 
 function applyPermissions(){
   const allowed=GROUPS[CP?.group_name||'staff']||['dashboard','tasks'];
