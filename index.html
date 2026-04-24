@@ -187,9 +187,11 @@ tr:hover td{background:#fafcff}
 .gc-fu-badge{font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;white-space:nowrap;display:inline-flex;align-items:center;gap:4px;cursor:pointer}
 .gc-fu-intro{background:#E6F1FB;color:#0C447C}
 .gc-fu-form{background:#FEF3E2;color:#854F0B}
+.gc-fu-est{background:#EDE8FD;color:#5B3FCC}
 .gc-fu-call{background:#FCEBEB;color:#A32D2D}
 .gc-fu-active{background:#EAF3DE;color:#27500A}
 .gc-fu-inactive{background:#F1EFE8;color:#5F5E5A}
+.gc-action-badge{cursor:pointer;display:inline-flex;align-items:center;gap:6px;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:700;margin-right:2px}
 /* FOLLOW-UP */
 .fu-badge{font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;white-space:nowrap;display:inline-flex;align-items:center;gap:4px;cursor:pointer}
 .fu-new{background:#EEEDFE;color:#3C3489}
@@ -836,12 +838,17 @@ function statusBadge(s){
 }
 
 var GC_FU={
-  none:   {l:'Not Contacted',   c:'gc-fu-inactive', days:0},
-  intro:  {l:'Intro Email Sent',c:'gc-fu-intro',    days:3},
-  form:   {l:'Form Needed',     c:'gc-fu-form',     days:7},
-  call:   {l:'Called — Follow Up', c:'gc-fu-call', days:14},
-  active: {l:'Active — Bidding',   c:'gc-fu-active',days:30},
-  nointerest:{l:'Not Interested',c:'gc-fu-inactive', days:0}
+  none:       {l:'Not Contacted',      c:'gc-fu-inactive', days:0},
+  intro:      {l:'Email Sent',         c:'gc-fu-intro',    days:3},
+  email_due:  {l:'Email Follow-Up Due',c:'gc-fu-call',     days:4},
+  form:       {l:'Form Needed',        c:'gc-fu-form',     days:7},
+  call:       {l:'Call Scheduled',     c:'gc-fu-call',     days:14},
+  call_due:   {l:'Call Due Today',     c:'gc-fu-call',     days:0},
+  estimation: {l:'Sent to Estimation', c:'gc-fu-form',     days:0},
+  est_yes:    {l:'Estimation — Bidding',c:'gc-fu-active',  days:0},
+  est_no:     {l:'Estimation — Pass',   c:'gc-fu-inactive',days:0},
+  active:     {l:'Active — Bidding',    c:'gc-fu-active',  days:30},
+  nointerest: {l:'Not Interested',     c:'gc-fu-inactive', days:0}
 };
 function gcFuBadge(gc){
   if(!gc||!GC_FU) return '';
@@ -1135,6 +1142,7 @@ async function delBid(id,name){if(!confirm(`Delete bid "${name}"?`))return;await
 async function renderGC(){
   const mc=document.getElementById('main-content');
   mc.innerHTML=`
+    <div id="gc-summary-badges" style="display:flex;gap:10px;padding:10px 24px 0;flex-wrap:wrap"></div>
     <div class="page-hdr"><div><div class="page-title">GC Contacts</div><div class="page-sub">General contractor relationships</div></div><button class="btn btn-blue" onclick="openGCModal()">+ New GC</button></div>
     <div class="toolbar">
       <input type="text" id="gc-search" placeholder="Search company, contact..." oninput="filterGC()" style="flex:1;min-width:180px">
@@ -1172,14 +1180,36 @@ async function renderGC(){
   await loadGC();
 }
 var _gcs=[];
-async function loadGC(){const {data:rows,error}=await sb.from('gc_contacts').select('*').order('created_at',{ascending:false});if(error){console.error('GC error:',error);}_gcs=rows||[];filterGC();}
+async function loadGC(){
+  var gcRes=await sb.from('gc_contacts').select('*').order('created_at',{ascending:false});
+  if(gcRes.error){console.error('GC error:',gcRes.error);return;}
+  _gcs=gcRes.data||[];
+  var rows=_gcs;
+  var now=new Date();now.setHours(0,0,0,0);
+  var emailDue=rows.filter(function(r){if(!r.gc_next_followup)return false;var d=new Date(r.gc_next_followup);d.setHours(0,0,0,0);return d<=now&&(r.gc_fu_status==='intro'||r.gc_fu_status==='email_due');}).length;
+  var callDue=rows.filter(function(r){if(!r.gc_next_followup)return false;var d=new Date(r.gc_next_followup);d.setHours(0,0,0,0);return d<=now&&(r.gc_fu_status==='call'||r.gc_fu_status==='call_due');}).length;
+  var estWaiting=rows.filter(function(r){return r.gc_fu_status==='estimation';}).length;
+  var badges=document.getElementById('gc-summary-badges');
+  if(badges){
+    var b='';
+    if(emailDue>0) b+='<span class="gc-action-badge" style="background:#FEF3E2;border:1px solid #F5C37A;color:#854F0B" onclick="gcFilterBadge(&quot;email_due&quot;)">📧 '+emailDue+' Email Follow-Up'+(emailDue>1?'s':'')+' Due Today</span>';
+    if(callDue>0) b+='<span class="gc-action-badge" style="background:#FCEBEB;border:1px solid #F5A3A3;color:#A32D2D" onclick="gcFilterBadge(&quot;call_due&quot;)">📞 '+callDue+' Phone Call'+(callDue>1?'s':'')+' Due Today</span>';
+    if(estWaiting>0) b+='<span class="gc-action-badge" style="background:#EDE8FD;border:1px solid #C4B5F8;color:#5B3FCC" onclick="gcFilterBadge(&quot;fu_estimation&quot;)">📋 '+estWaiting+' Bid'+(estWaiting>1?'s':'')+' Waiting on Estimation</span>';
+    if(!b) b='<span style="font-size:12px;color:#aaa;padding:7px 0">All clear — no actions due today</span>';
+    badges.innerHTML=b;
+  }
+  filterGC();
+}
 function filterGC(){const search=(document.getElementById('gc-search')?.value||'').toLowerCase();const filter=document.getElementById('gc-filter')?.value||'';let rows=[..._gcs];if(filter==='replied_yes') rows=rows.filter(function(r){return r.replied==='Yes';});
     else if(filter==='replied_no') rows=rows.filter(function(r){return r.replied!=='Yes';});
     else if(filter==='fu_none') rows=rows.filter(function(r){return !r.gc_fu_status||r.gc_fu_status==='none';});
     else if(filter==='fu_intro') rows=rows.filter(function(r){return r.gc_fu_status==='intro';});
+    else if(filter==='email_due') rows=rows.filter(function(r){return r.gc_fu_status==='email_due'||r.gc_fu_status==='intro';});
+    else if(filter==='call_due') rows=rows.filter(function(r){return r.gc_fu_status==='call'||r.gc_fu_status==='call_due';});
     else if(filter==='fu_form') rows=rows.filter(function(r){return r.gc_fu_status==='form';});
-    else if(filter==='fu_call') rows=rows.filter(function(r){return r.gc_fu_status==='call';});
+    else if(filter==='fu_call') rows=rows.filter(function(r){return r.gc_fu_status==='call'||r.gc_fu_status==='call_due';});
     else if(filter==='fu_active') rows=rows.filter(function(r){return r.gc_fu_status==='active';});
+    else if(filter==='fu_estimation') rows=rows.filter(function(r){return r.gc_fu_status==='estimation';});
     else if(filter==='fu_nointerest') rows=rows.filter(function(r){return r.gc_fu_status==='nointerest';});
     else if(filter==='call_today') rows=rows.filter(function(r){return r.gc_next_followup&&ddiff(r.gc_next_followup)===0;});
     else if(filter==='call_overdue') rows=rows.filter(function(r){return r.gc_next_followup&&ddiff(r.gc_next_followup)<0&&r.gc_fu_status!=='nointerest';});
@@ -1474,7 +1504,7 @@ async function logGCFollowUp(){
   var type=document.getElementById('gc-fu-type').value;
   var note=document.getElementById('gc-fu-note-input').value.trim();
   var sa=document.getElementById('gc-fu-status-after').value;
-  var autoDays={intro:3,form:7,call:14,active:30,nointerest:0};
+  var autoDays={intro:3,email_due:4,form:7,call:14,call_due:1,estimation:3,est_yes:0,est_no:0,active:30,nointerest:0};
   var days=autoDays[sa]||14;
   var ndEl=document.getElementById('gc-fu-next-date');
   var nextDate=ndEl&&ndEl.value?ndEl.value:null;
@@ -2389,15 +2419,32 @@ document.addEventListener('input',function(e){if(e.target&&e.target.id==='ped-ta
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
         <div style="flex:0 0 110px"><div style="font-size:10px;font-weight:700;color:#555;margin-bottom:4px;text-transform:uppercase">Type</div>
           <select id="gc-fu-type" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:8px;font-size:12px;outline:none">
-            <option value="email">Email</option><option value="call">Phone Call</option><option value="visit">In Person</option><option value="note">Note</option>
+            <option value="email">📧 Email</option>
+            <option value="call">📞 Phone Call</option>
+            <option value="estimation">📋 Sent to Estimation</option>
+            <option value="visit">🤝 In Person</option>
+            <option value="note">📝 Note</option>
           </select></div>
         <div style="flex:0 0 170px"><div style="font-size:10px;font-weight:700;color:#555;margin-bottom:4px;text-transform:uppercase">Update Status</div>
           <select id="gc-fu-status-after" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:8px;font-size:12px;outline:none">
-            <option value="intro">Intro Email Sent (3d)</option>
-            <option value="form">GC Needs Form (7d)</option>
-            <option value="call">Called — follow up 14d</option>
-            <option value="active">Active — providing bids (30d)</option>
-            <option value="nointerest">Not Interested</option>
+            <optgroup label="── Email Follow-Up ──">
+              <option value="intro">📧 Intro Email Sent (3d)</option>
+              <option value="email_due">📧 Email Follow-Up Due (4d)</option>
+            </optgroup>
+            <optgroup label="── Phone Follow-Up ──">
+              <option value="call">📞 Called GC (14d)</option>
+              <option value="call_due">📞 Call Due Today</option>
+            </optgroup>
+            <optgroup label="── GC Sent a Bid ──">
+              <option value="estimation">📋 Sent to Estimation Team</option>
+              <option value="est_yes">✅ Estimation Says — We Bid</option>
+              <option value="est_no">❌ Estimation Says — Pass</option>
+            </optgroup>
+            <optgroup label="── Other ──">
+              <option value="form">📄 GC Needs Form (7d)</option>
+              <option value="active">🟢 Active — Bidding (30d)</option>
+              <option value="nointerest">🚫 Not Interested</option>
+            </optgroup>
           </select></div>
         <div style="flex:0 0 130px"><div style="font-size:10px;font-weight:700;color:#555;margin-bottom:4px;text-transform:uppercase">Next Follow-Up</div>
           <input type="date" id="gc-fu-next-date" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:8px;font-size:12px;outline:none"></div>
