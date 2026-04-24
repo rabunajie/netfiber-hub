@@ -414,7 +414,16 @@ function statusBadge(s){
 }
 
 var FU={new:{l:'Send Bid',c:'fu-new'},email:{l:'Follow Up — Email',c:'fu-email'},call:{l:'Follow Up — Call',c:'fu-call'},waiting:{l:'Waiting',c:'fu-waiting'},replied:{l:'Replied',c:'fu-replied'},closed:{l:'Closed',c:'fu-closed'}};
-function fuBadge(bid){const f=FU[bid.fu_status||'new']||FU.new;const diff=ddiff(bid.fu_next_date);let extra='';if(bid.fu_next_date&&diff<0)extra=` <span style="color:#E24B4A;font-size:10px">(${Math.abs(diff)}d late)</span>`;else if(bid.fu_next_date&&diff===0)extra=` <span style="color:#BA7517;font-size:10px">(Today)</span>`;return`<span class="fu-badge ${f.c}" onclick="openFU(event,'${bid.id}')">${f.l}${extra}</span>`;}
+function fuBadge(bid){
+  if(!bid||!FU)return'';
+  var fuKey=bid.fu_status||'new';
+  var f=FU[fuKey]||FU['new']||{l:'Send Bid',c:'fu-new'};
+  var diff=ddiff(bid.fu_next_date);
+  var extra='';
+  if(bid.fu_next_date&&diff<0)extra=' <span style="color:#E24B4A;font-size:10px">('+Math.abs(diff)+'d late)</span>';
+  else if(bid.fu_next_date&&diff===0)extra=' <span style="color:#BA7517;font-size:10px">(Today)</span>';
+  return '<span class="fu-badge '+f.c+'" onclick="openFU(event,''+bid.id+'')">'+f.l+extra+'</span>';
+}
 function rowCls(bid){if(!bid.fu_next_date)return'';const d=ddiff(bid.fu_next_date);if(d<0)return'ov-row';if(d===0)return'tod-row';return'';}
 
 // NAVIGATION
@@ -1351,8 +1360,8 @@ document.addEventListener('input',function(e){if(e.target&&e.target.id==='ped-ta
   <div class="body-wrap">
     <div class="sidebar" id="sidebar">
       <div class="sb-brand">
-        <div class="sb-co" style="font-size:13px;font-weight:800;letter-spacing:-0.3px">NETFIBER</div>
-        <div class="sb-tag" style="font-size:13px;color:#555;font-weight:600;letter-spacing:-0.2px;margin-top:3px">Network Cabling Solutions</div>
+        <div class="sb-co" style="font-size:13px;font-weight:800;letter-spacing:-0.2px">NETFIBER</div>
+        <div class="sb-tag" style="font-size:13px;color:#555;font-weight:500;letter-spacing:-0.2px;margin-top:2px">Network Cabling Solutions</div>
       </div>
       <div class="sb-sec">Overview</div>
       <div class="sb-item on" data-page="dashboard" onclick="showPage('dashboard')"><div class="sb-dot"></div>Dashboard</div>
