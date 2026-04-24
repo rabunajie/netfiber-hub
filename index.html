@@ -700,7 +700,7 @@ var editBidId=null,editGCId=null,editRetailId=null,editPPId=null,editMatId=null,
 var today=new Date();today.setHours(0,0,0,0);
 var todayStr=today.toISOString().split('T')[0];
 
-var GROUPS={admin:['dashboard','bids','gc','retail','proposals','purchases','tasks','log','mgmt'],sales:['dashboard','bids','gc','retail','proposals','purchases','tasks'],staff:['dashboard','retail','tasks'],field:['dashboard','tasks']};
+var GROUPS={admin:['dashboard','bids','gc','retail','proposals','purchases','tasks','log','mgmt','pipeline'],sales:['dashboard','bids','gc','retail','proposals','purchases','tasks','pipeline'],staff:['dashboard','retail','tasks','pipeline'],field:['dashboard','tasks','pipeline']};
 function canAccess(p){return(GROUPS[CP?.group_name||'staff']||['dashboard','tasks']).includes(p);}
 
 // TIME
@@ -843,6 +843,7 @@ function showPage(p){
   else if(p==='tasks')renderTasks();
   else if(p==='log')renderLog();
   else if(p==='mgmt')renderMgmt();
+  else if(p==='pipeline')renderPipelinePage();
 }
 
 // DASHBOARD
