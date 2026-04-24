@@ -372,8 +372,14 @@ tr:hover td{background:#fafcff}
       <div class="sb-sec">Overview</div>
       <div class="sb-item on" data-page="dashboard" onclick="showPage('dashboard')"><div class="sb-dot"></div>Dashboard</div>
       <div class="sb-sec">Sales</div>
-      <div class="sb-item" data-page="bids" data-groups="admin,sales" onclick="showPage('bids')"><div class="sb-dot"></div>Bid Opportunities<span class="sb-badge" id="sb-bids-badge" style="background:#E24B4A;display:none"></span></div>
-      <div class="sb-item" data-page="gc" data-groups="admin,sales" onclick="showPage('gc')"><div class="sb-dot"></div>GC Contacts</div>
+      <div class="sb-item" data-page="bids" data-groups="admin,sales" onclick="showPage('bids')"><div class="sb-dot"></div>Bid Opportunities<span class="sb-badge" id="sb-bids-due" style="background:#854F0B;display:none" title="Bids due today"></span>
+        <span class="sb-badge" id="sb-bids-email" style="background:#1B5E9B;display:none" title="Email follow-up due"></span>
+        <span class="sb-badge" id="sb-bids-phone" style="background:#A32D2D;display:none" title="Phone follow-up due"></span></div>
+      <div class="sb-item" data-page="gc" data-groups="admin,sales" onclick="showPage('gc')"><div class="sb-dot"></div>GC Contacts
+        <span class="sb-badge" id="sb-gc-email" style="background:#854F0B;display:none" title="Email FU due"></span>
+        <span class="sb-badge" id="sb-gc-phone" style="background:#A32D2D;display:none" title="Phone call due"></span>
+        <span class="sb-badge" id="sb-gc-review" style="background:#5B3FCC;display:none" title="Bid review pending"></span>
+        <span class="sb-badge" id="sb-gc-accepted" style="background:#1D9E75;display:none" title="Bid accepted"></span></div>
       <div class="sb-item" data-page="retail" data-groups="admin,sales,staff" onclick="showPage('retail')"><div class="sb-dot"></div>Retail Contacts</div>
       <div class="sb-sec">Operations</div>
       <div class="sb-item" data-page="proposals" data-groups="admin,sales" onclick="showPage('proposals')"><div class="sb-dot"></div>Proposals</div>
@@ -853,8 +859,27 @@ async function renderDashboard(){
   const pendingTasks=tasks.filter(t=>!t.done);
 
   // Update sidebar badges
-  if(overdueFollowups.length){document.getElementById('sb-bids-badge').textContent=overdueFollowups.length;document.getElementById('sb-bids-badge').style.display='inline-block';}
+  // Bid Opportunities badges
+  var bidsDueCount=bids.filter(function(b){return b.due_date&&ddiff(b.due_date)<=0&&b.status==='Under Review';}).length;
+  var emailFUCount=bids.filter(function(b){if(b.status==='Win'||b.status==='Lost')return false;return b.fu_next_date&&ddiff(b.fu_next_date)<=0&&(b.fu_status==='email'||b.fu_status==='sent'||b.fu_status==='none'||!b.fu_status);}).length;
+  var phoneFUCount=bids.filter(function(b){if(b.status==='Win'||b.status==='Lost')return false;return b.fu_next_date&&ddiff(b.fu_next_date)<=0&&(b.fu_status==='call'||b.fu_status==='waiting');}).length;
+  function setSbBadge(id,count){var el=document.getElementById(id);if(el){el.textContent=count;el.style.display=count>0?'inline-block':'none';}}
+  setSbBadge('sb-bids-due',bidsDueCount);
+  setSbBadge('sb-bids-email',emailFUCount);
+  setSbBadge('sb-bids-phone',phoneFUCount);
+  if(overdueFollowups.length){setSbBadge('sb-bids-phone',overdueFollowups.length);}
   if(tasksDueToday.length){document.getElementById('sb-tasks-badge').textContent=tasksDueToday.length;document.getElementById('sb-tasks-badge').style.display='inline-block';}
+  // GC sidebar badges - load from _gcs if available
+  if(typeof _gcs!=='undefined'&&_gcs.length){
+    var gcEmailDue=_gcs.filter(function(g){return g.gc_next_followup&&ddiff(g.gc_next_followup)<=0&&(g.gc_fu_status==='intro'||g.gc_fu_status==='email_due');}).length;
+    var gcCallDue=_gcs.filter(function(g){return g.gc_next_followup&&ddiff(g.gc_next_followup)<=0&&(g.gc_fu_status==='call'||g.gc_fu_status==='active');}).length;
+    var gcReview=_gcs.filter(function(g){return g.gc_fu_status==='estimation';}).length;
+    var gcAccepted=_gcs.filter(function(g){return g.gc_fu_status==='est_yes';}).length;
+    setSbBadge('sb-gc-email',gcEmailDue);
+    setSbBadge('sb-gc-phone',gcCallDue);
+    setSbBadge('sb-gc-review',gcReview);
+    setSbBadge('sb-gc-accepted',gcAccepted);
+  }
 
   const todayDate=new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
   const hour=new Date().getHours();
@@ -1111,6 +1136,14 @@ async function loadGC(){
     gcKpi('📞','Follow-Up Phone','Due Today',callDue,'#A32D2D','call_today')+
     gcKpi('📋','Bid Review','Pending',bidReview,'#5B3FCC','bid_review')+
     gcKpi('✅','Bid Accepted','This Period',bidAccepted,'#1D9E75','bid_accepted');
+  }
+  // Update sidebar GC badges
+  if(typeof setSbBadge==='function'){
+    var gcEm=_gcs.filter(function(g){return g.gc_next_followup&&ddiff(g.gc_next_followup)<=0&&(g.gc_fu_status==='intro'||g.gc_fu_status==='email_due');}).length;
+    var gcCl=_gcs.filter(function(g){return g.gc_next_followup&&ddiff(g.gc_next_followup)<=0&&(g.gc_fu_status==='call'||g.gc_fu_status==='active');}).length;
+    var gcRv=_gcs.filter(function(g){return g.gc_fu_status==='estimation';}).length;
+    var gcAc=_gcs.filter(function(g){return g.gc_fu_status==='est_yes';}).length;
+    setSbBadge('sb-gc-email',gcEm);setSbBadge('sb-gc-phone',gcCl);setSbBadge('sb-gc-review',gcRv);setSbBadge('sb-gc-accepted',gcAc);
   }
   filterGC();
 }
