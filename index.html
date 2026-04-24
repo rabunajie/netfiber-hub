@@ -375,7 +375,7 @@ tr:hover td{background:#fafcff}
       <div class="sb-item" data-page="bids" data-groups="admin,sales" onclick="showPage('bids')"><div class="sb-dot"></div>Bid Opportunities<span class="sb-badge" id="sb-bids-due" style="background:#854F0B;display:none" title="Bids due today"></span>
         <span class="sb-badge" id="sb-bids-email" style="background:#1B5E9B;display:none" title="Email follow-up due"></span>
         <span class="sb-badge" id="sb-bids-phone" style="background:#A32D2D;display:none" title="Phone follow-up due"></span></div>
-      <div class="sb-item" data-page="gc" data-groups="admin,sales" onclick="showPage('gc')"><div class="sb-dot"></div>GC Contacts
+      <div class="sb-item" data-page="gc" data-groups="admin,sales" onclick="showPage('gc')"><span class="sb-dot"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87m-4-12a4 4 0 010 7.75"/></svg></span>GC Contacts
         <span class="sb-badge" id="sb-gc-email" style="background:#854F0B;display:none" title="Email FU due"></span>
         <span class="sb-badge" id="sb-gc-phone" style="background:#A32D2D;display:none" title="Phone call due"></span>
         <span class="sb-badge" id="sb-gc-review" style="background:#5B3FCC;display:none" title="Bid review pending"></span>
@@ -845,6 +845,11 @@ function showPage(p){
 }
 
 // DASHBOARD
+
+function setSbBadge(id,count){
+  var el=document.getElementById(id);
+  if(el){el.textContent=count;el.style.display=count>0?'inline-block':'none';}
+}
 async function renderDashboard(){
   const mc=document.getElementById('main-content');
   const [{data:bidsR},{data:tasksR},{data:gcsR}]=await Promise.all([
@@ -863,7 +868,7 @@ async function renderDashboard(){
   var bidsDueCount=bids.filter(function(b){return b.due_date&&ddiff(b.due_date)<=0&&b.status==='Under Review';}).length;
   var emailFUCount=bids.filter(function(b){if(b.status==='Win'||b.status==='Lost')return false;return b.fu_next_date&&ddiff(b.fu_next_date)<=0&&(b.fu_status==='email'||b.fu_status==='sent'||b.fu_status==='none'||!b.fu_status);}).length;
   var phoneFUCount=bids.filter(function(b){if(b.status==='Win'||b.status==='Lost')return false;return b.fu_next_date&&ddiff(b.fu_next_date)<=0&&(b.fu_status==='call'||b.fu_status==='waiting');}).length;
-  function setSbBadge(id,count){var el=document.getElementById(id);if(el){el.textContent=count;el.style.display=count>0?'inline-block':'none';}}
+  // setSbBadge defined globally below
   setSbBadge('sb-bids-due',bidsDueCount);
   setSbBadge('sb-bids-email',emailFUCount);
   setSbBadge('sb-bids-phone',phoneFUCount);
@@ -893,7 +898,7 @@ async function renderDashboard(){
       </div>
       <div class="fbody" style="display:grid;grid-template-columns:repeat(auto-fill,110px);gap:10px;padding:16px;min-height:260px;align-content:start">
         ${canAccess('bids')?`<div class="mod-btn" onclick="showPage('bids')" style="border-top:3px solid #1B5E9B">
-          ${overdueFollowups.length?`<span class="mod-btn-badge" style="background:#FCEBEB;color:#A32D2D">${overdueFollowups.length}</span>`:''}
+          
           <span class="mod-btn-name">Bid Opportunities</span>
         </div>`:''}
         ${canAccess('gc')?`<div class="mod-btn" onclick="showPage('gc')" style="border-top:3px solid #1D9E75">
@@ -908,8 +913,8 @@ async function renderDashboard(){
         ${canAccess('purchases')?`<div class="mod-btn" onclick="showPage('purchases')" style="border-top:3px solid #BA7517">
           <span class="mod-btn-name">Purchases</span>
         </div>`:''}
-        ${canAccess('tasks')?`<div class="mod-btn" onclick="showPage('tasks')" style="border-top:3px solid #5F5E5A">
-          ${tasksDueToday.length?`<span class="mod-btn-badge" style="background:#FEF3E2;color:#854F0B">${tasksDueToday.length}</span>`:''}
+
+        ${canAccess('tasks')?`<div class="mod-btn" onclick="showPage('tasks')" style="border-top:3px solid #1D9E75">
           <span class="mod-btn-name">To-Do</span>
         </div>`:''}
         ${canAccess('log')?`<div class="mod-btn" onclick="showPage('log')" style="border-top:3px solid #E24B4A">
@@ -957,7 +962,7 @@ async function renderDashboard(){
 
       <div class="acard">
         <div class="achdr"><div class="acdot" style="background:#854F0B"></div>Bids due today &amp; overdue</div>
-        ${(()=>{const bidsDue=bids.filter(b=>b.due_date&&ddiff(b.due_date)<=0&&b.status!=='Win'&&b.status!=='Lost').sort((a,b2)=>ddiff(a.due_date)-ddiff(b2.due_date)).slice(0,5);return bidsDue.length?bidsDue.map(b=>{const d=ddiff(b.due_date);return`<div class="aitem" style="cursor:pointer" onclick="showPage('bids')"><div class="adot" style="background:${d<0?'#854F0B':'#E24B4A'}"></div><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${(b.project||b.ref||'').substring(0,22)}</span><span class="atag" style="background:${d===0?'#FCEBEB':'#FAEEDA'};color:${d===0?'#A32D2D':'#633806'}">${d===0?'Due today':Math.abs(d)+'d ago'}</span></div>`;}).join(''):'<div class="aitem" style="color:#bbb">No bids overdue</div>';})()}
+        ${(()=>{const bidsDue=bids.filter(b=>b.due_date&&ddiff(b.due_date)<=0&&b.status==='Under Review').sort((a,b2)=>ddiff(a.due_date)-ddiff(b2.due_date)).slice(0,5);return bidsDue.length?bidsDue.map(b=>{const d=ddiff(b.due_date);return`<div class="aitem" style="cursor:pointer" onclick="showPage('bids')"><div class="adot" style="background:${d<0?'#854F0B':'#E24B4A'}"></div><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${(b.project||b.ref||'').substring(0,22)}</span><span class="atag" style="background:${d===0?'#FCEBEB':'#FAEEDA'};color:${d===0?'#A32D2D':'#633806'}">${d===0?'Due today':Math.abs(d)+'d ago'}</span></div>`;}).join(''):'<div class="aitem" style="color:#bbb">No bids overdue</div>';})()}
       </div>
 
       <div class="acard">
@@ -1932,4 +1937,5 @@ document.addEventListener('input',function(e){if(e.target&&e.target.id==='ped-ta
 </div>
 
 </body>
-</html>
+</html
+        ${canAccess('tasks')?`<div class="mod-btn" onclick="showPage('tasks')" style="border-top:3px solid #1D9E75">>
