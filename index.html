@@ -330,6 +330,9 @@ tr:hover td{background:#fafcff}
 <script>
 console.log('NetFiber Hub v10 script loaded OK');
 
+// Emergency fallback - ensure doLogin is always defined
+function doLogin(){if(typeof _doLogin==='function')_doLogin();else console.error('doLogin not ready');}
+
 const SB_URL='https://vaubqkmsjsgfqeqbqbvy.supabase.co';
 const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZhdWJxa21zanNnZnFlcWJxYnZ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY5MDQxNzAsImV4cCI6MjA5MjQ4MDE3MH0.FjZ6oK-6fG_T38oZDGukAVj7cBJsarGh8Stwp14wCZM';
 const SB_SVC='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZhdWJxa21zanNnZnFlcWJxYnZ5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjkwNDE3MCwiZXhwIjoyMDkyNDgwMTcwfQ.G6eeRJSCzRSm0e9r9hxcV7fGkwGWSp-bUMpTRylxrqM';
@@ -358,7 +361,7 @@ function updateTime(){const n=new Date();document.getElementById('tb-time').text
 document.addEventListener("DOMContentLoaded",function(){setInterval(updateTime,1000);updateTime();});
 
 // AUTH
-async function doLogin(){
+async function _doLogin(){
   if(!sb){showAE('Still connecting... please try again in a moment.');return;}
   var emailEl=document.getElementById('login-email');
   var passEl=document.getElementById('login-pass');
