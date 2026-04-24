@@ -344,7 +344,7 @@ function initSupabase(){
   sb.auth.getSession().then(({data:{session}})=>{if(session)initApp(session.user);});
 }
 window.addEventListener('load', initSupabase);
-let editBidId=null,editGCId=null,editRetailId=null,editPPId=null,editMatId=null,currentProjId=null,currentBidId=null;
+var editBidId=null,editGCId=null,editRetailId=null,editPPId=null,editMatId=null,currentProjId=null,currentBidId=null;
 const today=new Date();today.setHours(0,0,0,0);
 const todayStr=today.toISOString().split('T')[0];
 
@@ -357,16 +357,16 @@ document.addEventListener("DOMContentLoaded",function(){setInterval(updateTime,1
 
 // AUTH
 async function doLogin(){
-  console.log("doLogin called, sb=", typeof sb);
-  const e=document.getElementById('login-email').value.trim(),p=document.getElementById('login-pass').value;
+  if(!sb){showAE('Still connecting... please try again in a moment.');return;}
+  var e=document.getElementById('login-email').value.trim(),p=document.getElementById('login-pass').value;
   if(!e||!p){showAE('Please enter email and password');return;}
-  document.querySelector('.auth-btn').textContent='Signing in...';
+  document.getElementById('signin-btn').textContent='Signing in...';document.getElementById('signin-btn').disabled=true;
   document.querySelector('.auth-btn').disabled=true;
   try{
-    const {data,error}=await sb.auth.signInWithPassword({email:e,password:p});
-    if(error){showAE('Invalid email or password: '+error.message);document.querySelector('.auth-btn').textContent='Sign In';document.querySelector('.auth-btn').disabled=false;return;}
+    var loginRes=await sb.auth.signInWithPassword({email:e,password:p});var data=loginRes.data;var error=loginRes.error;
+    if(error){showAE('Invalid email or password: '+error.message);document.getElementById('signin-btn').textContent='Sign In';document.getElementById('signin-btn').disabled=false;return;}
     await initApp(data.user);
-  }catch(err){showAE('Connection error. Please try again.');document.querySelector('.auth-btn').textContent='Sign In';document.querySelector('.auth-btn').disabled=false;}
+  }catch(err){showAE('Connection error. Please try again.');document.getElementById('signin-btn').textContent='Sign In';document.getElementById('signin-btn').disabled=false;}
 }
 async function doLogout(){await sb.auth.signOut();CU=null;CP=null;document.getElementById('app').style.display='none';document.getElementById('auth-page').style.display='flex';}
 function showAE(m){const el=document.getElementById('auth-err');el.textContent=m;el.style.display='block';}
@@ -560,7 +560,7 @@ async function renderBids(){
     </div>`;
   await loadBids();
 }
-let _bids=[];
+var _bids=[];
 async function loadBids(){
   const {data:rows,error}=await sb.from('bids').select('*').order('created_at',{ascending:false});
   if(error){
@@ -643,7 +643,7 @@ async function renderGC(){
     </div>`;
   await loadGC();
 }
-let _gcs=[];
+var _gcs=[];
 async function loadGC(){const {data:rows,error}=await sb.from('gc_contacts').select('*').order('created_at',{ascending:false});if(error){console.error('GC error:',error);var tb=document.getElementById('gc-body');if(tb)tb.innerHTML='<tr><td colspan="10" style="color:red;padding:1rem">Error: '+error.message+'</td></tr>';return;}_gcs=rows||[];filterGC();}
 function filterGC(){const search=(document.getElementById('gc-search')?.value||'').toLowerCase();const filter=document.getElementById('gc-filter')?.value||'';let rows=[..._gcs];if(filter)rows=rows.filter(r=>r.replied===filter);if(search)rows=rows.filter(r=>(r.company+r.contact+r.email).toLowerCase().includes(search));const tbody=document.getElementById('gc-body');if(!tbody)return;tbody.innerHTML=rows.map(r=>`<tr><td style="font-weight:600">${r.company||''}</td><td style="font-size:12px">${(r.contact||'').split('\n')[0]}</td><td style="font-size:12px"><a href="mailto:${(r.email||'').split('\n')[0]}" style="color:#1B5E9B">${(r.email||'').split('\n')[0]}</a></td><td style="font-size:12px">${(r.phone||'').split('\n')[0]}</td><td style="font-size:12px">${(r.city||'').split('\n')[0]}</td><td><span class="${r.priority==='1st'?'pri-1':r.priority==='2nd'?'pri-2':'pri-3'}">${r.priority||'—'}</span></td><td><span class="badge ${r.replied==='Yes'?'b-yes':'b-no'}">${r.replied||'No'}</span></td><td class="note-cell">${r.note||''}</td><td class="by-cell">${r.updater?.full_name||r.creator?.full_name||'—'}</td><td style="display:flex;gap:4px"><button class="btn-sm" onclick="editGC('${r.id}')">Edit</button><button class="btn-danger" onclick="delGC('${r.id}','${(r.company||'').replace(/'/g,'`')}')">×</button></td></tr>`).join('')||'<tr><td colspan="10" style="text-align:center;padding:2rem;color:#bbb">No contacts found.</td></tr>';}
 function openGCModal(){editGCId=null;document.getElementById('gc-modal-title').textContent='New GC Contact';['company','contact','email','phone','city','notes','fdate'].forEach(f=>document.getElementById('gm-'+f).value='');document.getElementById('gm-priority').value='1st';document.getElementById('gm-replied').value='No';document.getElementById('gc-modal').classList.add('open');}
@@ -663,7 +663,7 @@ async function renderRetail(){
     </div>`;
   await loadRetail();
 }
-let _retail=[];
+var _retail=[];
 async function loadRetail(){const {data:rows,error}=await sb.from('retail_contacts').select('*').order('created_at',{ascending:false});if(error){console.error('Retail error:',error);}_retail=rows||[];filterRetail();}
 function filterRetail(){const search=(document.getElementById('ret-search')?.value||'').toLowerCase();let rows=[..._retail];if(search)rows=rows.filter(r=>(r.company+r.contact+r.email).toLowerCase().includes(search));const tbody=document.getElementById('ret-body');if(!tbody)return;tbody.innerHTML=rows.map(r=>`<tr><td style="font-weight:600">${r.company||''}</td><td>${r.contact||''}</td><td style="font-size:11px;color:#aaa">${r.role||''}</td><td style="font-size:12px"><a href="mailto:${r.email||''}" style="color:#1B5E9B">${r.email||''}</a></td><td style="font-size:12px">${r.phone||''}</td><td><span class="badge ${r.replied==='Yes'?'b-yes':'b-no'}">${r.replied||'No'}</span></td><td class="note-cell">${r.note||''}</td><td class="by-cell">${r.updater?.full_name||r.creator?.full_name||'—'}</td><td style="display:flex;gap:4px"><button class="btn-sm" onclick="editRetail('${r.id}')">Edit</button><button class="btn-danger" onclick="delRetail('${r.id}','${(r.company||'').replace(/'/g,'`')}')">×</button></td></tr>`).join('')||'<tr><td colspan="9" style="text-align:center;padding:2rem;color:#bbb">No contacts.</td></tr>';}
 function openRetailModal(){editRetailId=null;document.getElementById('retail-modal-title').textContent='New Retail Contact';['company','contact','email','phone','role','notes'].forEach(f=>document.getElementById('rm-'+f).value='');document.getElementById('rm-replied').value='No';document.getElementById('retail-modal').classList.add('open');}
@@ -679,7 +679,7 @@ async function renderPurchases(){
     <div id="purchases-body"><div class="loading"><span class="spinner"></span></div></div>`;
   await loadPurchases();
 }
-let _projects=[];
+var _projects=[];
 async function loadPurchases(){
   const {data:rows=[]}=await sb.from('purchase_projects').select('*').order('created_at',{ascending:false});
   _projects=rows;
@@ -796,7 +796,7 @@ async function renderTasks(){
     </div>`;
   await loadTasks();
 }
-let _tasks=[];
+var _tasks=[];
 async function loadTasks(){const {data:rows,error}=await sb.from('tasks').select('*').order('created_at',{ascending:false});if(error){console.error('Tasks error:',error);}_tasks=rows;filterTasks();}
 function filterTasks(){
   const search=(document.getElementById('task-search')?.value||'').toLowerCase();
@@ -892,14 +892,6 @@ async function loadUsersDropdown(selId,selectedId){const {data:users=[]}=await s
 // proposals loaded from proposals.js
 
 document.addEventListener("DOMContentLoaded", function() {
-  // Init Supabase
-  sb = supabase.createClient(SB_URL, SB_KEY);
-  sbA = supabase.createClient(SB_URL, SB_SVC);
-  // Check existing session
-  sb.auth.getSession().then(function(r) {
-    if(r.data && r.data.session) initApp(r.data.session.user);
-  });
-  // Bind login button
   var signinBtn = document.getElementById('signin-btn');
   if(signinBtn) signinBtn.onclick = doLogin;
   var passField = document.getElementById('login-pass');
@@ -1356,8 +1348,8 @@ document.addEventListener('input',function(e){if(e.target&&e.target.id==='ped-ta
   <div class="body-wrap">
     <div class="sidebar" id="sidebar">
       <div class="sb-brand">
-        <div class="sb-co">NetFiber Network</div>
-        <div class="sb-tag">Cabling Solutions LLC</div>
+        <div class="sb-co" style="font-size:15px;font-weight:800;letter-spacing:-0.5px">NETFIBER</div>
+        <div class="sb-tag" style="font-size:10px;color:#777;font-weight:600;letter-spacing:0.3px;margin-top:2px">Network Cabling Solutions</div>
       </div>
       <div class="sb-sec">Overview</div>
       <div class="sb-item on" data-page="dashboard" onclick="showPage('dashboard')"><div class="sb-dot"></div>Dashboard</div>
