@@ -1035,11 +1035,25 @@ async function renderDashboard(){
 async function renderBids(){
   const mc=document.getElementById('main-content');
   mc.innerHTML=`
-    <div class="page-hdr"><div><div class="page-title">Bid Opportunities</div><div class="page-sub">All bids and follow-ups</div></div><button class="btn" onclick="openPlanHubImport()" style="background:#E8650A;color:#fff;display:flex;align-items:center;gap:6px;padding:9px 14px;border:none;border-radius:9px;font-size:13px;font-weight:600;cursor:pointer"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17,8 12,3 7,8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Import PlanHub</button>
-      <button class="btn btn-blue" onclick="openBidModal()">+ New Bid</button></div>
+    <div class="page-hdr"><div><div class="page-title">Bid Opportunities</div><div class="page-sub">All bids and follow-ups</div></div><button class="btn btn-blue" onclick="openBidModal()">+ New Bid</button></div>
     <div class="toolbar">
       <input type="text" id="bid-search" placeholder="Search project, GC, ref..." oninput="filterBids()" style="flex:1;min-width:180px">
-      <select id="bid-filter" onchange="filterBids()"><option value="">All statuses</option><option>Under Review</option><option>Bid Sent</option><option>Win</option><option>Lost</option></select>
+      <select id="bid-filter" onchange="filterBids()" style="padding:8px 12px;border:1px solid #e0e6f0;border-radius:8px;font-size:13px;background:#fff;color:#333;cursor:pointer;min-width:200px">
+  <option value="">All Bids</option>
+  <optgroup label="── By Status ──">
+    <option value="Under Review">Under Review</option>
+    <option value="Bid Sent">Bid Sent</option>
+    <option value="Win">Won</option>
+    <option value="Lost">Lost</option>
+  </optgroup>
+  <optgroup label="── Special Filters ──">
+    <option value="due_today">📅 Bids Due Today</option>
+    <option value="due_overdue">⚠️ Bids Overdue</option>
+    <option value="fu_today">📞 Follow-Up Due Today</option>
+    <option value="fu_overdue">🔴 Follow-Up Overdue</option>
+    <option value="no_followup">💤 No Follow-Up Set</option>
+  </optgroup>
+</select>
     </div>
     <div class="tbl-wrap" style="overflow-x:auto">
       <table><thead><tr><th>Ref #</th><th>Project</th><th>GC</th><th>Status</th><th>Follow-Up</th><th>Price</th><th>Profit</th><th>Last Ping</th><th>Last Note</th><th>Employee</th><th></th></tr></thead>
@@ -1061,7 +1075,13 @@ function filterBids(){
     const search=(document.getElementById('bid-search')?.value||'').toLowerCase();
     const filter=document.getElementById('bid-filter')?.value||'';
     let rows=[..._bids];
-    if(filter) rows=rows.filter(function(r){return r.status===filter;});
+    // Handle special filters
+    if(filter==='due_today') rows=rows.filter(function(r){return r.due_date&&ddiff(r.due_date)===0;});
+    else if(filter==='due_overdue') rows=rows.filter(function(r){return r.due_date&&ddiff(r.due_date)<0&&r.status!=='Win'&&r.status!=='Lost';});
+    else if(filter==='fu_today') rows=rows.filter(function(r){return r.fu_next_date&&ddiff(r.fu_next_date)===0;});
+    else if(filter==='fu_overdue') rows=rows.filter(function(r){return r.fu_next_date&&ddiff(r.fu_next_date)<0&&r.status!=='Win'&&r.status!=='Lost';});
+    else if(filter==='no_followup') rows=rows.filter(function(r){return (!r.fu_status||r.fu_status==='none')&&r.status!=='Win'&&r.status!=='Lost';});
+    else if(filter) rows=rows.filter(function(r){return r.status===filter;});
     if(search) rows=rows.filter(function(r){return ((r.project||'')+(r.gc||'')+(r.ref||'')+(r.poc||'')).toLowerCase().indexOf(search)>=0;});
     rows.sort(function(a,b){
       var da=a.fu_next_date?new Date(a.fu_next_date):new Date('2099-01-01');
