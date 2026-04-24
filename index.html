@@ -423,7 +423,15 @@ function statusBadge(s){
   return`<span class="badge ${m[s]||'b-review'}">${s||'Under Review'}</span>`;
 }
 
-var FU={new:{l:'Send Bid',c:'fu-new'},email:{l:'Follow Up — Email',c:'fu-email'},call:{l:'Follow Up — Call',c:'fu-call'},waiting:{l:'Waiting',c:'fu-waiting'},replied:{l:'Replied',c:'fu-replied'},closed:{l:'Closed',c:'fu-closed'}};
+var FU={
+  new:    {l:'Bid Not Sent',    c:'fu-new'},
+  sent:   {l:'Bid Sent',        c:'fu-waiting'},
+  email:  {l:'Email Sent',      c:'fu-email'},
+  call:   {l:'Call Needed',     c:'fu-call'},
+  waiting:{l:'Waiting on Owner',c:'fu-waiting'},
+  replied:{l:'GC Replied',      c:'fu-replied'},
+  closed: {l:'Closed',          c:'fu-closed'}
+};
 function fuBadge(bid){
   if(!bid||!FU)return'';
   var fuKey=bid.fu_status||'new';
@@ -515,13 +523,20 @@ async function renderDashboard(){
   const overdueSorted=[...overdueFollowups].sort((a,b)=>ddiff(a.fu_next_date)-ddiff(b.fu_next_date)).slice(0,4);
   const bidsDueList=bids.filter(function(b){return b.due_date&&ddiff(b.due_date)<=0&&b.status==='Under Review';}).sort(function(a,b2){return ddiff(a.due_date)-ddiff(b2.due_date);}).slice(0,6);
 
-  // Follow-up due: bids where fu_next_date is today or past and not won/lost
+  // Follow-up due: bids where fu_next_date is today or past, not won/lost
+  // Also include Bid Sent bids older than 4 days with no fu_next_date set
   var fuDueList=bids.filter(function(b){
     if(b.status==='Win'||b.status==='Lost') return false;
-    if(!b.fu_next_date) return false;
-    return ddiff(b.fu_next_date)<=0;
+    if(b.fu_next_date) return ddiff(b.fu_next_date)<=0;
+    // Auto-catch: Bid Sent with no follow-up logged and last_ping > 4 days ago
+    if(b.status==='Bid Sent'&&b.last_ping){
+      return Math.round((today-new Date(b.last_ping))/86400000)>=4;
+    }
+    return false;
   }).sort(function(a,b2){
-    return ddiff(a.fu_next_date)-ddiff(b2.fu_next_date);
+    var da=a.fu_next_date?ddiff(a.fu_next_date):(a.last_ping?Math.round((today-new Date(a.last_ping))/86400000)*-1:0);
+    var db=b2.fu_next_date?ddiff(b2.fu_next_date):(b2.last_ping?Math.round((today-new Date(b2.last_ping))/86400000)*-1:0);
+    return da-db;
   }).slice(0,6);
   const tasksSorted=tasks.filter(t=>!t.done&&(t.deadline===todayStr||t.priority==='high')).sort((a,b)=>{const po={high:0,medium:1,low:2};return(po[a.priority]||1)-(po[b.priority]||1);}).slice(0,4);
   const emailsDue=bids.filter(b=>b.fu_next_date&&ddiff(b.fu_next_date)<=0&&(b.fu_status==='email'||b.fu_status==='new'||b.fu_status==='call')&&b.status!=='Win'&&b.status!=='Lost').sort((a,b)=>ddiff(a.fu_next_date)-ddiff(b.fu_next_date)).slice(0,4);
@@ -688,7 +703,12 @@ function filterBids(){
 }
 async function openBidModal(){editBidId=null;document.getElementById('bid-modal-title').textContent='New Bid';['ref','project','gc','poc','email','phone','notes','scope'].forEach(f=>document.getElementById('bm-'+f).value='');['price','cost'].forEach(f=>document.getElementById('bm-'+f).value='0');['due','ping'].forEach(f=>document.getElementById('bm-'+f).value='');document.getElementById('bm-source').value='PlanHub';document.getElementById('bm-status').value='Under Review';await loadUsersDropdown('bm-assigned',null);document.getElementById('bid-modal').classList.add('open');}
 async function editBid(id){const {data:r}=await sb.from('bids').select('*').eq('id',id).single();if(!r)return;editBidId=id;document.getElementById('bid-modal-title').textContent='Edit Bid';const sm={'Submitted':'Bid Sent','Won':'Win','WON':'Win','LOST':'Lost','Replied':'Bid Sent','Did Not replay':'Under Review'};document.getElementById('bm-ref').value=r.ref||'';document.getElementById('bm-source').value=r.source||'PlanHub';document.getElementById('bm-project').value=r.project||'';document.getElementById('bm-status').value=sm[r.status]||r.status||'Under Review';document.getElementById('bm-gc').value=r.gc||'';document.getElementById('bm-poc').value=r.poc||'';document.getElementById('bm-email').value=r.email||'';document.getElementById('bm-phone').value=r.phone||'';document.getElementById('bm-price').value=r.price||0;document.getElementById('bm-cost').value=r.cost||0;document.getElementById('bm-due').value=r.due_date||'';document.getElementById('bm-ping').value=r.last_ping||'';document.getElementById('bm-notes').value=r.notes||'';document.getElementById('bm-scope').value=r.scope||'';await loadUsersDropdown('bm-assigned',r.assigned_to||null);document.getElementById('bid-modal').classList.add('open');}
-async function saveBid(){const price=parseFloat(document.getElementById('bm-price').value)||0;const cost=parseFloat(document.getElementById('bm-cost').value)||0;const obj={ref:document.getElementById('bm-ref').value,source:document.getElementById('bm-source').value,project:document.getElementById('bm-project').value,status:document.getElementById('bm-status').value,gc:document.getElementById('bm-gc').value,poc:document.getElementById('bm-poc').value,email:document.getElementById('bm-email').value,phone:document.getElementById('bm-phone').value,price,cost,profit:price-cost,due_date:document.getElementById('bm-due').value||null,last_ping:document.getElementById('bm-ping').value||null,notes:document.getElementById('bm-notes').value,scope:document.getElementById('bm-scope').value,assigned_to:document.getElementById('bm-assigned').value||null,updated_by:CU.id,updated_at:new Date().toISOString()};if(editBidId){await sb.from('bids').update(obj).eq('id',editBidId);await logAct('Updated bid','bids',editBidId,`Updated ${obj.ref}`);}else{obj.created_by=CU.id;const {data}=await sb.from('bids').insert(obj).select().single();await logAct('Added bid','bids',data?.id,`Added ${obj.ref} - ${obj.project}`);}closeModal('bid-modal');await loadBids();}
+async function saveBid(){const price=parseFloat(document.getElementById('bm-price').value)||0;const cost=parseFloat(document.getElementById('bm-cost').value)||0;const obj={ref:document.getElementById('bm-ref').value,source:document.getElementById('bm-source').value,project:document.getElementById('bm-project').value,status:document.getElementById('bm-status').value,gc:document.getElementById('bm-gc').value,poc:document.getElementById('bm-poc').value,email:document.getElementById('bm-email').value,phone:document.getElementById('bm-phone').value,price,cost,profit:price-cost,due_date:document.getElementById('bm-due').value||null,last_ping:document.getElementById('bm-ping').value||null,notes:document.getElementById('bm-notes').value,scope:document.getElementById('bm-scope').value,assigned_to:document.getElementById('bm-assigned').value||null,updated_by:CU.id,updated_at:new Date().toISOString()};if(editBidId){await sb.from('bids').update(obj).eq('id',editBidId);await logAct('Updated bid','bids',editBidId,`Updated ${obj.ref}`);}else{obj.created_by=CU.id;const {data}=await sb.from('bids').insert(obj).select().single();await logAct('Added bid','bids',data?.id,`Added ${obj.ref} - ${obj.project}`);}// Auto-set follow-up when bid sent
+  if(obj.status==='Bid Sent'&&!editBidId){
+    var fuDate=new Date(); fuDate.setDate(fuDate.getDate()+4);
+    obj.fu_status='sent'; obj.fu_next_date=fuDate.toISOString().split('T')[0];
+  }
+  closeModal('bid-modal');await loadBids();}
 async function delBid(id,name){if(!confirm(`Delete bid "${name}"?`))return;await sb.from('bids').delete().eq('id',id);await logAct('Deleted bid','bids',null,`Deleted: ${name}`);await loadBids();}
 
 // GC
@@ -946,7 +966,39 @@ async function deleteUser(id,name){if(!confirm(`Remove "${name}"? They will lose
 // FOLLOW-UP
 async function openFU(e,bidId){e.stopPropagation();currentBidId=bidId;const {data:bid}=await sb.from('bids').select('*').eq('id',bidId).single();if(!bid)return;document.getElementById('fu-proj-name').textContent=bid.project||bid.ref||'Project';document.getElementById('fu-proj-gc').textContent=bid.gc||'';const cfg=FU[bid.fu_status||'new']||FU.new;document.getElementById('fu-cur-status').innerHTML=`<span class="fu-badge ${cfg.c}">${cfg.l}</span>`;const nd=bid.fu_next_date;if(nd){const diff=ddiff(nd);document.getElementById('fu-next-action').innerHTML=diff<0?`<span style="color:#E24B4A">${Math.abs(diff)}d overdue — Act now!</span>`:diff===0?`<span style="color:#BA7517">Due TODAY</span>`:`In ${diff} day${diff!==1?'s':''} (${fmtD(nd)})`;document.getElementById('fu-next-date').value=nd;}else{document.getElementById('fu-next-action').textContent='Not scheduled';const s=new Date();s.setDate(s.getDate()+4);document.getElementById('fu-next-date').value=s.toISOString().split('T')[0];}document.getElementById('fu-last-contact').textContent=bid.last_ping?fmtD(bid.last_ping):'Never';await loadFUHistory(bidId);document.getElementById('fu-modal').classList.add('open');}
 async function loadFUHistory(bidId){const {data:logs=[]}=await sb.from('activity_log').select('*').eq('table_name','followup').eq('record_id',bidId).order('created_at',{ascending:false});const tc={email:'ftp-email',call:'ftp-call',meeting:'ftp-meeting',note:'ftp-note'};const tl={email:'Email',call:'Phone Call',meeting:'Meeting',note:'Note'};document.getElementById('fu-history').innerHTML=logs.length?logs.map(l=>{let p={};try{p=JSON.parse(l.details);}catch(e){p={note:l.details};}return`<div class="fu-log-item"><span class="fu-type-pill ${tc[p.type]||'ftp-note'}">${tl[p.type]||'Note'}</span><div style="flex:1"><div style="font-size:13px;color:#1a1a1a">${p.note||''}</div><div style="font-size:11px;color:#bbb;margin-top:3px">${l.user_name} · ${new Date(l.created_at).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})}</div></div></div>`;}).join(''):'<div style="color:#bbb;font-size:13px;padding:1rem 0">No follow-ups logged yet. Double-click a bid row to get started.</div>';}
-async function logFollowUp(){const type=document.getElementById('fu-type').value;const note=document.getElementById('fu-note-input').value.trim();const statusAfter=document.getElementById('fu-status-after').value;const nextDate=document.getElementById('fu-next-date').value||null;if(!note){alert('Please write a note.');return;}await sb.from('bids').update({fu_status:statusAfter,fu_next_date:nextDate,last_ping:new Date().toISOString().split('T')[0],updated_by:CU.id,updated_at:new Date().toISOString()}).eq('id',currentBidId);await logAct('Follow-up logged','followup',currentBidId,JSON.stringify({type,note,status_after:statusAfter,next_date:nextDate}));document.getElementById('fu-note-input').value='';const {data:bid}=await sb.from('bids').select('*').eq('id',currentBidId).single();const cfg=FU[statusAfter]||FU.new;document.getElementById('fu-cur-status').innerHTML=`<span class="fu-badge ${cfg.c}">${cfg.l}</span>`;document.getElementById('fu-last-contact').textContent=fmtD(bid.last_ping);await loadFUHistory(currentBidId);await loadBids();}
+async function logFollowUp(){
+  var type=document.getElementById('fu-type').value;
+  var note=document.getElementById('fu-note-input').value.trim();
+  var statusAfter=document.getElementById('fu-status-after').value;
+  var nextDateEl=document.getElementById('fu-next-date');
+  // Auto-calculate next follow-up date based on status
+  var autodays={email:4,call:4,waiting:7,replied:0,closed:0};
+  var daysAhead=autodays[statusAfter]||4;
+  var nextDate;
+  if(nextDateEl&&nextDateEl.value){
+    nextDate=nextDateEl.value;
+  } else {
+    var nd=new Date(); nd.setDate(nd.getDate()+daysAhead);
+    nextDate=daysAhead>0?nd.toISOString().split('T')[0]:null;
+  }
+  if(!note){alert('Please write a note about what you did.');return;}
+  await sb.from('bids').update({fu_status:statusAfter,fu_next_date:nextDate,last_ping:new Date().toISOString().split('T')[0],updated_by:CU.id,updated_at:new Date().toISOString()}).eq('id',currentBidId);
+  await logAct('Follow-up logged','followup',currentBidId,JSON.stringify({type:type,note:note,status_after:statusAfter,next_date:nextDate}));
+  document.getElementById('fu-note-input').value='';
+  var bidRes=await sb.from('bids').select('*').eq('id',currentBidId).single();
+  var bid=bidRes.data;
+  var cfg=FU[statusAfter]||FU.new;
+  document.getElementById('fu-cur-status').innerHTML='<span class="fu-badge '+cfg.c+'">'+cfg.l+'</span>';
+  document.getElementById('fu-last-contact').textContent=fmtD(bid.last_ping);
+  // Show next follow-up date in the panel
+  var naEl=document.getElementById('fu-next-action');
+  if(naEl&&nextDate){
+    var diff=ddiff(nextDate);
+    naEl.innerHTML=diff<=0?'<span style="color:#E24B4A;font-weight:700">Due now!</span>':diff===0?'<span style="color:#BA7517;font-weight:700">Due TODAY</span>':'In '+diff+' day'+(diff!==1?'s':'')+' — '+fmtD(nextDate);
+  }
+  await loadFUHistory(currentBidId);
+  await loadBids();
+}
 
 // USERS DROPDOWN
 async function loadUsersDropdown(selId,selectedId){const {data:users=[]}=await sbA.from('profiles').select('id,full_name').order('full_name');const sel=document.getElementById(selId);if(!sel)return;sel.innerHTML='<option value="">— Unassigned —</option>'+users.map(u=>`<option value="${u.id}"${selectedId&&u.id===selectedId?' selected':''}>${u.full_name||u.id}</option>`).join('');}
@@ -1573,7 +1625,11 @@ document.addEventListener('input',function(e){if(e.target&&e.target.id==='ped-ta
       <div style="font-size:12px;font-weight:700;color:#1B5E9B;margin-bottom:10px">Log Follow-Up</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
         <div style="flex:0 0 120px"><div style="font-size:10px;font-weight:700;color:#555;margin-bottom:4px;text-transform:uppercase">Type</div><select id="fu-type" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:8px;font-size:12px;outline:none"><option value="email">Email</option><option value="call">Phone Call</option><option value="meeting">Meeting</option><option value="note">Note</option></select></div>
-        <div style="flex:0 0 140px"><div style="font-size:10px;font-weight:700;color:#555;margin-bottom:4px;text-transform:uppercase">Status after</div><select id="fu-status-after" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:8px;font-size:12px;outline:none"><option value="waiting">Waiting for reply</option><option value="replied">They replied</option><option value="call">Need to call</option><option value="closed">Closed</option></select></div>
+        <div style="flex:0 0 140px"><div style="font-size:10px;font-weight:700;color:#555;margin-bottom:4px;text-transform:uppercase">Status after</div><select id="fu-status-after" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:8px;font-size:12px;outline:none"><option value="email">Email sent — waiting reply (4 days)</option>
+<option value="call">Need to call — no reply (4 days)</option>
+<option value="waiting">GC waiting on owner decision</option>
+<option value="replied">GC replied — interested</option>
+<option value="closed">Closed — no longer pursuing</option></select></div>
         <div style="flex:0 0 140px"><div style="font-size:10px;font-weight:700;color:#555;margin-bottom:4px;text-transform:uppercase">Next follow-up</div><input type="date" id="fu-next-date" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:8px;font-size:12px;outline:none"></div>
         <div style="flex:1;min-width:160px"><div style="font-size:10px;font-weight:700;color:#555;margin-bottom:4px;text-transform:uppercase">Note</div><input type="text" id="fu-note-input" placeholder="Who did you speak with? What happened?" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:8px;font-size:12px;outline:none" onkeydown="if(event.key==='Enter')logFollowUp()"></div>
         <button class="btn btn-blue" onclick="logFollowUp()" style="padding:7px 14px;font-size:12px">Log it</button>
