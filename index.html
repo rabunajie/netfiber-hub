@@ -841,11 +841,12 @@ function showPage(p){
 // DASHBOARD
 async function renderDashboard(){
   const mc=document.getElementById('main-content');
-  const [{data:bidsR},{data:tasksR}]=await Promise.all([
+  const [{data:bidsR},{data:tasksR},{data:gcsR}]=await Promise.all([
     sb.from('bids').select('*'),
-    sb.from('tasks').select('*')
+    sb.from('tasks').select('*'),
+    sb.from('gc_contacts').select('*')
   ]);
-  const bids=bidsR||[];const tasks=tasksR||[];
+  const bids=bidsR||[];const tasks=tasksR||[];const gcs=gcsR||[];
   const wins=bids.filter(b=>b.status==='Win'||b.status==='Won');
   const overdueFollowups=bids.filter(b=>b.fu_next_date&&ddiff(b.fu_next_date)<0&&b.status!=='Win'&&b.status!=='Lost');
   const tasksDueToday=tasks.filter(t=>!t.done&&t.deadline===todayStr);
@@ -898,6 +899,12 @@ async function renderDashboard(){
   const opsModules='';
 
   const overdueSorted=[...overdueFollowups].sort((a,b)=>ddiff(a.fu_next_date)-ddiff(b.fu_next_date)).slice(0,4);
+  // Bids due today/overdue (Under Review only)
+  const bidsDueList=bids.filter(function(b){return b.due_date&&ddiff(b.due_date)<=0&&b.status==='Under Review';}).sort(function(a,b2){return ddiff(a.due_date)-ddiff(b2.due_date);}).slice(0,6);
+  // Follow-ups due (fu_next_date today or past, not won/lost)
+  const fuDueList=bids.filter(function(b){if(b.status==='Win'||b.status==='Lost')return false;return b.fu_next_date&&ddiff(b.fu_next_date)<=0;}).sort(function(a,b2){return ddiff(a.fu_next_date)-ddiff(b2.fu_next_date);}).slice(0,6);
+  // GC calls due
+  const gcDueList=gcs.filter(function(g){return g.gc_fu_status&&g.gc_fu_status!=='none'&&g.gc_fu_status!=='nointerest'&&g.gc_next_followup&&ddiff(g.gc_next_followup)<=0;}).sort(function(a,b){return ddiff(a.gc_next_followup)-ddiff(b.gc_next_followup);}).slice(0,5);
   const tasksSorted=tasks.filter(t=>!t.done&&(t.deadline===todayStr||t.priority==='high')).sort((a,b)=>{const po={high:0,medium:1,low:2};return(po[a.priority]||1)-(po[b.priority]||1);}).slice(0,4);
   const emailsDue=bids.filter(b=>b.fu_next_date&&ddiff(b.fu_next_date)<=0&&(b.fu_status==='email'||b.fu_status==='new'||b.fu_status==='call')&&b.status!=='Win'&&b.status!=='Lost').sort((a,b)=>ddiff(a.fu_next_date)-ddiff(b.fu_next_date)).slice(0,4);
   const waitingTooLong=bids.filter(b=>b.fu_status==='waiting'&&b.last_ping&&ddiff(b.last_ping)<-7&&b.status!=='Win'&&b.status!=='Lost').slice(0,4);
@@ -953,10 +960,21 @@ async function renderDashboard(){
 async function renderBids(){
   const mc=document.getElementById('main-content');
   mc.innerHTML=`
+    <div id="bid-kpis" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px"></div>
     <div class="page-hdr"><div><div class="page-title">Bid Opportunities</div><div class="page-sub">All bids and follow-ups</div></div><button class="btn btn-blue" onclick="openBidModal()">+ New Bid</button></div>
     <div class="toolbar">
       <input type="text" id="bid-search" placeholder="Search project, GC, ref..." oninput="filterBids()" style="flex:1;min-width:180px">
-      <select id="bid-filter" onchange="filterBids()"><option value="">All statuses</option><option>Under Review</option><option>Bid Sent</option><option>Win</option><option>Lost</option></select>
+      <select id="bid-filter" onchange="filterBids()" style="padding:8px 12px;border:1px solid #e0e6f0;border-radius:8px;font-size:13px;background:#fff;cursor:pointer">
+  <option value="">All Bids</option>
+  <option value="Under Review">Under Review</option>
+  <option value="Bid Sent">Bid Sent</option>
+  <option value="Win">Won</option>
+  <option value="Lost">Lost</option>
+  <option value="due_today">📅 Bids Due Today</option>
+  <option value="due_overdue">⚠️ Bids Overdue</option>
+  <option value="fu_today">📧 Email Follow-Up Due</option>
+  <option value="fu_overdue">📞 Phone Follow-Up Due</option>
+</select>
     </div>
     <div class="tbl-wrap" style="overflow-x:auto">
       <table><thead><tr><th>Ref #</th><th>Project</th><th>GC</th><th>Status</th><th>Follow-Up</th><th>Price</th><th>Profit</th><th>Last Ping</th><th>Last Note</th><th>Employee</th><th></th></tr></thead>
@@ -965,12 +983,32 @@ async function renderBids(){
   await loadBids();
 }
 var _bids=[];
+
+function bidKpi(icon,label,sub,val,color,filter){
+  return '<div onclick="document.getElementById(\'bid-filter\').value=\''+filter+'\';filterBids()" style="cursor:pointer;background:#fff;border:0.5px solid #eaedf2;border-top:3px solid '+color+';border-radius:10px;padding:14px 16px">'
+    +'<div style="font-size:11px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px">'+icon+' '+label+'</div>'
+    +'<div style="font-size:26px;font-weight:800;color:'+color+'">'+val+'</div>'
+    +'<div style="font-size:11px;color:#bbb;margin-top:3px">'+sub+'</div>'
+    +'</div>';
+}
 async function loadBids(){
   const {data:rows,error}=await sb.from('bids').select('*').order('created_at',{ascending:false});
   if(error){console.error('Bids error:',error);_bids=[];filterBids();return;}
   // Get assignee names separately
   _bids=rows||[];
   console.log('Bids loaded:', _bids.length);
+  // KPI boxes
+  var kEl=document.getElementById('bid-kpis');
+  if(kEl){
+    var today2=new Date();today2.setHours(0,0,0,0);
+    var bidsDue=_bids.filter(function(b){return b.due_date&&ddiff(b.due_date)<=0&&b.status==='Under Review';}).length;
+    var fuEmail=_bids.filter(function(b){if(b.status==='Win'||b.status==='Lost')return false;return b.fu_next_date&&ddiff(b.fu_next_date)<=0&&(b.fu_status==='email'||b.fu_status==='sent'||b.fu_status==='none'||!b.fu_status);}).length;
+    var fuCall=_bids.filter(function(b){if(b.status==='Win'||b.status==='Lost')return false;return b.fu_next_date&&ddiff(b.fu_next_date)<=0&&(b.fu_status==='call'||b.fu_status==='waiting');}).length;
+    kEl.innerHTML=
+      bidKpi('📅','Bids Due Today','Under Review past due',bidsDue,'#854F0B','due_today')+
+      bidKpi('📧','Email Follow-Up','Due today or overdue',fuEmail,'#1B5E9B','fu_today')+
+      bidKpi('📞','Phone Follow-Up','Due today or overdue',fuCall,'#A32D2D','fu_overdue');
+  }
   filterBids();
 }
 function filterBids(){
