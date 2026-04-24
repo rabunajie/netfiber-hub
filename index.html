@@ -1484,7 +1484,26 @@ async function renderPipeline(){
   ]);
   var bids = bidsRes.data || [];
   var gcs = gcsRes.data || [];
-  var filteredBids = bids.filter(function(b){ return b.created_at && new Date(b.created_at) >= cutoff; });
+  // Use the best available date for each bid
+  // Priority: due_date > last_ping > created_at
+  function getBidDate(b){
+    return b.due_date || b.last_ping || b.created_at || null;
+  }
+
+  // Include bids that are Bid Sent, Submitted, Win, or Lost
+  var activeBids = bids.filter(function(b){
+    var s = b.status||'';
+    return s==='Bid Sent'||s==='Submitted'||s==='Win'||s==='Lost'||s==='Under Review';
+  });
+
+  // Filter by date range using best date
+  var filteredBids = activeBids.filter(function(b){
+    var d = getBidDate(b);
+    return d && new Date(d) >= cutoff;
+  });
+
+  // If no bids in range, show all active bids (fallback)
+  if(filteredBids.length === 0) filteredBids = activeBids;
 
   // Build month labels (X axis)
   var numMonths = months === 0 ? 24 : months;
@@ -1505,7 +1524,7 @@ async function renderPipeline(){
   labels.forEach(function(l){ bidsPerMonth[l]=0; wonPerMonth[l]=0; lostPerMonth[l]=0; revenuePerMonth[l]=0; wonValuePerMonth[l]=0; });
 
   filteredBids.forEach(function(b){
-    var l = getMonthLabel(b.created_at);
+    var l = getMonthLabel(getBidDate(b));
     if(!l || bidsPerMonth[l]===undefined) return;
     bidsPerMonth[l]++;
     if(b.status==='Win'){ wonPerMonth[l]++; wonValuePerMonth[l]+=(b.price||0); }
@@ -1518,10 +1537,10 @@ async function renderPipeline(){
   var noReplyPerMonth = {};
   labels.forEach(function(l){ repliedPerMonth[l]=0; noReplyPerMonth[l]=0; });
   filteredBids.forEach(function(b){
-    var l = getMonthLabel(b.last_ping||b.created_at);
+    var l = getMonthLabel(getBidDate(b));
     if(!l || repliedPerMonth[l]===undefined) return;
     if(b.fu_status==='replied'||b.fu_status==='closed'||b.status==='Win') repliedPerMonth[l]++;
-    else if(b.status==='Bid Sent'||b.status==='Submitted') noReplyPerMonth[l]++;
+    else noReplyPerMonth[l]++;
   });
 
   // Win rate per month
@@ -1544,6 +1563,8 @@ async function renderPipeline(){
   var totalLost = filteredBids.filter(function(b){ return b.status==='Lost'; }).length;
   var totalValue = filteredBids.reduce(function(s,b){ return s+(b.price||0); }, 0);
   var winRate = totalBidsSent > 0 ? Math.round((totalWon/totalBidsSent)*100) : 0;
+  // Debug log
+  console.log('Pipeline: '+filteredBids.length+' bids in range, labels:', labels);
   var gcResponded = gcs.filter(function(g){ return ['replied','active','form','call'].indexOf(g.gc_fu_status)>=0; }).length;
 
   document.getElementById('pipeline-kpis').innerHTML =
