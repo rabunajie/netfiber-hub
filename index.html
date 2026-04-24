@@ -385,6 +385,7 @@ tr:hover td{background:#fafcff}
       <div class="sb-item" data-page="proposals" data-groups="admin,sales" onclick="showPage('proposals')"><span class="sb-dot"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></span>Proposals</div>
       <div class="sb-item" data-page="purchases" data-groups="admin,sales" onclick="showPage('purchases')"><span class="sb-dot"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 001.99-1.85l1.38-9.14H6"/></svg></span>Purchases</div>
       <div class="sb-item" data-page="tasks" data-groups="admin,sales,staff,field" onclick="showPage('tasks')"><span class="sb-dot"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="9,11 12,14 22,4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg></span>To-Do<span class="sb-badge" id="sb-tasks-badge" style="background:#BA7517;display:none"></span></div>
+      <div class="sb-item" data-page="pipeline" data-groups="admin,sales" onclick="showPage('pipeline')"><span class="sb-dot"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="22,12 18,12 15,21 9,3 6,12 2,12"/></svg></span>Pipeline Report</div>
       <div class="sb-sec">Admin</div>
       <div class="sb-item" data-page="log" data-groups="admin" onclick="showPage('log')"><span class="sb-dot"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg></span>Activity Log</div>
       <div class="sb-item" data-page="mgmt" data-groups="admin" onclick="showPage('mgmt')"><span class="sb-dot"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93l-1.41 1.41M5.34 18.66l-1.41 1.41M4.93 4.93l1.41 1.41M18.66 18.66l1.41 1.41M2 12h2M20 12h2M12 2v2M12 20v2"/></svg></span>Management</div>
@@ -923,6 +924,9 @@ async function renderDashboard(){
         ${canAccess('mgmt')?`<div class="mod-btn" onclick="showPage('mgmt')" style="border-top:3px solid #854F0B">
           <span class="mod-btn-name">Management</span>
         </div>`:''}
+        <div class="mod-btn" onclick="showPage('pipeline')" style="border-top:3px solid #1D9E75">
+          <span class="mod-btn-name">Pipeline</span>
+        </div>
       </div>
     </div>`;
 
