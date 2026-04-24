@@ -1316,11 +1316,7 @@ async function renderTasks(){
         <input type="text" id="new-task" placeholder="Task description..." onkeydown="if(event.key==='Enter')addTask()" style="flex:1;min-width:200px;padding:8px 12px;border:1px solid #e0e0e0;border-radius:8px;font-size:13px;outline:none">
         <select id="new-pri" style="padding:8px 10px;border:1px solid #e0e0e0;border-radius:8px;font-size:13px;outline:none"><option value="high">High</option><option value="medium" selected>Medium</option><option value="low">Low</option></select>
         <input type="date" id="new-date" style="padding:8px 10px;border:1px solid #e0e0e0;border-radius:8px;font-size:13px;outline:none">
-        <select id="new-assign" style="padding:8px 10px;border:1px solid #e0e0e0;border-radius:8px;font-size:13px;outline:none">
-          <option value="">Assign to...</option>
-          <option value="Ramadan">Ramadan</option>
-          <option value="Sonia">Sonia</option>
-        </select>
+        <select id="new-assign" style="padding:8px 10px;border:1px solid #e0e0e0;border-radius:8px;font-size:13px;outline:none"><option value="">Assign to me</option></select>
         <button class="btn btn-blue" onclick="addTask()">+ Add</button>
       </div>
     </div>
@@ -1334,9 +1330,35 @@ async function renderTasks(){
       <div id="task-list"></div>
     </div>`;
   await loadTasks();
+  // Load profiles for assign dropdown
+  var pRes=await sb.from('profiles').select('full_name').order('full_name');
+  var assignEl=document.getElementById('new-assign');
+  if(assignEl&&pRes.data){
+    pRes.data.forEach(function(p){
+      if(p.full_name){
+        var opt=document.createElement('option');
+        opt.value=p.full_name;
+        opt.textContent=p.full_name;
+        assignEl.appendChild(opt);
+      }
+    });
+  }
 }
 var _tasks=[];
-async function loadTasks(){const {data:rows,error}=await sb.from('tasks').select('*').order('created_at',{ascending:false});if(error){console.error('Tasks error:',error);}_tasks=rows;filterTasks();}
+async function loadTasks(){
+  var {data:rows,error}=await sb.from('tasks').select('*').order('created_at',{ascending:false});
+  if(error){console.error('Tasks error:',error);return;}
+  // Show only tasks created by or assigned to current user
+  var myName=CP?CP.full_name||'':null;
+  var myId=CU?CU.id:null;
+  _tasks=(rows||[]).filter(function(t){
+    // Admin sees all tasks
+    if(CP&&CP.group_name==='admin') return true;
+    // Others see tasks they created or assigned to them
+    return t.created_by===myId || t.assigned_name===myName;
+  });
+  filterTasks();
+}
 function filterTasks(){
   const search=(document.getElementById('task-search')?.value||'').toLowerCase();
   const filter=document.getElementById('task-filter')?.value||'all';
@@ -1364,7 +1386,24 @@ function filterTasks(){
     </div>`;
   }).join('')||'<div style="text-align:center;padding:2rem;color:#bbb;font-size:13px">No tasks found.</div>';
 }
-async function addTask(){const name=document.getElementById('new-task')?.value.trim();if(!name)return;const assignEl=document.getElementById('new-assign');const obj={name,priority:document.getElementById('new-pri').value,deadline:document.getElementById('new-date').value||null,done:false,assigned_name:assignEl?assignEl.value||null:null,created_by:CU.id,updated_by:CU.id};const {data}=await sb.from('tasks').insert(obj).select().single();await logAct('Added task','tasks',data?.id,`Added: ${name}`);document.getElementById('new-task').value='';document.getElementById('new-date').value='';await loadTasks();}
+async function addTask(){
+  var name=document.getElementById('new-task')?document.getElementById('new-task').value.trim():'';
+  if(!name){alert('Please enter a task description');return;}
+  var pri=document.getElementById('new-pri')?document.getElementById('new-pri').value:'medium';
+  var date=document.getElementById('new-date')?document.getElementById('new-date').value||null:null;
+  var assignEl=document.getElementById('new-assign');
+  var assignedName=assignEl&&assignEl.value?assignEl.value:null;
+  // If no assignment, assign to self
+  if(!assignedName&&CP) assignedName=CP.full_name||null;
+  var obj={name:name,priority:pri,deadline:date,done:false,assigned_name:assignedName,created_by:CU.id,updated_by:CU.id,updated_at:new Date().toISOString()};
+  var res=await sb.from('tasks').insert(obj).select().single();
+  if(res.error){console.error('Task error:',res.error);return;}
+  await logAct('Added task','tasks',res.data?res.data.id:null,'Added: '+name);
+  if(document.getElementById('new-task'))document.getElementById('new-task').value='';
+  if(assignEl)assignEl.value='';
+  await loadTasks();
+}
+
 async function toggleTask(id,wasDone){await sb.from('tasks').update({done:!wasDone,updated_by:CU.id,updated_at:new Date().toISOString()}).eq('id',id);await loadTasks();}
 async function delTask(id,name){if(!confirm(`Delete "${name}"?`))return;await sb.from('tasks').delete().eq('id',id);await loadTasks();}
 
