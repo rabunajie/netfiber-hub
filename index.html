@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>NetFiber Hub</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 <style>
 
 *{box-sizing:border-box;margin:0;padding:0}
@@ -1315,6 +1316,11 @@ async function renderTasks(){
         <input type="text" id="new-task" placeholder="Task description..." onkeydown="if(event.key==='Enter')addTask()" style="flex:1;min-width:200px;padding:8px 12px;border:1px solid #e0e0e0;border-radius:8px;font-size:13px;outline:none">
         <select id="new-pri" style="padding:8px 10px;border:1px solid #e0e0e0;border-radius:8px;font-size:13px;outline:none"><option value="high">High</option><option value="medium" selected>Medium</option><option value="low">Low</option></select>
         <input type="date" id="new-date" style="padding:8px 10px;border:1px solid #e0e0e0;border-radius:8px;font-size:13px;outline:none">
+        <select id="new-assign" style="padding:8px 10px;border:1px solid #e0e0e0;border-radius:8px;font-size:13px;outline:none">
+          <option value="">Assign to...</option>
+          <option value="Ramadan">Ramadan</option>
+          <option value="Sonia">Sonia</option>
+        </select>
         <button class="btn btn-blue" onclick="addTask()">+ Add</button>
       </div>
     </div>
@@ -1324,7 +1330,7 @@ async function renderTasks(){
     </div>
     <div id="today-tasks-section"></div>
     <div class="tbl-wrap">
-      <div class="task-hdr"><span></span><span>Task</span><span>Priority</span><span>Deadline</span><span>Added by</span><span>Status</span><span></span></div>
+      <div class="task-hdr"><span></span><span>Task</span><span>Priority</span><span>Deadline</span><span>Assigned To</span><span>Status</span><span></span></div>
       <div id="task-list"></div>
     </div>`;
   await loadTasks();
@@ -1358,7 +1364,7 @@ function filterTasks(){
     </div>`;
   }).join('')||'<div style="text-align:center;padding:2rem;color:#bbb;font-size:13px">No tasks found.</div>';
 }
-async function addTask(){const name=document.getElementById('new-task')?.value.trim();if(!name)return;const obj={name,priority:document.getElementById('new-pri').value,deadline:document.getElementById('new-date').value||null,done:false,created_by:CU.id,updated_by:CU.id};const {data}=await sb.from('tasks').insert(obj).select().single();await logAct('Added task','tasks',data?.id,`Added: ${name}`);document.getElementById('new-task').value='';document.getElementById('new-date').value='';await loadTasks();}
+async function addTask(){const name=document.getElementById('new-task')?.value.trim();if(!name)return;const assignEl=document.getElementById('new-assign');const obj={name,priority:document.getElementById('new-pri').value,deadline:document.getElementById('new-date').value||null,done:false,assigned_name:assignEl?assignEl.value||null:null,created_by:CU.id,updated_by:CU.id};const {data}=await sb.from('tasks').insert(obj).select().single();await logAct('Added task','tasks',data?.id,`Added: ${name}`);document.getElementById('new-task').value='';document.getElementById('new-date').value='';await loadTasks();}
 async function toggleTask(id,wasDone){await sb.from('tasks').update({done:!wasDone,updated_by:CU.id,updated_at:new Date().toISOString()}).eq('id',id);await loadTasks();}
 async function delTask(id,name){if(!confirm(`Delete "${name}"?`))return;await sb.from('tasks').delete().eq('id',id);await loadTasks();}
 
@@ -1941,6 +1947,64 @@ document.addEventListener('input',function(e){if(e.target&&e.target.id==='ped-ta
   </div>
 </div>
 
+<script>
+var _pc={};
+function renderPipelinePage(){
+  var mc=document.getElementById('main-content');
+  mc.innerHTML='<div style="padding:0"><div class="page-hdr"><div><div class="page-title">Business Pipeline Report</div><div class="page-sub">Track performance and drive growth</div></div><div style="display:flex;gap:8px"><select id="pipeline-range" onchange="renderPipeline()" style="padding:8px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px;background:#fff"><option value="3">Last 3 months</option><option value="6" selected>Last 6 months</option><option value="12">Last 12 months</option><option value="0">All time</option></select><button class="btn btn-blue" onclick="exportPipelinePDF()">Download PDF</button></div></div><div id="pipeline-kpis" style="display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:20px"></div><div style="display:grid;grid-template-columns:1.5fr 1fr;gap:16px;margin-bottom:16px"><div class="card" style="padding:20px"><div style="font-size:13px;font-weight:700;margin-bottom:16px">Bids Sent per Month</div><canvas id="chart-bids-monthly" height="200"></canvas></div><div class="card" style="padding:20px"><div style="font-size:13px;font-weight:700;margin-bottom:16px">Won vs Lost per Month</div><canvas id="chart-bid-status" height="200"></canvas></div></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px"><div class="card" style="padding:20px"><div style="font-size:13px;font-weight:700;margin-bottom:16px">GC Response Rate</div><canvas id="chart-gc-response" height="200"></canvas></div><div class="card" style="padding:20px"><div style="font-size:13px;font-weight:700;margin-bottom:16px">Revenue Pipeline ($)</div><canvas id="chart-revenue" height="200"></canvas></div></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px"><div class="card" style="padding:20px"><div style="font-size:13px;font-weight:700;margin-bottom:16px">Win Rate % per Month</div><canvas id="chart-win-rate" height="200"></canvas></div><div class="card" style="padding:20px"><div style="font-size:13px;font-weight:700;margin-bottom:16px">New GC Contacts per Month</div><canvas id="chart-gc-status" height="200"></canvas></div></div><div class="card" style="padding:20px;margin-bottom:40px"><div style="font-size:13px;font-weight:700;margin-bottom:14px">Key Insights</div><div id="pipeline-insights" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px"></div></div></div>';
+  setTimeout(renderPipeline,150);
+}
+async function renderPipeline(){
+  var months=parseInt((document.getElementById('pipeline-range')||{value:'6'}).value)||6;
+  var now=new Date(),cutoff=months===0?new Date('2020-01-01'):new Date(now.getFullYear(),now.getMonth()-months+1,1);
+  var br=await sb.from('bids').select('*'),gr=await sb.from('gc_contacts').select('*');
+  var bids=br.data||[],gcs=gr.data||[];
+  var nM=months===0?24:months,labels=[];
+  for(var m=nM-1;m>=0;m--){var d=new Date(now.getFullYear(),now.getMonth()-m,1);labels.push(d.toLocaleString('en-US',{month:'short',year:'2-digit'}));}
+  function gl(ds){if(!ds)return null;var d=new Date(ds);return d.toLocaleString('en-US',{month:'short',year:'2-digit'});}
+  function gbd(b){return b.due_date||b.last_ping||b.created_at||null;}
+  var act=bids.filter(function(b){var s=b.status||'';return ['Bid Sent','Submitted','Win','Lost','Under Review'].indexOf(s)>=0;});
+  var fil=act.filter(function(b){var d=gbd(b);return d&&new Date(d)>=cutoff;});
+  if(!fil.length)fil=act;
+  var bpm={},wpm={},lpm={},rpm={},wvpm={};
+  labels.forEach(function(l){bpm[l]=0;wpm[l]=0;lpm[l]=0;rpm[l]=0;wvpm[l]=0;});
+  fil.forEach(function(b){var l=gl(gbd(b));if(!l||bpm[l]===undefined)return;bpm[l]++;if(b.status==='Win'){wpm[l]++;wvpm[l]+=(b.price||0);}if(b.status==='Lost')lpm[l]++;rpm[l]+=(b.price||0);});
+  var wrpm=labels.map(function(l){return bpm[l]>0?Math.round((wpm[l]/bpm[l])*100):0;});
+  var gcpm={};labels.forEach(function(l){gcpm[l]=0;});
+  gcs.forEach(function(g){var l=gl(g.created_at);if(l&&gcpm[l]!==undefined)gcpm[l]++;});
+  var gcR=gcs.filter(function(g){return ['call','active','est_yes'].indexOf(g.gc_fu_status)>=0;}).length;
+  var gcN=gcs.filter(function(g){return !g.gc_fu_status||g.gc_fu_status==='none'||g.gc_fu_status==='intro';}).length;
+  var gcI=gcs.filter(function(g){return g.gc_fu_status==='nointerest';}).length;
+  var tB=fil.length,tW=fil.filter(function(b){return b.status==='Win';}).length;
+  var tL=fil.filter(function(b){return b.status==='Lost';}).length;
+  var tV=fil.reduce(function(s,b){return s+(b.price||0);},0);
+  var wr=tB>0?Math.round((tW/tB)*100):0;
+  var kEl=document.getElementById('pipeline-kpis');
+  if(kEl)kEl.innerHTML=plKpi('Bids Sent','#1B5E9B',tB,'in period')+plKpi('Won','#1D9E75',tW,'projects')+plKpi('Lost','#E24B4A',tL,'projects')+plKpi('Win Rate','#854F0B',wr+'%','of bids')+plKpi('Value','#1B5E9B','$'+fmt$(tV),'total');
+  Object.values(_pc).forEach(function(c){if(c)c.destroy();});_pc={};
+  if(typeof Chart==='undefined')return;
+  function lo(cb){return{responsive:true,plugins:{legend:{position:'top',labels:{usePointStyle:true,font:{size:11}}}},scales:{x:{grid:{display:false}},y:{beginAtZero:true,ticks:{callback:cb||function(v){return Number.isInteger(v)?v:'';}}}}};} 
+  function mk(id,ds,yf){var el=document.getElementById(id);if(!el)return null;return new Chart(el,{type:'line',data:{labels:labels,datasets:ds},options:lo(yf)});}
+  function ds(label,color,data){return{label:label,data:data,borderColor:color,backgroundColor:color.replace(')',',0.08)').replace('rgb','rgba'),borderWidth:2.5,tension:0.3,fill:true,pointBackgroundColor:color,pointBorderColor:'#fff'};}
+  _pc.a=mk('chart-bids-monthly',[ds('Bids Sent','#1B5E9B',labels.map(function(l){return bpm[l];}))]);
+  _pc.b=mk('chart-bid-status',[ds('Won','#1D9E75',labels.map(function(l){return wpm[l];})),ds('Lost','#E24B4A',labels.map(function(l){return lpm[l];}))]);
+  var gcEl=document.getElementById('chart-gc-response');
+  if(gcEl)_pc.c=new Chart(gcEl,{type:'doughnut',data:{labels:['Responded','No Response','Not Interested'],datasets:[{data:[gcR,gcN,gcI],backgroundColor:['rgba(29,158,117,0.8)','rgba(186,117,23,0.8)','rgba(226,75,74,0.8)'],borderWidth:2,borderColor:'#fff'}]},options:{responsive:true,plugins:{legend:{position:'bottom'}},cutout:'60%'}});
+  _pc.d=mk('chart-revenue',[ds('Bid Value','#1B5E9B',labels.map(function(l){return Math.round(rpm[l]);})),ds('Won Value','#1D9E75',labels.map(function(l){return Math.round(wvpm[l]);}))],function(v){return v>=1000?'$'+Math.round(v/1000)+'k':'$'+v;});
+  _pc.e=mk('chart-win-rate',[ds('Win Rate %','#1D9E75',wrpm)],function(v){return v+'%';});
+  _pc.f=mk('chart-gc-status',[ds('New GC Contacts','#6B4FA8',labels.map(function(l){return gcpm[l];}))]);
+  var iEl=document.getElementById('pipeline-insights');
+  if(iEl){var ins=[];
+    ins.push(tB<5?{t:'Low Bid Volume',x:'Only '+tB+' bids. Aim for 5-10/month.',c:'#E24B4A'}:{t:'Good Bid Volume',x:tB+' bids submitted!',c:'#1D9E75'});
+    ins.push(wr===0?{t:'No Wins Yet',x:'Focus on follow-up quality.',c:'#E24B4A'}:wr<20?{t:'Win Rate: '+wr+'%',x:'Aim for 20-30%.',c:'#BA7517'}:{t:'Win Rate: '+wr+'%',x:'Strong! Track best GCs.',c:'#1D9E75'});
+    var gr=gcs.length>0?Math.round((gcR/gcs.length)*100):0;
+    ins.push(gr<30?{t:'GC Outreach: '+gr+'%',x:'Increase call frequency.',c:'#E24B4A'}:{t:'GC Response: '+gr+'%',x:'Good engagement!',c:'#1D9E75'});
+    iEl.innerHTML=ins.map(function(i){return '<div style="background:#f8faff;border-radius:10px;padding:16px;border-left:4px solid '+i.c+'"><div style="font-size:13px;font-weight:700;color:#1a1a2e;margin-bottom:6px">'+i.t+'</div><div style="font-size:12px;color:#666;line-height:1.5">'+i.x+'</div></div>';}).join('');
+  }
+}
+function plKpi(label,color,value,sub){return '<div style="background:#fff;border-radius:12px;padding:18px 20px;border:0.5px solid #eaedf2;border-top:3px solid '+color+'"><div style="font-size:10px;font-weight:700;color:#aaa;text-transform:uppercase;margin-bottom:8px">'+label+'</div><div style="font-size:26px;font-weight:800;color:'+color+'">'+value+'</div><div style="font-size:11px;color:#bbb;margin-top:4px">'+sub+'</div></div>';}
+function exportPipelinePDF(){var w=window.open('','_blank');var h='<html><head><title>Pipeline</title><style>body{font-family:Arial,sans-serif;padding:20px}h1{color:#1B5E9B}</style></head><body><h1>NetFiber Pipeline Report</h1><p>'+new Date().toLocaleDateString()+'</p>'+document.getElementById('main-content').innerHTML+'</body></html>';w.document.write(h);w.document.close();setTimeout(function(){w.print();},1500);}
+</script>
 </body>
 </html
         ${canAccess('tasks')?`<div class="mod-btn" onclick="showPage('tasks')" style="border-top:3px solid #1D9E75">>
