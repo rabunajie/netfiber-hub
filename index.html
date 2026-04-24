@@ -814,7 +814,7 @@ function fuBadge(bid){
     else if(diff===0) extra=' <span style="font-size:10px;font-weight:700;color:#BA7517">Today</span>';
     else if(diff<=3) extra=' <span style="font-size:10px;color:#888">in '+diff+'d</span>';
   }
-  return '<span class="fu-badge '+cls+'" onclick="openFU(event,\"'+bid.id+'\")" title="Click to log follow-up">'+f.l+extra+'</span>';
+  return '<span class="fu-badge '+cls+'" onclick="openFU(event,&quot;'+bid.id+'&quot;)" title="Click to log follow-up">'+f.l+extra+'</span>';
 }
 function rowCls(bid){if(!bid.fu_next_date)return'';const d=ddiff(bid.fu_next_date);if(d<0)return'ov-row';if(d===0)return'tod-row';return'';}
 
@@ -1025,8 +1025,8 @@ function filterBids(){
       html+='<td style="max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:11px;color:#999">'+lastNote+'</td>';
       html+='<td style="font-size:11px;color:#1B5E9B;font-weight:500">'+(r.assigned_name||'—')+'</td>';
       html+='<td style="display:flex;gap:4px;white-space:nowrap">';
-      html+='<button class="btn-sm" onclick="editBid("'+rid+'")" >Edit</button>';
-      html+='<button class="btn-danger" onclick="delBid("'+rid+'","'+pname+'")" >×</button>';
+      html+='<button class="btn-sm" onclick="editBid(&quot;'+rid+'&quot;)">Edit</button>';
+      html+='<button class="btn-danger" onclick="delBid(&quot;'+rid+'&quot;,&quot;'+pname+'&quot;)">×</button>';
       html+='</td>';
       html+='</tr>';
     }
