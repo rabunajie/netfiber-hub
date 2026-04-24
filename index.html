@@ -509,6 +509,7 @@ async function renderDashboard(){
   const opsModules='';
 
   const overdueSorted=[...overdueFollowups].sort((a,b)=>ddiff(a.fu_next_date)-ddiff(b.fu_next_date)).slice(0,4);
+  const bidsDueList=bids.filter(function(b){return b.due_date&&ddiff(b.due_date)<=0&&b.status==='Under Review';}).sort(function(a,b2){return ddiff(a.due_date)-ddiff(b2.due_date);}).slice(0,6);
   const tasksSorted=tasks.filter(t=>!t.done&&(t.deadline===todayStr||t.priority==='high')).sort((a,b)=>{const po={high:0,medium:1,low:2};return(po[a.priority]||1)-(po[b.priority]||1);}).slice(0,4);
   const emailsDue=bids.filter(b=>b.fu_next_date&&ddiff(b.fu_next_date)<=0&&(b.fu_status==='email'||b.fu_status==='new'||b.fu_status==='call')&&b.status!=='Win'&&b.status!=='Lost').sort((a,b)=>ddiff(a.fu_next_date)-ddiff(b.fu_next_date)).slice(0,4);
   const waitingTooLong=bids.filter(b=>b.fu_status==='waiting'&&b.last_ping&&ddiff(b.last_ping)<-7&&b.status!=='Win'&&b.status!=='Lost').slice(0,4);
@@ -536,7 +537,20 @@ async function renderDashboard(){
 
       <div class="acard">
         <div class="achdr"><div class="acdot" style="background:#854F0B"></div>Bids due today &amp; overdue</div>
-        ${(()=>{const bidsDue=bids.filter(b=>b.due_date&&ddiff(b.due_date)<=0&&b.status!=='Win'&&b.status!=='Lost').sort((a,b2)=>ddiff(a.due_date)-ddiff(b2.due_date)).slice(0,5);return bidsDue.length?bidsDue.map(b=>{const d=ddiff(b.due_date);return`<div class="aitem" style="cursor:pointer" onclick="showPage('bids')"><div class="adot" style="background:${d<0?'#854F0B':'#E24B4A'}"></div><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${(b.project||b.ref||'').substring(0,22)}</span><span class="atag" style="background:${d===0?'#FCEBEB':'#FAEEDA'};color:${d===0?'#A32D2D':'#633806'}">${d===0?'Due today':Math.abs(d)+'d ago'}</span></div>`;}).join(''):'<div class="aitem" style="color:#bbb">No bids overdue</div>';})()}
+        ${(function(){
+          if(!bidsDueList.length) return '<div class="aitem" style="color:#bbb">No bids due or overdue</div>';
+          return bidsDueList.map(function(b){
+            var d=ddiff(b.due_date);
+            var bg=d===0?'#FCEBEB':'#FAEEDA';
+            var col=d===0?'#A32D2D':'#633806';
+            var label=d===0?'Due today':Math.abs(d)+'d overdue';
+            return '<div class="aitem" style="cursor:pointer" onclick="showPage(&quot;bids&quot;)">'
+              +'<div class="adot" style="background:'+(d<0?'#854F0B':'#E24B4A')+'"></div>'
+              +'<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(b.project||b.ref||'').substring(0,24)+'</span>'
+              +'<span class="atag" style="background:'+bg+';color:'+col+'">'+label+'</span>'
+              +'</div>';
+          }).join('');
+        })()}
       </div>
 
       <div class="acard">
