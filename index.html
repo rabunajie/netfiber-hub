@@ -1035,7 +1035,8 @@ async function renderDashboard(){
 async function renderBids(){
   const mc=document.getElementById('main-content');
   mc.innerHTML=`
-    <div class="page-hdr"><div><div class="page-title">Bid Opportunities</div><div class="page-sub">All bids and follow-ups</div></div><button class="btn btn-blue" onclick="openBidModal()">+ New Bid</button></div>
+    <div class="page-hdr"><div><div class="page-title">Bid Opportunities</div><div class="page-sub">All bids and follow-ups</div></div><button class="btn" onclick="openPlanHubImport()" style="background:#E8650A;color:#fff;display:flex;align-items:center;gap:6px;padding:9px 14px;border:none;border-radius:9px;font-size:13px;font-weight:600;cursor:pointer"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17,8 12,3 7,8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Import PlanHub</button>
+      <button class="btn btn-blue" onclick="openBidModal()">+ New Bid</button></div>
     <div class="toolbar">
       <input type="text" id="bid-search" placeholder="Search project, GC, ref..." oninput="filterBids()" style="flex:1;min-width:180px">
       <select id="bid-filter" onchange="filterBids()"><option value="">All statuses</option><option>Under Review</option><option>Bid Sent</option><option>Win</option><option>Lost</option></select>
@@ -1700,25 +1701,196 @@ function buildInsights(totalBids, winRate, gcResp, gcTotal, bids, months){
   }).join('');
 }
 
-function exportPipelinePDF(){
-  var printArea = document.getElementById('pipeline-content');
-  var title = 'NetFiber Pipeline Report — '+new Date().toLocaleString('en-US',{month:'long',year:'numeric'});
-  var w = window.open('','_blank');
-  w.document.write('<html><head><title>'+title+'</title>');
-  w.document.write('<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"><\/script>');
-  w.document.write('<style>body{font-family:Arial,sans-serif;padding:20px;color:#1a1a2e}.card{background:#fff;border:1px solid #eee;border-radius:10px;padding:16px;margin-bottom:16px}h1{color:#1B5E9B;font-size:20px;margin-bottom:4px}p{color:#888;font-size:12px;margin-bottom:20px}.kpi-row{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:16px}.kpi{background:#f8faff;border-radius:8px;padding:12px}.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}</style>');
-  w.document.write('</head><body>');
-  w.document.write('<h1>NetFiber Network — Business Pipeline Report</h1>');
-  w.document.write('<p>Generated: '+new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'})+'</p>');
-  w.document.write(printArea.innerHTML);
-  w.document.write('<script>window.onload=function(){setTimeout(function(){window.print();},1500);}<\/script>');
-  w.document.write('</body></html>');
-  w.document.close();
-}
+
 
 // fmt$ helper if not defined
 if(typeof fmt$ === 'undefined'){
   function fmt$(n){ return Number(n||0).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0}); }
+}
+
+
+// ============ PLANHUB IMPORT ============
+function openPlanHubImport(){
+  document.getElementById('ph-url').value='';
+  document.getElementById('ph-fields').style.display='none';
+  document.getElementById('ph-fetch-status').textContent='💡 Make sure you are logged into PlanHub in this browser first';
+  document.getElementById('ph-fetch-status').style.color='#aaa';
+  ['ph-project','ph-gc','ph-ref','ph-scope','ph-location','ph-price','ph-cost'].forEach(function(id){
+    var el=document.getElementById(id);
+    if(el){el.value='';el.style.borderColor='#dde4ee';el.style.background='#fff';}
+  });
+  document.getElementById('planhub-modal').classList.add('open');
+}
+
+async function fetchPlanHub(){
+  var url = document.getElementById('ph-url').value.trim();
+  if(!url){ alert('Please paste a PlanHub project URL first.'); return; }
+  var statusEl = document.getElementById('ph-fetch-status');
+  statusEl.textContent = '⏳ Fetching project details...';
+  statusEl.style.color = '#1B5E9B';
+
+  var filled = 0;
+  var data = {project:'',gc:'',ref:'',due:'',scope:'Data Cabling',location:''};
+
+  try{
+    // Try to fetch via Claude's web fetch (if available)
+    // Parse info from the URL itself first
+    var urlParts = url.split('/');
+    var slug = urlParts[urlParts.length-1] || urlParts[urlParts.length-2];
+    
+    // Extract ref # from URL (pattern like GC26-22-125)
+    var refMatch = slug.match(/[A-Z]{2}\d{2}-\d{2}-\d{3}/i);
+    if(refMatch){ data.ref = refMatch[0].toUpperCase(); filled++; }
+
+    // Extract project name from slug (convert dashes to spaces, title case)
+    var namePart = slug.replace(/[A-Z]{2}\d{2}-\d{2}-\d{3}-?/i,'').replace(/-/g,' ').replace(/\b\w/g,function(c){return c.toUpperCase();});
+    if(namePart.length > 2){ data.project = namePart; filled++; }
+
+    // Try to fetch the actual page
+    var resp = await fetch('https://api.allorigins.win/raw?url=' + encodeURIComponent(url), {signal: AbortSignal.timeout(8000)});
+    if(resp.ok){
+      var text = await resp.text();
+      // Parse project name
+      var titleMatch = text.match(/<title[^>]*>([^<]+)<\/title>/i);
+      if(titleMatch){ 
+        var t = titleMatch[1].replace(/\s*[-|]\s*PlanHub.*/i,'').trim();
+        if(t.length>3){data.project=t;filled++;}
+      }
+      // Parse GC name - look for common patterns
+      var gcPatterns = [
+        /general contractor[^>]*>([^<]{4,60})</gi,
+        /GC[^>]*>([^<]{4,60})</g,
+        /"gc_name"\s*:\s*"([^"]+)"/,
+        /"company_name"\s*:\s*"([^"]+)"/,
+        /data-gc="([^"]+)"/
+      ];
+      gcPatterns.forEach(function(p){if(!data.gc){var m=text.match(p);if(m&&m[1]&&m[1].length>2){data.gc=m[1].trim();filled++;}}});
+
+      // Parse due date
+      var datePatterns = [
+        /"due_date"\s*:\s*"([^"]+)"/,
+        /"bid_date"\s*:\s*"([^"]+)"/,
+        /due[^>]*>\s*([\d]{1,2}\/[\d]{1,2}\/[\d]{4})/i,
+        /bid date[^>]*>\s*([\d]{1,2}\/[\d]{1,2}\/[\d]{4})/i
+      ];
+      datePatterns.forEach(function(p){
+        if(!data.due){
+          var m=text.match(p);
+          if(m&&m[1]){
+            var d=new Date(m[1]);
+            if(!isNaN(d)){data.due=d.toISOString().split('T')[0];filled++;}
+          }
+        }
+      });
+
+      // Parse location
+      var locMatch = text.match(/"location"\s*:\s*"([^"]+)"/) || text.match(/"city"\s*:\s*"([^"]+)"/);
+      if(locMatch&&locMatch[1]){data.location=locMatch[1];filled++;}
+
+      // Scope/trade
+      var tradeMatch = text.match(/"trade_name"\s*:\s*"([^"]+)"/) || text.match(/trade[^>]*>([^<]{4,40})</i);
+      if(tradeMatch&&tradeMatch[1]){data.scope=tradeMatch[1].trim();filled++;}
+    }
+  } catch(err){
+    console.log('PlanHub fetch note:', err.message);
+    // Continue with URL-parsed data
+  }
+
+  // Populate fields
+  var fields = {
+    'ph-project': data.project,
+    'ph-gc': data.gc,
+    'ph-ref': data.ref,
+    'ph-due': data.due,
+    'ph-scope': data.scope,
+    'ph-location': data.location
+  };
+
+  Object.keys(fields).forEach(function(id){
+    var el = document.getElementById(id);
+    if(!el) return;
+    el.value = fields[id] || '';
+    if(fields[id]){
+      el.style.borderColor = '#1D9E75';
+      el.style.background = '#f0fff8';
+      el.style.color = '#1D9E75';
+      el.style.fontWeight = '600';
+    } else {
+      el.style.borderColor = '#dde4ee';
+      el.style.background = '#fff';
+      el.style.color = '#333';
+      el.style.fontWeight = '400';
+    }
+  });
+
+  // Add source field as PlanHub
+  filled = Object.values(fields).filter(function(v){return v;}).length;
+  document.getElementById('ph-filled-count').textContent = filled + ' auto-filled';
+  document.getElementById('ph-fields').style.display = 'block';
+  
+  if(filled > 0){
+    statusEl.textContent = '✅ Found '+filled+' details — review and fill in price below';
+    statusEl.style.color = '#1D9E75';
+  } else {
+    statusEl.textContent = '⚠️ Could not auto-fill — PlanHub requires login. Fill in manually below.';
+    statusEl.style.color = '#BA7517';
+  }
+}
+
+async function savePlanHubBid(){
+  var project = document.getElementById('ph-project').value.trim();
+  var gc = document.getElementById('ph-gc').value.trim();
+  if(!project){ alert('Please enter a project name.'); return; }
+
+  // Build next ref # 
+  var maxRef = 'GC26-22-001';
+  if(_bids&&_bids.length){
+    var refs = _bids.map(function(b){return b.ref||'';}).filter(function(r){return r.match(/GC\d{2}-\d{2}-\d+/);});
+    if(refs.length){
+      refs.sort();
+      var lastRef = refs[refs.length-1];
+      var num = parseInt(lastRef.split('-')[2]||0)+1;
+      maxRef = lastRef.split('-')[0]+'-'+lastRef.split('-')[1]+'-'+(num<100?'0':'')+(num<10?'0':'')+num;
+    }
+  }
+
+  var ref = document.getElementById('ph-ref').value.trim() || maxRef;
+  var price = parseFloat(document.getElementById('ph-price').value)||0;
+  var cost = parseFloat(document.getElementById('ph-cost').value)||0;
+  var due = document.getElementById('ph-due').value||null;
+  var scope = document.getElementById('ph-scope').value.trim();
+  var location = document.getElementById('ph-location').value.trim();
+  var fullProject = project + (location?(' - '+location):'');
+
+  var obj = {
+    ref: ref,
+    project: fullProject,
+    gc: gc,
+    source: 'PlanHub',
+    status: 'Under Review',
+    price: price,
+    cost: cost,
+    due_date: due,
+    notes: scope ? 'Scope: '+scope : '',
+    created_by: CU.id,
+    updated_by: CU.id,
+    updated_at: new Date().toISOString()
+  };
+
+  var res = await sb.from('bids').insert(obj).select().single();
+  if(res.error){ alert('Error saving: '+res.error.message); return; }
+  
+  closeModal('planhub-modal');
+  await loadBids();
+  showToast('✅ Bid imported from PlanHub successfully!');
+}
+
+function showToast(msg){
+  var t = document.createElement('div');
+  t.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1B5E9B;color:#fff;padding:12px 24px;border-radius:10px;font-size:13px;font-weight:600;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,0.2)';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(function(){t.style.opacity='0';t.style.transition='opacity 0.5s';setTimeout(function(){t.remove();},500);},3000);
 }
 
 </script>
@@ -2181,6 +2353,63 @@ document.addEventListener('input',function(e){if(e.target&&e.target.id==='ped-ta
 </div>
 
 
+
+
+<!-- PLANHUB IMPORT MODAL -->
+<div class="modal-bg" id="planhub-modal">
+  <div class="fu-panel" style="max-width:560px;width:100%">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+      <div>
+        <div style="font-size:16px;font-weight:700;color:#1B5E9B;display:flex;align-items:center;gap:8px">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17,8 12,3 7,8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Import from PlanHub
+        </div>
+        <div style="font-size:12px;color:#aaa;margin-top:3px">Paste a project URL to pre-fill bid details</div>
+      </div>
+      <button class="btn btn-sm" onclick="closeModal('planhub-modal')">Close</button>
+    </div>
+
+    <!-- Step 1: URL input -->
+    <div style="margin-bottom:18px">
+      <div style="font-size:10px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">Step 1 — Paste PlanHub Project URL</div>
+      <div style="display:flex;gap:8px">
+        <input type="text" id="ph-url" placeholder="https://app.planhub.com/projects/..." style="flex:1;padding:10px 14px;border:1.5px solid #e0e6f0;border-radius:9px;font-size:13px;background:#f8faff;outline:none">
+        <button onclick="fetchPlanHub()" style="padding:10px 18px;background:#E8650A;color:#fff;border:none;border-radius:9px;font-size:13px;font-weight:600;cursor:pointer">Fetch</button>
+      </div>
+      <div id="ph-fetch-status" style="font-size:11px;color:#aaa;margin-top:6px">💡 Make sure you are logged into PlanHub in this browser first</div>
+    </div>
+
+    <!-- Step 2: Pre-filled fields -->
+    <div id="ph-fields" style="display:none">
+      <div style="background:#f0f7ff;border:1px solid #c8dff5;border-radius:12px;padding:16px;margin-bottom:16px">
+        <div style="font-size:12px;font-weight:700;color:#1B5E9B;margin-bottom:10px;display:flex;align-items:center;gap:6px">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#1D9E75" stroke-width="2.5"><polyline points="20,6 9,17 4,12"/></svg>
+          Review and edit before saving
+          <span id="ph-filled-count" style="background:#1D9E75;color:#fff;font-size:9px;font-weight:700;padding:2px 7px;border-radius:4px"></span>
+        </div>
+        <div style="display:flex;gap:14px;margin-bottom:12px;font-size:11px;color:#888">
+          <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:50%;background:#1D9E75;display:inline-block"></span> Auto-filled</span>
+          <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:50%;background:#dde4ee;border:1.5px solid #bbb;display:inline-block"></span> Fill manually</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div><div style="font-size:10px;font-weight:700;color:#888;margin-bottom:4px;text-transform:uppercase">Project Name</div><input id="ph-project" style="width:100%;padding:8px 10px;border:1.5px solid #dde4ee;border-radius:8px;font-size:12px;background:#fff;outline:none"></div>
+          <div><div style="font-size:10px;font-weight:700;color:#888;margin-bottom:4px;text-transform:uppercase">GC / Client</div><input id="ph-gc" style="width:100%;padding:8px 10px;border:1.5px solid #dde4ee;border-radius:8px;font-size:12px;background:#fff;outline:none"></div>
+          <div><div style="font-size:10px;font-weight:700;color:#888;margin-bottom:4px;text-transform:uppercase">Ref #</div><input id="ph-ref" style="width:100%;padding:8px 10px;border:1.5px solid #dde4ee;border-radius:8px;font-size:12px;background:#fff;outline:none"></div>
+          <div><div style="font-size:10px;font-weight:700;color:#888;margin-bottom:4px;text-transform:uppercase">Due Date</div><input type="date" id="ph-due" style="width:100%;padding:8px 10px;border:1.5px solid #dde4ee;border-radius:8px;font-size:12px;background:#fff;outline:none"></div>
+          <div><div style="font-size:10px;font-weight:700;color:#888;margin-bottom:4px;text-transform:uppercase">Scope</div><input id="ph-scope" style="width:100%;padding:8px 10px;border:1.5px solid #dde4ee;border-radius:8px;font-size:12px;background:#fff;outline:none"></div>
+          <div><div style="font-size:10px;font-weight:700;color:#888;margin-bottom:4px;text-transform:uppercase">Location</div><input id="ph-location" style="width:100%;padding:8px 10px;border:1.5px solid #dde4ee;border-radius:8px;font-size:12px;background:#fff;outline:none"></div>
+          <div><div style="font-size:10px;font-weight:700;color:#888;margin-bottom:4px;text-transform:uppercase">Price ($) <span style="color:#E24B4A">*</span></div><input id="ph-price" type="number" placeholder="Your bid price" style="width:100%;padding:8px 10px;border:1.5px solid #dde4ee;border-radius:8px;font-size:12px;background:#fff;outline:none"></div>
+          <div><div style="font-size:10px;font-weight:700;color:#888;margin-bottom:4px;text-transform:uppercase">Cost ($)</div><input id="ph-cost" type="number" placeholder="Your estimated cost" style="width:100%;padding:8px 10px;border:1.5px solid #dde4ee;border-radius:8px;font-size:12px;background:#fff;outline:none"></div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button class="btn" onclick="closeModal('planhub-modal')" style="background:#f0f0f0;color:#666">Cancel</button>
+        <button onclick="savePlanHubBid()" class="btn btn-blue">Save to Bid Opportunities →</button>
+      </div>
+    </div>
+
+  </div>
+</div>
 
 </body>
 </html>
