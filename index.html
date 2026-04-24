@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>NetFiber Hub</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 <style>
 
 *{box-sizing:border-box;margin:0;padding:0}
@@ -442,6 +443,7 @@ tr:hover td{background:#fafcff}
       <div class="sb-item" data-page="proposals" data-groups="admin,sales" onclick="showPage('proposals')"><span class="sb-dot"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10,9 9,9 8,9"/></svg></span>Proposals</div>
       <div class="sb-item" data-page="purchases" data-groups="admin,sales" onclick="showPage('purchases')"><span class="sb-dot"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 001.99-1.85l1.38-9.14H6"/></svg></span>Purchases</div>
       <div class="sb-item" data-page="tasks" data-groups="admin,sales,staff,field" onclick="showPage('tasks')"><span class="sb-dot"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="9,11 12,14 22,4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg></span>To-Do<span class="sb-badge" id="sb-tasks-badge" style="background:#BA7517;display:none"></span></div>
+      <div class="sb-item" data-page="pipeline" data-groups="admin,sales" onclick="showPage('pipeline')"><span class="sb-dot"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="22,12 18,12 15,21 9,3 6,12 2,12"/></svg></span>Pipeline Report</div>
       <div class="sb-sec">Admin</div>
       <div class="sb-item" data-page="log" data-groups="admin" onclick="showPage('log')"><span class="sb-dot"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg></span>Activity Log</div>
       <div class="sb-item" data-page="mgmt" data-groups="admin" onclick="showPage('mgmt')"><span class="sb-dot"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93l-1.41 1.41M5.34 18.66l-1.41 1.41M4.93 4.93l1.41 1.41M18.66 18.66l1.41 1.41M2 12h2M20 12h2M12 2v2M12 20v2"/></svg></span>Management</div>
@@ -951,6 +953,9 @@ async function renderDashboard(){
         ${canAccess('mgmt')?`<div class="mod-btn" onclick="showPage('mgmt')" style="border-top:3px solid #854F0B">
           <span class="mod-btn-name">Management</span>
         </div>`:''}
+        <div class="mod-btn" onclick="showPage('pipeline')" style="border-top:3px solid #1D9E75">
+          <span class="mod-btn-name">📈 Pipeline</span>
+        </div>
       </div>
     </div>`;
 
@@ -1423,6 +1428,232 @@ async function logGCFollowUp(){
   await loadGC();
 }
 
+
+// ============ PIPELINE MODULE ============
+var _pipelineCharts = {};
+
+async function renderPipeline(){
+  var months = parseInt(document.getElementById('pipeline-range').value) || 6;
+  var now = new Date();
+  var cutoff = months === 0 ? new Date('2020-01-01') : new Date(now.getFullYear(), now.getMonth() - months + 1, 1);
+
+  // Load data
+  var [bidsRes, gcsRes] = await Promise.all([
+    sb.from('bids').select('*'),
+    sb.from('gc_contacts').select('*')
+  ]);
+  var bids = bidsRes.data || [];
+  var gcs = gcsRes.data || [];
+
+  // Filter by date range
+  var filteredBids = bids.filter(function(b){ return b.created_at && new Date(b.created_at) >= cutoff; });
+
+  // Build month labels
+  var labels = [];
+  for(var m = months === 0 ? 24 : months - 1; m >= 0; m--){
+    var d = new Date(now.getFullYear(), now.getMonth() - m, 1);
+    labels.push(d.toLocaleString('en-US',{month:'short',year:'2-digit'}));
+  }
+  var totalMonths = labels.length;
+
+  // Helper: get month label for a date
+  function getMonthLabel(dateStr){
+    if(!dateStr) return null;
+    var d = new Date(dateStr);
+    return d.toLocaleString('en-US',{month:'short',year:'2-digit'});
+  }
+
+  // 1. Bids per month
+  var bidsPerMonth = {};
+  labels.forEach(function(l){ bidsPerMonth[l] = 0; });
+  filteredBids.forEach(function(b){
+    var l = getMonthLabel(b.created_at);
+    if(l && bidsPerMonth[l] !== undefined) bidsPerMonth[l]++;
+  });
+
+  // 2. Bid status breakdown
+  var statusCount = {'Under Review':0,'Bid Sent':0,'Submitted':0,'Win':0,'Lost':0,'Other':0};
+  filteredBids.forEach(function(b){
+    if(statusCount[b.status]!==undefined) statusCount[b.status]++;
+    else statusCount['Other']++;
+  });
+  // Merge Submitted into Bid Sent
+  statusCount['Bid Sent'] += statusCount['Submitted'];
+  delete statusCount['Submitted'];
+
+  // 3. Revenue per month (bids sent value)
+  var revenuePerMonth = {};
+  var wonPerMonth = {};
+  var sentPerMonth = {};
+  labels.forEach(function(l){ revenuePerMonth[l]=0; wonPerMonth[l]=0; sentPerMonth[l]=0; });
+  filteredBids.forEach(function(b){
+    var l = getMonthLabel(b.created_at);
+    if(!l || revenuePerMonth[l]===undefined) return;
+    revenuePerMonth[l] += (b.price||0);
+    if(b.status==='Win') wonPerMonth[l] += (b.price||0);
+    if(b.status==='Bid Sent'||b.status==='Submitted'||b.status==='Win') sentPerMonth[l]++;
+  });
+
+  // 4. Win rate per month
+  var winRatePerMonth = labels.map(function(l){
+    var total = bidsPerMonth[l];
+    var wins = filteredBids.filter(function(b){ return getMonthLabel(b.created_at)===l && b.status==='Win'; }).length;
+    return total > 0 ? Math.round((wins/total)*100) : 0;
+  });
+
+  // 5. GC follow-up response rate
+  // "Responded" = gc_fu_status is 'replied', 'active', 'form', 'call'
+  // "No response" = gc_fu_status is 'intro', 'none', or null
+  var gcResponded = gcs.filter(function(g){ return ['replied','active','form','call'].indexOf(g.gc_fu_status)>=0; }).length;
+  var gcNoResponse = gcs.filter(function(g){ return !g.gc_fu_status||g.gc_fu_status==='none'||g.gc_fu_status==='intro'; }).length;
+  var gcNotInterested = gcs.filter(function(g){ return g.gc_fu_status==='nointerest'; }).length;
+
+  // 6. GC status breakdown
+  var gcStatuses = {
+    'Not Contacted': gcs.filter(function(g){ return !g.gc_fu_status||g.gc_fu_status==='none'; }).length,
+    'Intro Sent': gcs.filter(function(g){ return g.gc_fu_status==='intro'; }).length,
+    'In Conversation': gcs.filter(function(g){ return ['form','call'].indexOf(g.gc_fu_status)>=0; }).length,
+    'Active': gcs.filter(function(g){ return g.gc_fu_status==='active'; }).length,
+    'Not Interested': gcs.filter(function(g){ return g.gc_fu_status==='nointerest'; }).length,
+  };
+
+  // KPIs
+  var totalBidsSent = filteredBids.length;
+  var totalWon = filteredBids.filter(function(b){ return b.status==='Win'; }).length;
+  var totalLost = filteredBids.filter(function(b){ return b.status==='Lost'; }).length;
+  var totalValue = filteredBids.reduce(function(s,b){ return s+(b.price||0); }, 0);
+  var wonValue = filteredBids.filter(function(b){ return b.status==='Win'; }).reduce(function(s,b){ return s+(b.price||0); }, 0);
+  var winRate = totalBidsSent > 0 ? Math.round((totalWon/totalBidsSent)*100) : 0;
+
+  document.getElementById('pipeline-kpis').innerHTML =
+    kpiCard('Bids Sent','#1B5E9B',totalBidsSent,'in period') +
+    kpiCard('Won','#1D9E75',totalWon,'projects') +
+    kpiCard('Lost','#E24B4A',totalLost,'projects') +
+    kpiCard('Win Rate','#854F0B',winRate+'%','of bids') +
+    kpiCard('Pipeline Value','#1B5E9B','$'+fmt$(totalValue),'total bids');
+
+  // Destroy old charts
+  Object.values(_pipelineCharts).forEach(function(c){ if(c) c.destroy(); });
+  _pipelineCharts = {};
+
+  // Chart colors
+  var BLUE = '#1B5E9B';
+  var LBLUE = 'rgba(27,94,155,0.15)';
+  var GREEN = '#1D9E75';
+  var RED = '#E24B4A';
+  var AMBER = '#BA7517';
+  var PURPLE = '#6B4FA8';
+
+  // Chart 1: Bids per month (bar)
+  _pipelineCharts.monthly = new Chart(document.getElementById('chart-bids-monthly'), {
+    type:'bar',
+    data:{labels:labels,datasets:[{label:'Bids Sent',data:labels.map(function(l){return bidsPerMonth[l];}),backgroundColor:'rgba(27,94,155,0.7)',borderColor:BLUE,borderWidth:1.5,borderRadius:5}]},
+    options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:1},grid:{color:'rgba(0,0,0,0.05)'}},x:{grid:{display:false}}}}
+  });
+
+  // Chart 2: Bid status donut
+  var statusKeys = Object.keys(statusCount).filter(function(k){ return statusCount[k]>0; });
+  var statusColors = {'Under Review':'rgba(99,85,172,0.8)','Bid Sent':'rgba(27,94,155,0.8)','Win':'rgba(29,158,117,0.8)','Lost':'rgba(226,75,74,0.8)','Other':'rgba(180,180,180,0.8)'};
+  _pipelineCharts.status = new Chart(document.getElementById('chart-bid-status'), {
+    type:'doughnut',
+    data:{labels:statusKeys,datasets:[{data:statusKeys.map(function(k){return statusCount[k];}),backgroundColor:statusKeys.map(function(k){return statusColors[k]||'#aaa';}),borderWidth:2,borderColor:'#fff'}]},
+    options:{responsive:true,plugins:{legend:{position:'bottom',labels:{padding:12,font:{size:11}}}},cutout:'60%'}
+  });
+
+  // Chart 3: GC response rate (doughnut)
+  _pipelineCharts.gcResp = new Chart(document.getElementById('chart-gc-response'), {
+    type:'doughnut',
+    data:{labels:['Responded','No Response','Not Interested'],datasets:[{data:[gcResponded,gcNoResponse,gcNotInterested],backgroundColor:['rgba(29,158,117,0.8)','rgba(186,117,23,0.8)','rgba(226,75,74,0.8)'],borderWidth:2,borderColor:'#fff'}]},
+    options:{responsive:true,plugins:{legend:{position:'bottom',labels:{padding:12,font:{size:11}}}},cutout:'60%'}
+  });
+
+  // Chart 4: Revenue pipeline (bar)
+  _pipelineCharts.revenue = new Chart(document.getElementById('chart-revenue'), {
+    type:'bar',
+    data:{labels:labels,datasets:[
+      {label:'Bids Value',data:labels.map(function(l){return Math.round((revenuePerMonth[l]||0));}),backgroundColor:'rgba(27,94,155,0.5)',borderColor:BLUE,borderWidth:1.5,borderRadius:4},
+      {label:'Won Value',data:labels.map(function(l){return Math.round((wonPerMonth[l]||0));}),backgroundColor:'rgba(29,158,117,0.7)',borderColor:GREEN,borderWidth:1.5,borderRadius:4}
+    ]},
+    options:{responsive:true,plugins:{legend:{position:'top',labels:{font:{size:11}}}},scales:{y:{beginAtZero:true,ticks:{callback:function(v){return '$'+Math.round(v/1000)+'k';}},grid:{color:'rgba(0,0,0,0.05)'}},x:{grid:{display:false}}}}
+  });
+
+  // Chart 5: Win rate line
+  _pipelineCharts.winRate = new Chart(document.getElementById('chart-win-rate'), {
+    type:'line',
+    data:{labels:labels,datasets:[{label:'Win Rate %',data:winRatePerMonth,borderColor:GREEN,backgroundColor:'rgba(29,158,117,0.1)',borderWidth:2,tension:0.3,fill:true,pointBackgroundColor:GREEN,pointRadius:4}]},
+    options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,max:100,ticks:{callback:function(v){return v+'%';}},grid:{color:'rgba(0,0,0,0.05)'}},x:{grid:{display:false}}}}
+  });
+
+  // Chart 6: GC status bar
+  var gcStatusKeys = Object.keys(gcStatuses);
+  var gcColors = ['rgba(180,180,180,0.7)','rgba(27,94,155,0.7)','rgba(186,117,23,0.7)','rgba(29,158,117,0.7)','rgba(226,75,74,0.7)'];
+  _pipelineCharts.gcStatus = new Chart(document.getElementById('chart-gc-status'), {
+    type:'bar',
+    data:{labels:gcStatusKeys,datasets:[{label:'GC Contacts',data:gcStatusKeys.map(function(k){return gcStatuses[k];}),backgroundColor:gcColors,borderRadius:5}]},
+    options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:1},grid:{color:'rgba(0,0,0,0.05)'}},x:{grid:{display:false}}}}
+  });
+
+  // Insights
+  buildInsights(totalBidsSent, winRate, gcResponded, gcs.length, filteredBids, months);
+}
+
+function kpiCard(label, color, value, sub){
+  return '<div style="background:#fff;border-radius:12px;padding:18px 20px;border:0.5px solid #eaedf2;border-top:3px solid '+color+'">'
+    +'<div style="font-size:10px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">'+label+'</div>'
+    +'<div style="font-size:26px;font-weight:800;color:'+color+'">'+value+'</div>'
+    +'<div style="font-size:11px;color:#bbb;margin-top:4px">'+sub+'</div>'
+    +'</div>';
+}
+
+function buildInsights(totalBids, winRate, gcResp, gcTotal, bids, months){
+  var insights = [];
+
+  // Bid volume insight
+  if(totalBids < 5) insights.push({icon:'⚠️',title:'Low Bid Volume',text:'Only '+totalBids+' bids in the last '+months+' months. Try to submit at least 5-10 bids per month to build a strong pipeline.',color:'#E24B4A'});
+  else if(totalBids >= 10) insights.push({icon:'✅',title:'Good Bid Volume',text:totalBids+' bids submitted — great activity! Keep the momentum going.',color:'#1D9E75'});
+  else insights.push({icon:'📊',title:'Growing Pipeline',text:totalBids+' bids in the period. Aim to increase this by 20% next month.',color:'#BA7517'});
+
+  // Win rate insight
+  if(winRate === 0) insights.push({icon:'🎯',title:'No Wins Yet',text:'Focus on follow-up and proposal quality. Every bid not won is a learning opportunity — ask GCs for feedback.',color:'#E24B4A'});
+  else if(winRate < 20) insights.push({icon:'📈',title:'Win Rate: '+winRate+'%',text:'Industry average is 20-30%. Review your proposals and pricing strategy to improve.',color:'#BA7517'});
+  else insights.push({icon:'🏆',title:'Win Rate: '+winRate+'%',text:'Strong win rate! Keep tracking which GCs and project types convert best.',color:'#1D9E75'});
+
+  // GC follow-up insight
+  var gcRespRate = gcTotal > 0 ? Math.round((gcResp/gcTotal)*100) : 0;
+  if(gcRespRate < 30) insights.push({icon:'📞',title:'GC Outreach Needs Work',text:'Only '+gcRespRate+'% of GC contacts have responded. Have Sonia increase call frequency — consistency is key.',color:'#E24B4A'});
+  else if(gcRespRate >= 50) insights.push({icon:'🤝',title:'Strong GC Relationships',text:gcRespRate+'% of contacts are engaged. Focus on converting active GCs into bid opportunities.',color:'#1D9E75'});
+  else insights.push({icon:'📬',title:'GC Response: '+gcRespRate+'%',text:'Moderate engagement. Try calling 2x per month instead of once to improve response rates.',color:'#BA7517'});
+
+  document.getElementById('pipeline-insights').innerHTML = insights.map(function(ins){
+    return '<div style="background:#f8faff;border-radius:10px;padding:16px;border-left:4px solid '+ins.color+'">'
+      +'<div style="font-size:16px;margin-bottom:6px">'+ins.icon+'</div>'
+      +'<div style="font-size:13px;font-weight:700;color:#1a1a2e;margin-bottom:6px">'+ins.title+'</div>'
+      +'<div style="font-size:12px;color:#666;line-height:1.5">'+ins.text+'</div>'
+      +'</div>';
+  }).join('');
+}
+
+function exportPipelinePDF(){
+  var printArea = document.getElementById('pipeline-content');
+  var title = 'NetFiber Pipeline Report — '+new Date().toLocaleString('en-US',{month:'long',year:'numeric'});
+  var w = window.open('','_blank');
+  w.document.write('<html><head><title>'+title+'</title>');
+  w.document.write('<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"><\/script>');
+  w.document.write('<style>body{font-family:Arial,sans-serif;padding:20px;color:#1a1a2e}.card{background:#fff;border:1px solid #eee;border-radius:10px;padding:16px;margin-bottom:16px}h1{color:#1B5E9B;font-size:20px;margin-bottom:4px}p{color:#888;font-size:12px;margin-bottom:20px}.kpi-row{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:16px}.kpi{background:#f8faff;border-radius:8px;padding:12px}.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}</style>');
+  w.document.write('</head><body>');
+  w.document.write('<h1>NetFiber Network — Business Pipeline Report</h1>');
+  w.document.write('<p>Generated: '+new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'})+'</p>');
+  w.document.write(printArea.innerHTML);
+  w.document.write('<script>window.onload=function(){setTimeout(function(){window.print();},1500);}<\/script>');
+  w.document.write('</body></html>');
+  w.document.close();
+}
+
+// fmt$ helper if not defined
+if(typeof fmt$ === 'undefined'){
+  function fmt$(n){ return Number(n||0).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0}); }
+}
+
 </script>
 <script>
 // PROPOSALS MODULE
@@ -1879,6 +2110,73 @@ document.addEventListener('input',function(e){if(e.target&&e.target.id==='ped-ta
     </div>
     <div style="font-size:12px;font-weight:700;color:#555;margin-bottom:10px">History</div>
     <div id="gc-fu-history" style="border-left:2px solid #eee;padding-left:14px;margin-left:6px"></div>
+  </div>
+</div>
+
+
+<!-- PIPELINE PAGE -->
+<div class="page" id="page-pipeline" style="display:none">
+  <div class="page-hdr">
+    <div>
+      <div class="page-title">Business Pipeline Report</div>
+      <div class="page-sub">Track performance · Identify opportunities · Drive growth</div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <select id="pipeline-range" onchange="renderPipeline()" style="padding:8px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px;color:#333;background:#fff;cursor:pointer">
+        <option value="3">Last 3 months</option>
+        <option value="6" selected>Last 6 months</option>
+        <option value="12">Last 12 months</option>
+        <option value="0">All time</option>
+      </select>
+      <button class="btn btn-blue" onclick="exportPipelinePDF()">⬇ Download PDF</button>
+    </div>
+  </div>
+
+  <div id="pipeline-content" style="overflow-y:auto;padding:0 0 40px">
+    <!-- KPI row -->
+    <div id="pipeline-kpis" style="display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:20px"></div>
+
+    <!-- Charts row 1 -->
+    <div style="display:grid;grid-template-columns:1.5fr 1fr;gap:16px;margin-bottom:16px">
+      <div class="card" style="padding:20px">
+        <div style="font-size:13px;font-weight:700;color:#1a1a2e;margin-bottom:16px">📊 Bids Sent per Month</div>
+        <canvas id="chart-bids-monthly" height="200"></canvas>
+      </div>
+      <div class="card" style="padding:20px">
+        <div style="font-size:13px;font-weight:700;color:#1a1a2e;margin-bottom:16px">🎯 Bid Status Breakdown</div>
+        <canvas id="chart-bid-status" height="200"></canvas>
+      </div>
+    </div>
+
+    <!-- Charts row 2 -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+      <div class="card" style="padding:20px">
+        <div style="font-size:13px;font-weight:700;color:#1a1a2e;margin-bottom:16px">📞 GC Follow-Up Response Rate</div>
+        <canvas id="chart-gc-response" height="200"></canvas>
+      </div>
+      <div class="card" style="padding:20px">
+        <div style="font-size:13px;font-weight:700;color:#1a1a2e;margin-bottom:16px">💰 Revenue Pipeline ($)</div>
+        <canvas id="chart-revenue" height="200"></canvas>
+      </div>
+    </div>
+
+    <!-- Charts row 3 -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+      <div class="card" style="padding:20px">
+        <div style="font-size:13px;font-weight:700;color:#1a1a2e;margin-bottom:16px">📈 Win Rate % per Month</div>
+        <canvas id="chart-win-rate" height="200"></canvas>
+      </div>
+      <div class="card" style="padding:20px">
+        <div style="font-size:13px;font-weight:700;color:#1a1a2e;margin-bottom:16px">🤝 GC Contacts by Status</div>
+        <canvas id="chart-gc-status" height="200"></canvas>
+      </div>
+    </div>
+
+    <!-- Insights -->
+    <div class="card" style="padding:20px">
+      <div style="font-size:13px;font-weight:700;color:#1a1a2e;margin-bottom:14px">💡 Key Insights & Recommendations</div>
+      <div id="pipeline-insights" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px"></div>
+    </div>
   </div>
 </div>
 
