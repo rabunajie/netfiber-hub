@@ -1077,7 +1077,7 @@ function filterBids(){
     let rows=[..._bids];
     // Handle special filters
     if(filter==='due_today') rows=rows.filter(function(r){return r.due_date&&ddiff(r.due_date)===0;});
-    else if(filter==='due_overdue') rows=rows.filter(function(r){return r.due_date&&ddiff(r.due_date)<0&&r.status!=='Win'&&r.status!=='Lost';});
+    else if(filter==='due_overdue') rows=rows.filter(function(r){return r.due_date&&ddiff(r.due_date)<0&&r.status==='Under Review';});
     else if(filter==='fu_today') rows=rows.filter(function(r){return r.fu_next_date&&ddiff(r.fu_next_date)===0;});
     else if(filter==='fu_overdue') rows=rows.filter(function(r){return r.fu_next_date&&ddiff(r.fu_next_date)<0&&r.status!=='Win'&&r.status!=='Lost';});
     else if(filter==='no_followup') rows=rows.filter(function(r){return (!r.fu_status||r.fu_status==='none')&&r.status!=='Win'&&r.status!=='Lost';});
@@ -1138,7 +1138,32 @@ async function renderGC(){
     <div class="page-hdr"><div><div class="page-title">GC Contacts</div><div class="page-sub">General contractor relationships</div></div><button class="btn btn-blue" onclick="openGCModal()">+ New GC</button></div>
     <div class="toolbar">
       <input type="text" id="gc-search" placeholder="Search company, contact..." oninput="filterGC()" style="flex:1;min-width:180px">
-      <select id="gc-filter" onchange="filterGC()"><option value="">All</option><option value="Yes">Replied</option><option value="No">No reply</option></select>
+      <select id="gc-filter" onchange="filterGC()" style="padding:8px 12px;border:1px solid #e0e6f0;border-radius:8px;font-size:13px;background:#fff;color:#333;cursor:pointer;min-width:210px">
+  <option value="">All GC Contacts</option>
+  <optgroup label="── By Reply ──">
+    <option value="replied_yes">✅ Replied</option>
+    <option value="replied_no">❌ No Reply</option>
+  </optgroup>
+  <optgroup label="── By Follow-Up Status ──">
+    <option value="fu_none">💤 Not Contacted</option>
+    <option value="fu_intro">📧 Intro Email Sent</option>
+    <option value="fu_form">📋 Form Needed</option>
+    <option value="fu_call">📞 Called</option>
+    <option value="fu_active">🟢 Active — Bidding</option>
+    <option value="fu_nointerest">🚫 Not Interested</option>
+  </optgroup>
+  <optgroup label="── By Call Schedule ──">
+    <option value="call_today">📅 Call Due Today</option>
+    <option value="call_overdue">🔴 Call Overdue</option>
+    <option value="call_upcoming">⏰ Call in Next 7 Days</option>
+    <option value="no_call">💤 No Call Scheduled</option>
+  </optgroup>
+  <optgroup label="── By Priority ──">
+    <option value="pri_1st">🥇 1st Priority</option>
+    <option value="pri_2nd">🥈 2nd Priority</option>
+    <option value="pri_3rd">🥉 3rd Priority</option>
+  </optgroup>
+</select
     </div>
     <div class="tbl-wrap" style="overflow-x:auto">
       <table><thead><tr><th>Company</th><th>Contact</th><th>Email</th><th>Phone</th><th>City</th><th>Priority</th><th>Replied</th><th>Follow-Up</th><th>Next Call</th><th></th></tr></thead>
@@ -1148,7 +1173,21 @@ async function renderGC(){
 }
 var _gcs=[];
 async function loadGC(){const {data:rows,error}=await sb.from('gc_contacts').select('*').order('created_at',{ascending:false});if(error){console.error('GC error:',error);}_gcs=rows||[];filterGC();}
-function filterGC(){const search=(document.getElementById('gc-search')?.value||'').toLowerCase();const filter=document.getElementById('gc-filter')?.value||'';let rows=[..._gcs];if(filter)rows=rows.filter(r=>r.replied===filter);if(search)rows=rows.filter(r=>(r.company+r.contact+r.email).toLowerCase().includes(search));const tbody=document.getElementById('gc-body');if(!tbody)return;(function(){var gcRows='';for(var gi=0;gi<rows.length;gi++){var r=rows[gi];var nextC=r.gc_next_followup?fmtD(r.gc_next_followup):'—';var nextCCls=r.gc_next_followup&&ddiff(r.gc_next_followup)<0?'color:#E24B4A;font-weight:700':r.gc_next_followup&&ddiff(r.gc_next_followup)===0?'color:#BA7517;font-weight:700':'color:#888';gcRows+='<tr ondblclick="openGCFU(event,&quot;'+r.id+'&quot;)">'+'<td style="font-weight:600">'+(r.company||'')+'</td>'+'<td style="font-size:12px">'+(r.contact||'').split('\n')[0]+'</td>'+'<td style="font-size:12px"><a href="mailto:'+(r.email||'').split('\n')[0]+'" style="color:#1B5E9B">'+(r.email||'').split('\n')[0]+'</a></td>'+'<td style="font-size:12px">'+(r.phone||'').split('\n')[0]+'</td>'+'<td style="font-size:12px">'+(r.city||'').split('\n')[0]+'</td>'+'<td><span class="'+(r.priority==='1st'?'pri-1':r.priority==='2nd'?'pri-2':'pri-3')+'">'+(r.priority||'—')+'</span></td>'+'<td><span class="badge '+(r.replied==='Yes'?'b-yes':'b-no')+'">'+(r.replied||'No')+'</span></td>'+'<td>'+gcFuBadge(r)+'</td>'+'<td style="font-size:11px;'+nextCCls+'">'+nextC+'</td>'+'<td style="display:flex;gap:4px"><button class="btn-sm" onclick="editGC(this.dataset.id)" data-id="'+r.id+'">Edit</button><button class="btn-danger" onclick="delGC(this.dataset.id,this.dataset.name)" data-id="'+r.id+'" data-name="'+(r.company||'').replace(/"/g,'')+'">×</button></td>'
+function filterGC(){const search=(document.getElementById('gc-search')?.value||'').toLowerCase();const filter=document.getElementById('gc-filter')?.value||'';let rows=[..._gcs];if(filter==='replied_yes') rows=rows.filter(function(r){return r.replied==='Yes';});
+    else if(filter==='replied_no') rows=rows.filter(function(r){return r.replied!=='Yes';});
+    else if(filter==='fu_none') rows=rows.filter(function(r){return !r.gc_fu_status||r.gc_fu_status==='none';});
+    else if(filter==='fu_intro') rows=rows.filter(function(r){return r.gc_fu_status==='intro';});
+    else if(filter==='fu_form') rows=rows.filter(function(r){return r.gc_fu_status==='form';});
+    else if(filter==='fu_call') rows=rows.filter(function(r){return r.gc_fu_status==='call';});
+    else if(filter==='fu_active') rows=rows.filter(function(r){return r.gc_fu_status==='active';});
+    else if(filter==='fu_nointerest') rows=rows.filter(function(r){return r.gc_fu_status==='nointerest';});
+    else if(filter==='call_today') rows=rows.filter(function(r){return r.gc_next_followup&&ddiff(r.gc_next_followup)===0;});
+    else if(filter==='call_overdue') rows=rows.filter(function(r){return r.gc_next_followup&&ddiff(r.gc_next_followup)<0&&r.gc_fu_status!=='nointerest';});
+    else if(filter==='call_upcoming') rows=rows.filter(function(r){var d=r.gc_next_followup?ddiff(r.gc_next_followup):null;return d!==null&&d>0&&d<=7;});
+    else if(filter==='no_call') rows=rows.filter(function(r){return !r.gc_next_followup&&r.gc_fu_status&&r.gc_fu_status!=='none'&&r.gc_fu_status!=='nointerest';});
+    else if(filter==='pri_1st') rows=rows.filter(function(r){return r.priority==='1st';});
+    else if(filter==='pri_2nd') rows=rows.filter(function(r){return r.priority==='2nd';});
+    else if(filter==='pri_3rd') rows=rows.filter(function(r){return r.priority==='3rd';});if(search)rows=rows.filter(r=>(r.company+r.contact+r.email).toLowerCase().includes(search));const tbody=document.getElementById('gc-body');if(!tbody)return;(function(){var gcRows='';for(var gi=0;gi<rows.length;gi++){var r=rows[gi];var nextC=r.gc_next_followup?fmtD(r.gc_next_followup):'—';var nextCCls=r.gc_next_followup&&ddiff(r.gc_next_followup)<0?'color:#E24B4A;font-weight:700':r.gc_next_followup&&ddiff(r.gc_next_followup)===0?'color:#BA7517;font-weight:700':'color:#888';gcRows+='<tr ondblclick="openGCFU(event,&quot;'+r.id+'&quot;)">'+'<td style="font-weight:600">'+(r.company||'')+'</td>'+'<td style="font-size:12px">'+(r.contact||'').split('\n')[0]+'</td>'+'<td style="font-size:12px"><a href="mailto:'+(r.email||'').split('\n')[0]+'" style="color:#1B5E9B">'+(r.email||'').split('\n')[0]+'</a></td>'+'<td style="font-size:12px">'+(r.phone||'').split('\n')[0]+'</td>'+'<td style="font-size:12px">'+(r.city||'').split('\n')[0]+'</td>'+'<td><span class="'+(r.priority==='1st'?'pri-1':r.priority==='2nd'?'pri-2':'pri-3')+'">'+(r.priority||'—')+'</span></td>'+'<td><span class="badge '+(r.replied==='Yes'?'b-yes':'b-no')+'">'+(r.replied||'No')+'</span></td>'+'<td>'+gcFuBadge(r)+'</td>'+'<td style="font-size:11px;'+nextCCls+'">'+nextC+'</td>'+'<td style="display:flex;gap:4px"><button class="btn-sm" onclick="editGC(this.dataset.id)" data-id="'+r.id+'">Edit</button><button class="btn-danger" onclick="delGC(this.dataset.id,this.dataset.name)" data-id="'+r.id+'" data-name="'+(r.company||'').replace(/"/g,'')+'">×</button></td>'
       +'</tr>';}tbody.innerHTML=gcRows||'<tr><td colspan="10" style="text-align:center;padding:2rem;color:#bbb">No contacts found.</td></tr>'})()||'<tr><td colspan="10" style="text-align:center;padding:2rem;color:#bbb">No contacts found.</td></tr>';}
 function openGCModal(){editGCId=null;document.getElementById('gc-modal-title').textContent='New GC Contact';['company','contact','email','phone','city','notes','fdate'].forEach(f=>document.getElementById('gm-'+f).value='');document.getElementById('gm-priority').value='1st';document.getElementById('gm-replied').value='No';document.getElementById('gc-modal').classList.add('open');}
 async function editGC(id){const {data:r}=await sb.from('gc_contacts').select('*').eq('id',id).single();if(!r)return;editGCId=id;document.getElementById('gc-modal-title').textContent='Edit GC';['company','contact','email','phone','city'].forEach(f=>document.getElementById('gm-'+f).value=r[f]||'');document.getElementById('gm-priority').value=r.priority||'1st';document.getElementById('gm-replied').value=r.replied||'No';document.getElementById('gm-notes').value=r.note||'';document.getElementById('gm-fdate').value=r.first_email||'';document.getElementById('gc-modal').classList.add('open');}
