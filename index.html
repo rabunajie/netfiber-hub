@@ -1309,6 +1309,7 @@ async function delMat(id){if(!confirm('Remove this item?'))return;await sb.from(
 async function renderTasks(){
   const mc=document.getElementById('main-content');
   mc.innerHTML=`
+    <div id="task-kpis" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px"></div>
     <div class="page-hdr"><div><div class="page-title">To-Do</div><div class="page-sub">Tasks and deadlines</div></div></div>
     <div style="background:#fff;border-radius:12px;border:0.5px solid #e4e8f0;padding:14px;margin-bottom:12px">
       <div style="font-size:12px;font-weight:700;color:#555;margin-bottom:10px">Add new task</div>
@@ -1358,7 +1359,22 @@ async function loadTasks(){
     return t.created_by===myId || t.assigned_name===myName;
   });
   filterTasks();
+  // KPIs
+  var kEl=document.getElementById('task-kpis');
+  if(kEl){
+    var all=rows||[];
+    var myTasks=_tasks;
+    var high=myTasks.filter(function(t){return !t.done&&t.priority==='high';}).length;
+    var dueToday=myTasks.filter(function(t){return !t.done&&t.deadline&&ddiff(t.deadline)<=0;}).length;
+    var done=myTasks.filter(function(t){return t.done;}).length;
+    kEl.innerHTML=
+      taskKpi('Total Tasks','#1B5E9B',myTasks.length,'assigned to me')+
+      taskKpi('High Priority','#E24B4A',high,'need attention')+
+      taskKpi('Due Today','#854F0B',dueToday,'or overdue')+
+      taskKpi('Completed','#1D9E75',done,'tasks done');
+  }
 }
+function taskKpi(label,color,val,sub){return '<div style="cursor:pointer;background:#fff;border:0.5px solid #eaedf2;border-top:3px solid '+color+';border-radius:10px;padding:14px 16px"><div style="font-size:11px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px">'+label+'</div><div style="font-size:26px;font-weight:800;color:'+color+'">'+val+'</div><div style="font-size:11px;color:#bbb;margin-top:3px">'+sub+'</div></div>';}
 function filterTasks(){
   const search=(document.getElementById('task-search')?.value||'').toLowerCase();
   const filter=document.getElementById('task-filter')?.value||'all';
@@ -1380,9 +1396,9 @@ function filterTasks(){
       <div class="tname" style="font-size:13px">${t.name}</div>
       <div><span class="tbadge ${t.priority==='high'?'high':t.priority==='medium'?'medium':'low'}">${t.priority||'medium'}</span></div>
       <div>${dlHtml}</div>
-      <div class="by-cell">${t.creator?.full_name||'—'}</div>
-      <div><span class="badge ${t.done?'b-win':'b-sent'}">${t.done?'Done':'Pending'}</span></div>
-      <div><button class="btn-danger" onclick="delTask('${t.id}','${t.name.replace(/'/g,'`')}')">×</button></div>
+      <div class="by-cell">${t.assigned_name||t.creator?.full_name||'—'}</div>
+      <div><span class="badge ${t.done?'b-win':'b-sent'}" style="cursor:pointer" onclick="toggleTask('${t.id}',${t.done})">${t.done?'Done':'Pending'}</span></div>
+      <div style="display:flex;gap:4px"><button class="btn-sm" onclick="openEditTask('${t.id}')">Edit</button><button class="btn-danger" onclick="delTask('${t.id}','${t.name.replace(/'/g,'`')}')">×</button></div>
     </div>`;
   }).join('')||'<div style="text-align:center;padding:2rem;color:#bbb;font-size:13px">No tasks found.</div>';
 }
@@ -1395,7 +1411,7 @@ async function addTask(){
   var assignedName=assignEl&&assignEl.value?assignEl.value:null;
   // If no assignment, assign to self
   if(!assignedName&&CP) assignedName=CP.full_name||null;
-  var obj={name:name,priority:pri,deadline:date,done:false,assigned_name:assignedName,created_by:CU.id,updated_by:CU.id,updated_at:new Date().toISOString()};
+  var obj={name:name,priority:pri,deadline:date,done:false,assigned_name:assignedName,created_by:CU.id,updated_at:new Date().toISOString()};
   var res=await sb.from('tasks').insert(obj).select().single();
   if(res.error){console.error('Task error:',res.error);return;}
   await logAct('Added task','tasks',res.data?res.data.id:null,'Added: '+name);
@@ -1522,6 +1538,39 @@ async function logGCFollowUp(){
   document.getElementById('gc-fu-cur-status').innerHTML='<span class="gc-fu-badge '+f2.c+'">'+f2.l+'</span>';
   await loadGCFUHistory(currentGCId);
   await loadGC();
+}
+
+
+async function openEditTask(taskId){
+  var task=(_tasks||[]).find(function(t){return t.id===taskId;});
+  if(!task)return;
+  document.getElementById('et-id').value=task.id;
+  document.getElementById('et-name').value=task.name||'';
+  document.getElementById('et-priority').value=task.priority||'medium';
+  document.getElementById('et-done').value=task.done?'true':'false';
+  document.getElementById('et-deadline').value=task.deadline||'';
+  // Load profiles
+  var pRes=await sb.from('profiles').select('full_name');
+  var assignEl=document.getElementById('et-assign');
+  assignEl.innerHTML='<option value="">Unassigned</option>';
+  (pRes.data||[]).forEach(function(p){
+    if(p.full_name){var o=document.createElement('option');o.value=p.full_name;o.textContent=p.full_name;if(p.full_name===task.assigned_name)o.selected=true;assignEl.appendChild(o);}
+  });
+  document.getElementById('edit-task-modal').classList.add('open');
+}
+
+async function saveEditTask(){
+  var id=document.getElementById('et-id').value;
+  var name=document.getElementById('et-name').value.trim();
+  var pri=document.getElementById('et-priority').value;
+  var done=document.getElementById('et-done').value==='true';
+  var deadline=document.getElementById('et-deadline').value||null;
+  var assigned=document.getElementById('et-assign').value||null;
+  if(!name){alert('Task name required');return;}
+  var res=await sb.from('tasks').update({name:name,priority:pri,done:done,deadline:deadline,assigned_name:assigned,updated_by:CU.id,updated_at:new Date().toISOString()}).eq('id',id);
+  if(res.error){alert('Error: '+res.error.message);return;}
+  closeModal('edit-task-modal');
+  await loadTasks();
 }
 
 </script>
@@ -1986,64 +2035,98 @@ document.addEventListener('input',function(e){if(e.target&&e.target.id==='ped-ta
   </div>
 </div>
 
-<script>
-var _pc={};
-function renderPipelinePage(){
-  var mc=document.getElementById('main-content');
-  mc.innerHTML='<div style="padding:0"><div class="page-hdr"><div><div class="page-title">Business Pipeline Report</div><div class="page-sub">Track performance and drive growth</div></div><div style="display:flex;gap:8px"><select id="pipeline-range" onchange="renderPipeline()" style="padding:8px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px;background:#fff"><option value="3">Last 3 months</option><option value="6" selected>Last 6 months</option><option value="12">Last 12 months</option><option value="0">All time</option></select><button class="btn btn-blue" onclick="exportPipelinePDF()">Download PDF</button></div></div><div id="pipeline-kpis" style="display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:20px"></div><div style="display:grid;grid-template-columns:1.5fr 1fr;gap:16px;margin-bottom:16px"><div class="card" style="padding:20px"><div style="font-size:13px;font-weight:700;margin-bottom:16px">Bids Sent per Month</div><canvas id="chart-bids-monthly" height="200"></canvas></div><div class="card" style="padding:20px"><div style="font-size:13px;font-weight:700;margin-bottom:16px">Won vs Lost per Month</div><canvas id="chart-bid-status" height="200"></canvas></div></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px"><div class="card" style="padding:20px"><div style="font-size:13px;font-weight:700;margin-bottom:16px">GC Response Rate</div><canvas id="chart-gc-response" height="200"></canvas></div><div class="card" style="padding:20px"><div style="font-size:13px;font-weight:700;margin-bottom:16px">Revenue Pipeline ($)</div><canvas id="chart-revenue" height="200"></canvas></div></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px"><div class="card" style="padding:20px"><div style="font-size:13px;font-weight:700;margin-bottom:16px">Win Rate % per Month</div><canvas id="chart-win-rate" height="200"></canvas></div><div class="card" style="padding:20px"><div style="font-size:13px;font-weight:700;margin-bottom:16px">New GC Contacts per Month</div><canvas id="chart-gc-status" height="200"></canvas></div></div><div class="card" style="padding:20px;margin-bottom:40px"><div style="font-size:13px;font-weight:700;margin-bottom:14px">Key Insights</div><div id="pipeline-insights" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px"></div></div></div>';
-  setTimeout(renderPipeline,150);
+<script>function plKpi(label,color,value,sub){
+  return '<div style="background:#fff;border-radius:12px;padding:18px 20px;border:0.5px solid #eaedf2;border-top:3px solid '+color+'">'
+    +'<div style="font-size:10px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">'+label+'</div>'
+    +'<div style="font-size:26px;font-weight:800;color:'+color+'">'+value+'</div>'
+    +'<div style="font-size:11px;color:#bbb;margin-top:4px">'+sub+'</div>'
+    +'</div>';
 }
-async function renderPipeline(){
-  var months=parseInt((document.getElementById('pipeline-range')||{value:'6'}).value)||6;
-  var now=new Date(),cutoff=months===0?new Date('2020-01-01'):new Date(now.getFullYear(),now.getMonth()-months+1,1);
-  var br=await sb.from('bids').select('*'),gr=await sb.from('gc_contacts').select('*');
-  var bids=br.data||[],gcs=gr.data||[];
-  var nM=months===0?24:months,labels=[];
-  for(var m=nM-1;m>=0;m--){var d=new Date(now.getFullYear(),now.getMonth()-m,1);labels.push(d.toLocaleString('en-US',{month:'short',year:'2-digit'}));}
-  function gl(ds){if(!ds)return null;var d=new Date(ds);return d.toLocaleString('en-US',{month:'short',year:'2-digit'});}
-  function gbd(b){return b.due_date||b.last_ping||b.created_at||null;}
-  var act=bids.filter(function(b){var s=b.status||'';return ['Bid Sent','Submitted','Win','Lost','Under Review'].indexOf(s)>=0;});
-  var fil=act.filter(function(b){var d=gbd(b);return d&&new Date(d)>=cutoff;});
-  if(!fil.length)fil=act;
-  var bpm={},wpm={},lpm={},rpm={},wvpm={};
-  labels.forEach(function(l){bpm[l]=0;wpm[l]=0;lpm[l]=0;rpm[l]=0;wvpm[l]=0;});
-  fil.forEach(function(b){var l=gl(gbd(b));if(!l||bpm[l]===undefined)return;bpm[l]++;if(b.status==='Win'){wpm[l]++;wvpm[l]+=(b.price||0);}if(b.status==='Lost')lpm[l]++;rpm[l]+=(b.price||0);});
-  var wrpm=labels.map(function(l){return bpm[l]>0?Math.round((wpm[l]/bpm[l])*100):0;});
-  var gcpm={};labels.forEach(function(l){gcpm[l]=0;});
-  gcs.forEach(function(g){var l=gl(g.created_at);if(l&&gcpm[l]!==undefined)gcpm[l]++;});
-  var gcR=gcs.filter(function(g){return ['call','active','est_yes'].indexOf(g.gc_fu_status)>=0;}).length;
-  var gcN=gcs.filter(function(g){return !g.gc_fu_status||g.gc_fu_status==='none'||g.gc_fu_status==='intro';}).length;
-  var gcI=gcs.filter(function(g){return g.gc_fu_status==='nointerest';}).length;
-  var tB=fil.length,tW=fil.filter(function(b){return b.status==='Win';}).length;
-  var tL=fil.filter(function(b){return b.status==='Lost';}).length;
-  var tV=fil.reduce(function(s,b){return s+(b.price||0);},0);
-  var wr=tB>0?Math.round((tW/tB)*100):0;
-  var kEl=document.getElementById('pipeline-kpis');
-  if(kEl)kEl.innerHTML=plKpi('Bids Sent','#1B5E9B',tB,'in period')+plKpi('Won','#1D9E75',tW,'projects')+plKpi('Lost','#E24B4A',tL,'projects')+plKpi('Win Rate','#854F0B',wr+'%','of bids')+plKpi('Value','#1B5E9B','$'+fmt$(tV),'total');
-  Object.values(_pc).forEach(function(c){if(c)c.destroy();});_pc={};
-  if(typeof Chart==='undefined')return;
-  function lo(cb){return{responsive:true,plugins:{legend:{position:'top',labels:{usePointStyle:true,font:{size:11}}}},scales:{x:{grid:{display:false}},y:{beginAtZero:true,ticks:{callback:cb||function(v){return Number.isInteger(v)?v:'';}}}}};} 
-  function mk(id,ds,yf){var el=document.getElementById(id);if(!el)return null;return new Chart(el,{type:'line',data:{labels:labels,datasets:ds},options:lo(yf)});}
-  function ds(label,color,data){return{label:label,data:data,borderColor:color,backgroundColor:color.replace(')',',0.08)').replace('rgb','rgba'),borderWidth:2.5,tension:0.3,fill:true,pointBackgroundColor:color,pointBorderColor:'#fff'};}
-  _pc.a=mk('chart-bids-monthly',[ds('Bids Sent','#1B5E9B',labels.map(function(l){return bpm[l];}))]);
-  _pc.b=mk('chart-bid-status',[ds('Won','#1D9E75',labels.map(function(l){return wpm[l];})),ds('Lost','#E24B4A',labels.map(function(l){return lpm[l];}))]);
-  var gcEl=document.getElementById('chart-gc-response');
-  if(gcEl)_pc.c=new Chart(gcEl,{type:'doughnut',data:{labels:['Responded','No Response','Not Interested'],datasets:[{data:[gcR,gcN,gcI],backgroundColor:['rgba(29,158,117,0.8)','rgba(186,117,23,0.8)','rgba(226,75,74,0.8)'],borderWidth:2,borderColor:'#fff'}]},options:{responsive:true,plugins:{legend:{position:'bottom'}},cutout:'60%'}});
-  _pc.d=mk('chart-revenue',[ds('Bid Value','#1B5E9B',labels.map(function(l){return Math.round(rpm[l]);})),ds('Won Value','#1D9E75',labels.map(function(l){return Math.round(wvpm[l]);}))],function(v){return v>=1000?'$'+Math.round(v/1000)+'k':'$'+v;});
-  _pc.e=mk('chart-win-rate',[ds('Win Rate %','#1D9E75',wrpm)],function(v){return v+'%';});
-  _pc.f=mk('chart-gc-status',[ds('New GC Contacts','#6B4FA8',labels.map(function(l){return gcpm[l];}))]);
-  var iEl=document.getElementById('pipeline-insights');
-  if(iEl){var ins=[];
-    ins.push(tB<5?{t:'Low Bid Volume',x:'Only '+tB+' bids. Aim for 5-10/month.',c:'#E24B4A'}:{t:'Good Bid Volume',x:tB+' bids submitted!',c:'#1D9E75'});
-    ins.push(wr===0?{t:'No Wins Yet',x:'Focus on follow-up quality.',c:'#E24B4A'}:wr<20?{t:'Win Rate: '+wr+'%',x:'Aim for 20-30%.',c:'#BA7517'}:{t:'Win Rate: '+wr+'%',x:'Strong! Track best GCs.',c:'#1D9E75'});
-    var gr=gcs.length>0?Math.round((gcR/gcs.length)*100):0;
-    ins.push(gr<30?{t:'GC Outreach: '+gr+'%',x:'Increase call frequency.',c:'#E24B4A'}:{t:'GC Response: '+gr+'%',x:'Good engagement!',c:'#1D9E75'});
-    iEl.innerHTML=ins.map(function(i){return '<div style="background:#f8faff;border-radius:10px;padding:16px;border-left:4px solid '+i.c+'"><div style="font-size:13px;font-weight:700;color:#1a1a2e;margin-bottom:6px">'+i.t+'</div><div style="font-size:12px;color:#666;line-height:1.5">'+i.x+'</div></div>';}).join('');
-  }
+
+
+function exportPipelinePDF(){
+  var w=window.open('','_blank');
+  var tag1='<'+'html><'+'head><title>Pipeline<'+'/title>';
+  var tag2='<style>body{font-family:Arial,sans-serif;padding:20px}h1{color:#1B5E9B}<'+'/style>';
+  var tag3='<'+'/'+'head><'+'body>';
+  var tag4='<h1>NetFiber Pipeline Report<'+'/h1>';
+  var tag5='<p>'+new Date().toLocaleDateString()+'<'+'/p>';
+  var tag6='<'+'/'+'body><'+'/'+'html>';
+  w.document.write(tag1+tag2+tag3+tag4+tag5+document.getElementById('main-content').innerHTML+tag6);
+  w.document.close();
+  setTimeout(function(){w.print();},1500);
 }
-function plKpi(label,color,value,sub){return '<div style="background:#fff;border-radius:12px;padding:18px 20px;border:0.5px solid #eaedf2;border-top:3px solid '+color+'"><div style="font-size:10px;font-weight:700;color:#aaa;text-transform:uppercase;margin-bottom:8px">'+label+'</div><div style="font-size:26px;font-weight:800;color:'+color+'">'+value+'</div><div style="font-size:11px;color:#bbb;margin-top:4px">'+sub+'</div></div>';}
-function exportPipelinePDF(){var w=window.open('','_blank');var h='<html><head><title>Pipeline</title><style>body{font-family:Arial,sans-serif;padding:20px}h1{color:#1B5E9B}</style></head><body><h1>NetFiber Pipeline Report</h1><p>'+new Date().toLocaleDateString()+'</p>'+document.getElementById('main-content').innerHTML+'</body></html>';w.document.write(h);w.document.close();setTimeout(function(){w.print();},1500);}
 </script>
+<!-- EDIT TASK MODAL -->
+<div class="modal-bg" id="edit-task-modal">
+  <div class="modal-card" style="max-width:480px">
+    <div class="modal-title">Edit Task</div>
+    <input type="hidden" id="et-id">
+    <div class="fgrid">
+      <div class="ifield" style="grid-column:1/-1"><label>Task</label><input id="et-name" type="text" placeholder="Task description"></div>
+      <div class="ifield"><label>Priority</label>
+        <select id="et-priority">
+          <option value="high">High</option>
+          <option value="medium">Medium</option>
+          <option value="low">Low</option>
+        </select>
+      </div>
+      <div class="ifield"><label>Status</label>
+        <select id="et-done">
+          <option value="false">Pending</option>
+          <option value="true">Done</option>
+        </select>
+      </div>
+      <div class="ifield"><label>Deadline</label><input id="et-deadline" type="date"></div>
+      <div class="ifield"><label>Assigned To</label>
+        <select id="et-assign">
+          <option value="">Assign to...</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('edit-task-modal')" style="background:#f0f0f0;color:#666">Cancel</button>
+      <button class="btn btn-blue" onclick="saveEditTask()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+</body></html>';w.document.write(h);w.document.close();setTimeout(function(){w.print();},1500);}
+
+<!-- EDIT TASK MODAL -->
+<div class="modal-bg" id="edit-task-modal">
+  <div class="modal-card" style="max-width:480px">
+    <div class="modal-title">Edit Task</div>
+    <input type="hidden" id="et-id">
+    <div class="fgrid">
+      <div class="ifield" style="grid-column:1/-1"><label>Task</label><input id="et-name" type="text" placeholder="Task description"></div>
+      <div class="ifield"><label>Priority</label>
+        <select id="et-priority">
+          <option value="high">High</option>
+          <option value="medium">Medium</option>
+          <option value="low">Low</option>
+        </select>
+      </div>
+      <div class="ifield"><label>Status</label>
+        <select id="et-done">
+          <option value="false">Pending</option>
+          <option value="true">Done</option>
+        </select>
+      </div>
+      <div class="ifield"><label>Deadline</label><input id="et-deadline" type="date"></div>
+      <div class="ifield"><label>Assigned To</label>
+        <select id="et-assign">
+          <option value="">Assign to...</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('edit-task-modal')" style="background:#f0f0f0;color:#666">Cancel</button>
+      <button class="btn btn-blue" onclick="saveEditTask()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html
         ${canAccess('tasks')?`<div class="mod-btn" onclick="showPage('tasks')" style="border-top:3px solid #1D9E75">>
