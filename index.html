@@ -744,8 +744,34 @@ var editBidId=null,editGCId=null,editRetailId=null,editPPId=null,editMatId=null,
 var today=new Date();today.setHours(0,0,0,0);
 var todayStr=today.toISOString().split('T')[0];
 
-var GROUPS={admin:['dashboard','bids','gc','retail','proposals','purchases','tasks','log','mgmt','pipeline'],sales:['dashboard','bids','gc','retail','proposals','purchases','tasks','pipeline'],staff:['dashboard','retail','tasks','pipeline'],field:['dashboard','tasks','pipeline']};
-function canAccess(p){if(CP&&CP.disabled)return false;return(GROUPS[CP?.group_name||'staff']||['dashboard','tasks']).includes(p);}
+// Single source of truth for group permissions
+var DEFAULT_GROUPS={
+  admin:['dashboard','bids','gc','retail','proposals','purchases','tasks','log','mgmt','pipeline'],
+  sales:['dashboard','bids','gc','retail','tasks'],
+  staff:['dashboard','tasks'],
+  field:['dashboard','tasks']
+};
+function getGroups(){
+  try{
+    var saved=localStorage.getItem('netfiber_groups');
+    if(saved){
+      var parsed=JSON.parse(saved);
+      if(parsed&&typeof parsed==='object')return parsed;
+    }
+  }catch(e){}
+  return JSON.parse(JSON.stringify(DEFAULT_GROUPS));
+}
+function saveGroups(g){
+  localStorage.setItem('netfiber_groups',JSON.stringify(g));
+}
+var GROUPS=getGroups();
+function canAccess(p){
+  if(CP&&CP.disabled)return false;
+  var grps=getGroups();
+  var groupName=CP?CP.group_name||'staff':'staff';
+  var pages=grps[groupName]||['dashboard'];
+  return pages.indexOf(p)>=0;
+}
 
 // TIME
 function updateTime(){const n=new Date();document.getElementById('tb-time').textContent=n.toLocaleString('en-US',{weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});}
@@ -874,7 +900,9 @@ function rowCls(bid){if(!bid.fu_next_date)return'';const d=ddiff(bid.fu_next_dat
 
 // NAVIGATION
 function showPage(p){
-  if(!canAccess(p)){p=GROUPS[CP?.group_name||'staff'][0]||'dashboard';}
+  GROUPS=getGroups();
+  var grpPages=getGroups()[CP?CP.group_name||'staff':'staff']||['dashboard'];
+  if(!canAccess(p)){p=grpPages[0]||'dashboard';}
   document.querySelectorAll('.sb-item').forEach(el=>el.classList.toggle('on',el.dataset.page===p));
   const mc=document.getElementById('main-content');
   mc.innerHTML='<div class="loading"><span class="spinner"></span>Loading...</div>';
@@ -1531,7 +1559,6 @@ async function renderMgmt(){
         </tbody></table>
       </div>
     </div>`;
-  loadSavedGroups();
   await loadUsers();
   renderCustomGroups();
   renderGroupPermsTable();
@@ -1794,8 +1821,10 @@ function addCustomGroup(){
   groups.push(name);
   localStorage.setItem('netfiber_custom_groups',JSON.stringify(groups));
   // Add to GROUPS object with basic access
-  GROUPS[name]=['dashboard','tasks'];
-  localStorage.setItem('netfiber_groups',JSON.stringify(GROUPS));
+  var grps=getGroups();
+  grps[name]=['dashboard','tasks'];
+  GROUPS=grps;
+  saveGroups(grps);
   document.getElementById('new-group-name').value='';
   renderCustomGroups();
   renderGroupPermsTable();
@@ -1816,6 +1845,7 @@ var PAGE_LABELS=['Dashboard','Bid Opp.','GC Contacts','Retail','Proposals','Purc
 function renderGroupPermsTable(){
   var el=document.getElementById('group-perms-table');
   if(!el)return;
+  GROUPS=getGroups();
   var groups=Object.keys(GROUPS);
   var html2='<table style="width:100%;border-collapse:collapse;font-size:12px">';
   html2+='<thead><tr><th style="text-align:left;padding:8px 12px;background:#f8faff;border-bottom:2px solid #eaedf2;font-weight:700;color:#1B5E9B">Group</th>';
@@ -1864,9 +1894,8 @@ function saveGroupPermissions(){
     if(newGroups[g].indexOf('dashboard')<0)newGroups[g].unshift('dashboard');
   });
   GROUPS=newGroups;
-  // Save to localStorage
-  localStorage.setItem('netfiber_groups',JSON.stringify(GROUPS));
-  showToast('Group permissions saved!');
+  saveGroups(newGroups);
+  showToast('Group permissions saved!','#1D9E75');
   renderGroupPermsTable();
 }
 
@@ -1877,8 +1906,10 @@ function deleteGroup(groupName){
   if(!confirm('Delete group "'+groupName+'"? Users in this group will be moved to Staff.'))return;
   // Move users out first
   sbA.from('profiles').update({group_name:'staff'}).eq('group_name',groupName).then(function(){});
-  delete GROUPS[groupName];
-  localStorage.setItem('netfiber_groups',JSON.stringify(GROUPS));
+  var grps=getGroups();
+  delete grps[groupName];
+  GROUPS=grps;
+  saveGroups(grps);
   // Remove from custom groups list
   var custom=getCustomGroups().filter(function(g){return g!==groupName;});
   localStorage.setItem('netfiber_custom_groups',JSON.stringify(custom));
@@ -1888,12 +1919,7 @@ function deleteGroup(groupName){
   showToast('Group "'+groupName+'" deleted');
 }
 
-function loadSavedGroups(){
-  try{
-    var saved=localStorage.getItem('netfiber_groups');
-    if(saved){var sg=JSON.parse(saved);Object.assign(GROUPS,sg);}
-  }catch(e){}
-}
+// loadSavedGroups removed - getGroups() handles this
 
 </script>
 <script>
