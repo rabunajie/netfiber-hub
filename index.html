@@ -2516,96 +2516,37 @@ function exportPipelinePDF(){
 </script>
 <!-- EDIT TASK MODAL -->
 <div class="modal-bg" id="edit-task-modal">
-  <div class="modal-card" style="max-width:480px">
-    <div class="modal-title">Edit Task</div>
-    <input type="hidden" id="et-id">
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
-      <div class="ifield" style="grid-column:1/-1"><label>Task</label><input id="et-name" type="text" placeholder="Task description"></div>
-      <div class="ifield"><label>Priority</label>
-        <select id="et-priority">
-          <option value="high">High</option>
-          <option value="medium">Medium</option>
-          <option value="low">Low</option>
-        </select>
-      </div>
-      <div class="ifield"><label>Status</label>
-        <select id="et-done">
-          <option value="false">Pending</option>
-          <option value="true">Done</option>
-        </select>
-      </div>
-      <div class="ifield"><label>Deadline</label><input id="et-deadline" type="date"></div>
-      <div class="ifield"><label>Assigned To</label>
-        <select id="et-assign">
-          <option value="">Assign to...</option>
-        </select>
-      </div>
-    </div>
-    <div style="display:flex;gap:8px;justify-content:flex-end;padding-top:14px;border-top:1px solid #f0f0f0;margin-top:4px">
-      <button class="btn" onclick="closeModal('edit-task-modal')" style="background:#f0f0f0;color:#666">Cancel</button>
-      <button class="btn btn-blue" onclick="saveEditTask()">Save Changes</button>
-    </div>
-  </div>
-</div>
-
-
-<!-- CHANGE PASSWORD MODAL -->
-<div class="modal-bg" id="change-pw-modal">
-  <div class="fu-panel" style="max-width:420px">
-    <div style="font-size:16px;font-weight:700;color:#1B5E9B;margin-bottom:6px">Reset User Password</div>
-    <div id="change-pw-username" style="font-size:13px;color:#aaa;margin-bottom:20px"></div>
-    <input type="hidden" id="change-pw-uid">
-    <div class="ifield" style="margin-bottom:14px">
-      <label style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;display:block;margin-bottom:6px">New Password</label>
-      <input type="password" id="new-pw-input" placeholder="Min 6 characters" style="width:100%;padding:10px 12px;border:1.5px solid #dde4ee;border-radius:8px;font-size:13px;outline:none">
-    </div>
-    <div class="ifield" style="margin-bottom:20px">
-      <label style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;display:block;margin-bottom:6px">Confirm Password</label>
-      <input type="password" id="confirm-pw-input" placeholder="Repeat password" style="width:100%;padding:10px 12px;border:1.5px solid #dde4ee;border-radius:8px;font-size:13px;outline:none">
-    </div>
-    <div id="pw-change-msg" style="font-size:13px;margin-bottom:12px;display:none"></div>
-    <div style="display:flex;gap:8px;justify-content:flex-end">
-      <button class="btn" onclick="closeModal('change-pw-modal')" style="background:#f0f0f0;color:#666">Cancel</button>
-      <button class="btn btn-blue" onclick="doAdminChangePassword()">Set New Password</button>
-    </div>
-  </div>
-</div>
-</body></html>';w.document.write(h);w.document.close();setTimeout(function(){w.print();},1500);}
-
-<!-- EDIT TASK MODAL -->
-<div class="modal-bg" id="edit-task-modal">
-  <div class="modal-card" style="max-width:480px">
-    <div class="modal-title">Edit Task</div>
+  <div class="modal" style="max-width:480px">
+    <h3>Edit Task</h3>
     <input type="hidden" id="et-id">
     <div class="fgrid">
-      <div class="ifield" style="grid-column:1/-1"><label>Task</label><input id="et-name" type="text" placeholder="Task description"></div>
-      <div class="ifield"><label>Priority</label>
+      <div class="frow" style="grid-column:1/-1"><label>Task</label><input id="et-name" type="text" placeholder="Task description"></div>
+      <div class="frow"><label>Priority</label>
         <select id="et-priority">
           <option value="high">High</option>
           <option value="medium">Medium</option>
           <option value="low">Low</option>
         </select>
       </div>
-      <div class="ifield"><label>Status</label>
+      <div class="frow"><label>Status</label>
         <select id="et-done">
           <option value="false">Pending</option>
           <option value="true">Done</option>
         </select>
       </div>
-      <div class="ifield"><label>Deadline</label><input id="et-deadline" type="date"></div>
-      <div class="ifield"><label>Assigned To</label>
+      <div class="frow"><label>Deadline</label><input id="et-deadline" type="date"></div>
+      <div class="frow"><label>Assigned To</label>
         <select id="et-assign">
           <option value="">Assign to...</option>
         </select>
       </div>
     </div>
-    <div class="modal-footer">
-      <button class="btn" onclick="closeModal('edit-task-modal')" style="background:#f0f0f0;color:#666">Cancel</button>
+    <div class="mfooter">
+      <button class="btn btn-sm" onclick="closeModal('edit-task-modal')" style="background:#f0f0f0;color:#666">Cancel</button>
       <button class="btn btn-blue" onclick="saveEditTask()">Save Changes</button>
     </div>
   </div>
 </div>
-
 
 <!-- CHANGE PASSWORD MODAL -->
 <div class="modal-bg" id="change-pw-modal">
@@ -2613,11 +2554,11 @@ function exportPipelinePDF(){
     <div style="font-size:16px;font-weight:700;color:#1B5E9B;margin-bottom:6px">Reset User Password</div>
     <div id="change-pw-username" style="font-size:13px;color:#aaa;margin-bottom:20px"></div>
     <input type="hidden" id="change-pw-uid">
-    <div class="ifield" style="margin-bottom:14px">
+    <div class="frow" style="margin-bottom:14px">
       <label style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;display:block;margin-bottom:6px">New Password</label>
       <input type="password" id="new-pw-input" placeholder="Min 6 characters" style="width:100%;padding:10px 12px;border:1.5px solid #dde4ee;border-radius:8px;font-size:13px;outline:none">
     </div>
-    <div class="ifield" style="margin-bottom:20px">
+    <div class="frow" style="margin-bottom:20px">
       <label style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;display:block;margin-bottom:6px">Confirm Password</label>
       <input type="password" id="confirm-pw-input" placeholder="Repeat password" style="width:100%;padding:10px 12px;border:1.5px solid #dde4ee;border-radius:8px;font-size:13px;outline:none">
     </div>
@@ -2629,5 +2570,4 @@ function exportPipelinePDF(){
   </div>
 </div>
 </body>
-</html
-        ${canAccess('tasks')?`<div class="mod-btn" onclick="showPage('tasks')" style="border-top:3px solid #1D9E75">>
+</html>
