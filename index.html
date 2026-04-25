@@ -387,12 +387,26 @@ tr:hover td{background:#fafcff}
     <div style="font-size:13px;color:rgba(255,255,255,0.8);margin-top:14px;font-weight:500">Sign in to your account</div>
   </div>
   <div class="auth-body">
+    <div id="auth-form-content">
     <div class="auth-err" id="auth-err"></div>
     <div class="afield"><label>Email</label><input type="email" id="login-email" placeholder="your@email.com" onkeydown="if(event.key==='Enter')doLogin()"></div>
     <div class="afield"><label>Password</label><input type="password" id="login-pass" placeholder="Password" onkeydown="if(event.key==='Enter')doLogin()"></div>
     <button class="auth-btn" id="signin-btn" onclick="doLogin()">Sign In</button>
-    <div style="text-align:center;margin-top:18px;font-size:11px;color:#bbc4d8">Business Management Portal</div>
+    <div style="text-align:center;margin-top:14px">
+      <a href="#" onclick="showForgotPassword()" style="font-size:12px;color:#1B5E9B;text-decoration:none">Forgot your password?</a>
+    </div>
+    <div style="text-align:center;margin-top:8px;font-size:11px;color:#bbc4d8">Business Management Portal</div>
+  </div></div>
+<!-- FORGOT PASSWORD PANEL -->
+<div id="forgot-panel" style="display:none">
+  <div style="font-size:13px;color:#555;margin-bottom:16px;line-height:1.5">Enter your email address and we'll send you a link to reset your password.</div>
+  <div class="afield"><label>Email</label><input type="email" id="forgot-email" placeholder="your@email.com" onkeydown="if(event.key==='Enter')sendReset()"></div>
+  <button class="auth-btn" onclick="sendReset()" style="background:#1B5E9B">Send Reset Link</button>
+  <div style="text-align:center;margin-top:12px">
+    <a href="#" onclick="showLogin()" style="font-size:12px;color:#1B5E9B;text-decoration:none">Back to Sign In</a>
   </div>
+  <div id="reset-msg" style="margin-top:12px;font-size:13px;text-align:center;display:none"></div>
+</div>
 </div>
 </div>
 
@@ -1594,6 +1608,7 @@ async function loadUsers(){
       +'<option value="staff"'+(u.group_name==='staff'?' selected':'')+'>Staff</option>'
       +'<option value="field"'+(u.group_name==='field'?' selected':'')+'>Field</option>'
       +custom+'</select>';
+    var pwBtn='<button onclick="adminChangePassword(&quot;'+u.id+'&quot;,&quot;'+(u.full_name||u.email)+'&quot;)" style="padding:5px 12px;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;background:#854F0B;color:#fff">Reset PW</button>';
     var disBtn='<button onclick="toggleUserDisabled(&quot;'+u.id+'&quot;,'+disabled+')" style="padding:5px 12px;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;background:'+(disabled?'#1D9E75':'#E24B4A')+';color:#fff">'+(disabled?'Enable':'Disable')+'</button>';
     rows+='<div class="user-card" style="opacity:'+(disabled?0.6:1)+';">'
       +'<div class="user-av" style="background:'+(disabled?'#aaa':'#1B5E9B')+'">'+inits(u.full_name)+'</div>'
@@ -1935,6 +1950,58 @@ function deleteGroup(groupName){
 }
 
 // loadSavedGroups removed - getGroups() handles this
+
+
+// ===== FORGOT PASSWORD =====
+function showForgotPassword(){
+  document.getElementById('forgot-panel').style.display='block';
+  document.getElementById('auth-form-content').style.display='none';
+  document.getElementById('forgot-email').value='';
+  document.getElementById('reset-msg').style.display='none';
+}
+function showLogin(){
+  document.getElementById('forgot-panel').style.display='none';
+  document.getElementById('auth-form-content').style.display='block';
+  document.getElementById('auth-err').textContent='';
+}
+async function sendReset(){
+  var email=document.getElementById('forgot-email').value.trim();
+  if(!email){alert('Please enter your email');return;}
+  var msgEl=document.getElementById('reset-msg');
+  msgEl.style.display='block';
+  msgEl.style.color='#aaa';
+  msgEl.textContent='Sending...';
+  var {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:window.location.origin+window.location.pathname});
+  if(error){
+    msgEl.style.color='#E24B4A';
+    msgEl.textContent='Error: '+error.message;
+  } else {
+    msgEl.style.color='#1D9E75';
+    msgEl.textContent='Reset link sent! Check your email inbox.';
+  }
+}
+
+function adminChangePassword(userId, userName){
+  document.getElementById('change-pw-uid').value=userId;
+  document.getElementById('change-pw-username').textContent='Changing password for: '+userName;
+  document.getElementById('new-pw-input').value='';
+  document.getElementById('confirm-pw-input').value='';
+  document.getElementById('pw-change-msg').style.display='none';
+  document.getElementById('change-pw-modal').classList.add('open');
+}
+
+async function doAdminChangePassword(){
+  var uid=document.getElementById('change-pw-uid').value;
+  var pw=document.getElementById('new-pw-input').value;
+  var pw2=document.getElementById('confirm-pw-input').value;
+  var msg=document.getElementById('pw-change-msg');
+  if(!pw||pw.length<6){msg.style.display='block';msg.style.color='#E24B4A';msg.textContent='Password must be at least 6 characters';return;}
+  if(pw!==pw2){msg.style.display='block';msg.style.color='#E24B4A';msg.textContent='Passwords do not match';return;}
+  msg.style.display='block';msg.style.color='#aaa';msg.textContent='Updating...';
+  var res=await sbA.auth.admin.updateUserById(uid,{password:pw});
+  if(res.error){msg.style.color='#E24B4A';msg.textContent='Error: '+res.error.message;}
+  else{msg.style.color='#1D9E75';msg.textContent='Password updated successfully!';setTimeout(function(){closeModal('change-pw-modal');},1500);}
+}
 
 </script>
 <script>
@@ -2454,6 +2521,28 @@ function exportPipelinePDF(){
   </div>
 </div>
 
+
+<!-- CHANGE PASSWORD MODAL -->
+<div class="modal-bg" id="change-pw-modal">
+  <div class="fu-panel" style="max-width:420px">
+    <div style="font-size:16px;font-weight:700;color:#1B5E9B;margin-bottom:6px">Reset User Password</div>
+    <div id="change-pw-username" style="font-size:13px;color:#aaa;margin-bottom:20px"></div>
+    <input type="hidden" id="change-pw-uid">
+    <div class="ifield" style="margin-bottom:14px">
+      <label style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;display:block;margin-bottom:6px">New Password</label>
+      <input type="password" id="new-pw-input" placeholder="Min 6 characters" style="width:100%;padding:10px 12px;border:1.5px solid #dde4ee;border-radius:8px;font-size:13px;outline:none">
+    </div>
+    <div class="ifield" style="margin-bottom:20px">
+      <label style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;display:block;margin-bottom:6px">Confirm Password</label>
+      <input type="password" id="confirm-pw-input" placeholder="Repeat password" style="width:100%;padding:10px 12px;border:1.5px solid #dde4ee;border-radius:8px;font-size:13px;outline:none">
+    </div>
+    <div id="pw-change-msg" style="font-size:13px;margin-bottom:12px;display:none"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn" onclick="closeModal('change-pw-modal')" style="background:#f0f0f0;color:#666">Cancel</button>
+      <button class="btn btn-blue" onclick="doAdminChangePassword()">Set New Password</button>
+    </div>
+  </div>
+</div>
 </body></html>';w.document.write(h);w.document.close();setTimeout(function(){w.print();},1500);}
 
 <!-- EDIT TASK MODAL -->
@@ -2490,6 +2579,28 @@ function exportPipelinePDF(){
   </div>
 </div>
 
+
+<!-- CHANGE PASSWORD MODAL -->
+<div class="modal-bg" id="change-pw-modal">
+  <div class="fu-panel" style="max-width:420px">
+    <div style="font-size:16px;font-weight:700;color:#1B5E9B;margin-bottom:6px">Reset User Password</div>
+    <div id="change-pw-username" style="font-size:13px;color:#aaa;margin-bottom:20px"></div>
+    <input type="hidden" id="change-pw-uid">
+    <div class="ifield" style="margin-bottom:14px">
+      <label style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;display:block;margin-bottom:6px">New Password</label>
+      <input type="password" id="new-pw-input" placeholder="Min 6 characters" style="width:100%;padding:10px 12px;border:1.5px solid #dde4ee;border-radius:8px;font-size:13px;outline:none">
+    </div>
+    <div class="ifield" style="margin-bottom:20px">
+      <label style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;display:block;margin-bottom:6px">Confirm Password</label>
+      <input type="password" id="confirm-pw-input" placeholder="Repeat password" style="width:100%;padding:10px 12px;border:1.5px solid #dde4ee;border-radius:8px;font-size:13px;outline:none">
+    </div>
+    <div id="pw-change-msg" style="font-size:13px;margin-bottom:12px;display:none"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn" onclick="closeModal('change-pw-modal')" style="background:#f0f0f0;color:#666">Cancel</button>
+      <button class="btn btn-blue" onclick="doAdminChangePassword()">Set New Password</button>
+    </div>
+  </div>
+</div>
 </body>
 </html
         ${canAccess('tasks')?`<div class="mod-btn" onclick="showPage('tasks')" style="border-top:3px solid #1D9E75">>
