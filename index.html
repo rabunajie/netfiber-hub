@@ -1508,7 +1508,11 @@ async function renderMgmt(){
       </div>
     </div>
     <div class="mgmt-sec">
-      <div class="mgmt-hdr"><h3>Group Permissions</h3></div>
+      <div class="mgmt-hdr"><h3>Group Permissions</h3><button class="btn-sm" onclick="saveGroupPermissions()" style="background:#1D9E75;color:#fff;border:none">Save Changes</button></div>
+      <div style="padding:16px;overflow-x:auto">
+        <div id="group-perms-table"></div>
+      </div>
+    </div><div class="mgmt-hdr"><h3>Group Permissions</h3></div>
       <div style="padding:14px;overflow-x:auto">
         <table><thead><tr><th>Group</th><th>Bid Opportunities</th><th>GC Contacts</th><th>Retail</th><th>Purchases</th><th>To-Do</th><th>Activity Log</th><th>Management</th></tr></thead>
         <tbody>
@@ -1519,8 +1523,10 @@ async function renderMgmt(){
         </tbody></table>
       </div>
     </div>`;
+  loadSavedGroups();
   await loadUsers();
   renderCustomGroups();
+  renderGroupPermsTable();
 }
 async function loadUsers(){
   var res=await sbA.from('profiles').select('*').order('created_at',{ascending:true});
@@ -1779,8 +1785,12 @@ function addCustomGroup(){
   if(groups.indexOf(name)>=0){alert('Group already exists');return;}
   groups.push(name);
   localStorage.setItem('netfiber_custom_groups',JSON.stringify(groups));
+  // Add to GROUPS object with basic access
+  GROUPS[name]=['dashboard','tasks'];
+  localStorage.setItem('netfiber_groups',JSON.stringify(GROUPS));
   document.getElementById('new-group-name').value='';
   renderCustomGroups();
+  renderGroupPermsTable();
 }
 
 function deleteCustomGroup(idx){
@@ -1789,6 +1799,92 @@ function deleteCustomGroup(idx){
   groups.splice(idx,1);
   localStorage.setItem('netfiber_custom_groups',JSON.stringify(groups));
   renderCustomGroups();
+}
+
+
+var ALL_PAGES=['dashboard','bids','gc','retail','proposals','purchases','tasks','log','mgmt','pipeline'];
+var PAGE_LABELS=['Dashboard','Bid Opp.','GC Contacts','Retail','Proposals','Purchases','To-Do','Activity Log','Management','Pipeline'];
+
+function renderGroupPermsTable(){
+  var el=document.getElementById('group-perms-table');
+  if(!el)return;
+  var groups=Object.keys(GROUPS);
+  var html2='<table style="width:100%;border-collapse:collapse;font-size:12px">';
+  html2+='<thead><tr><th style="text-align:left;padding:8px 12px;background:#f8faff;border-bottom:2px solid #eaedf2;font-weight:700;color:#1B5E9B">Group</th>';
+  ALL_PAGES.forEach(function(p,i){
+    html2+='<th style="text-align:center;padding:8px 6px;background:#f8faff;border-bottom:2px solid #eaedf2;font-weight:600;color:#555;white-space:nowrap">'+PAGE_LABELS[i]+'</th>';
+  });
+  html2+='<th style="background:#f8faff;border-bottom:2px solid #eaedf2"></th></tr></thead><tbody>';
+  groups.forEach(function(g){
+    var perms=GROUPS[g]||[];
+    var isAdmin=g==='admin';
+    html2+='<tr style="border-bottom:1px solid #f0f0f0">';
+    html2+='<td style="padding:8px 12px"><span class="gbadge g-'+(g==='admin'?'admin':g==='sales'?'sales':g==='staff'?'staff':'field')+'">'+g+'</span></td>';
+    ALL_PAGES.forEach(function(p){
+      var checked=perms.indexOf(p)>=0;
+      html2+='<td style="text-align:center;padding:6px">'
+        +(isAdmin
+          ? '<span style="color:#1D9E75;font-size:16px">✓</span>'
+          : '<input type="checkbox" data-group="'+g+'" data-page="'+p+'"'+(checked?' checked':'')
+            +' style="width:16px;height:16px;cursor:pointer">'
+        )+'</td>';
+    });
+    html2+='<td style="padding:6px 12px">'
+            +(g!=='admin'?'<button onclick="deleteGroup(&quot;'+g+'&quot;)" class="btn-danger" style="font-size:11px">Delete</button>':'')
+      +'</td></tr>';
+  });
+  html2+='</tbody></table>';
+  html2+='<div style="margin-top:12px;font-size:11px;color:#aaa">Check/uncheck pages per group, then click Save Changes. Admin always has full access.</div>';
+  el.innerHTML=html2;
+}
+
+function saveGroupPermissions(){
+  var boxes=document.querySelectorAll('#group-perms-table input[type=checkbox]');
+  var newGroups={};
+  // Start with current groups
+  Object.keys(GROUPS).forEach(function(g){newGroups[g]=[];});
+  // Always include dashboard for everyone
+  boxes.forEach(function(cb){
+    var g=cb.getAttribute('data-group');
+    var p=cb.getAttribute('data-page');
+    if(cb.checked){if(!newGroups[g])newGroups[g]=[];newGroups[g].push(p);}
+  });
+  // Admin always has all
+  newGroups['admin']=ALL_PAGES.slice();
+  // Ensure dashboard always included
+  Object.keys(newGroups).forEach(function(g){
+    if(newGroups[g].indexOf('dashboard')<0)newGroups[g].unshift('dashboard');
+  });
+  GROUPS=newGroups;
+  // Save to localStorage
+  localStorage.setItem('netfiber_groups',JSON.stringify(GROUPS));
+  showToast('Group permissions saved!');
+  renderGroupPermsTable();
+}
+
+function deleteGroup(groupName){
+  if(groupName==='admin'||groupName==='sales'||groupName==='staff'||groupName==='field'){
+    alert('Cannot delete built-in groups.');return;
+  }
+  if(!confirm('Delete group "'+groupName+'"? Users in this group will be moved to Staff.'))return;
+  // Move users out first
+  sbA.from('profiles').update({group_name:'staff'}).eq('group_name',groupName).then(function(){});
+  delete GROUPS[groupName];
+  localStorage.setItem('netfiber_groups',JSON.stringify(GROUPS));
+  // Remove from custom groups list
+  var custom=getCustomGroups().filter(function(g){return g!==groupName;});
+  localStorage.setItem('netfiber_custom_groups',JSON.stringify(custom));
+  renderCustomGroups();
+  renderGroupPermsTable();
+  loadUsers();
+  showToast('Group "'+groupName+'" deleted');
+}
+
+function loadSavedGroups(){
+  try{
+    var saved=localStorage.getItem('netfiber_groups');
+    if(saved){var sg=JSON.parse(saved);Object.assign(GROUPS,sg);}
+  }catch(e){}
 }
 
 </script>
