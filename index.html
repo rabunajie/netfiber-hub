@@ -665,8 +665,9 @@ tr:hover td{background:#fafcff}
           <tbody id="ped-items"></tbody>
         </table>
         <div class="lit-add-row">
-          <button class="btn-sm" onclick="addLineItem()">+ Add Line Item</button>
-          <span style="font-size:11px;color:#aaa">🔒 = internal columns, hidden on printed estimate</span>
+          <button class="btn-sm" onclick="addLineItem()">+ Add Blank Line</button>
+          <button class="btn-sm" onclick="openItemLibrary()" style="background:#E6F1FB;border-color:#B5D4F4;color:#1B5E9B">📚 Add from Library</button>
+          <span style="font-size:11px;color:#aaa;margin-left:auto">🔒 = internal columns, hidden on printed estimate</span>
         </div>
       </div>
       <div style="display:flex;justify-content:flex-end;margin-top:12px">
@@ -691,6 +692,46 @@ tr:hover td{background:#fafcff}
     <div style="padding:14px 16px;display:flex;gap:8px;justify-content:flex-end;background:#f9fafb;border-top:0.5px solid #eee">
       <button class="btn btn-sm" onclick="closeModal('proposal-editor-modal')">Cancel</button>
       <button class="btn btn-blue" onclick="saveProposal()">Save Proposal</button>
+    </div>
+  </div>
+</div>
+
+<!-- ITEM LIBRARY MODAL -->
+<div class="modal-bg" id="item-library-modal" style="align-items:flex-start;overflow-y:auto;padding:20px">
+  <div style="background:#fff;border-radius:14px;width:100%;max-width:700px;margin:0 auto;overflow:hidden">
+    <div style="background:#1B5E9B;padding:14px 20px;display:flex;align-items:center;justify-content:space-between">
+      <div style="color:#fff;font-size:15px;font-weight:700" id="ilib-title">Item Library</div>
+      <button class="btn-sm" onclick="closeModal('item-library-modal')" style="background:rgba(255,255,255,0.2);border-color:rgba(255,255,255,0.3);color:#fff">Close</button>
+    </div>
+    <div style="padding:16px;background:#f9fafb;border-bottom:0.5px solid #eee;display:flex;gap:8px;align-items:center">
+      <input type="text" id="ilib-search" placeholder="Search items..." oninput="renderLibraryItems()" style="flex:1;padding:7px 12px;border:1px solid #e0e0e0;border-radius:8px;font-size:13px;outline:none">
+      <button class="btn btn-blue" onclick="openNewItemForm()" style="font-size:12px;padding:7px 14px">+ New Item</button>
+    </div>
+    <div id="ilib-list" style="max-height:400px;overflow-y:auto"></div>
+  </div>
+</div>
+
+<!-- NEW/EDIT ITEM FORM MODAL -->
+<div class="modal-bg" id="item-form-modal" style="align-items:flex-start;overflow-y:auto;padding:20px">
+  <div style="background:#fff;border-radius:14px;width:100%;max-width:560px;margin:0 auto;overflow:hidden">
+    <div style="background:#1B5E9B;padding:14px 20px;display:flex;align-items:center;justify-content:space-between">
+      <div style="color:#fff;font-size:15px;font-weight:700" id="iform-title">New Item</div>
+      <button class="btn-sm" onclick="closeModal('item-form-modal')" style="background:rgba(255,255,255,0.2);border-color:rgba(255,255,255,0.3);color:#fff">Close</button>
+    </div>
+    <div style="padding:20px">
+      <input type="hidden" id="iform-id">
+      <div class="fgrid">
+        <div class="ifield" style="grid-column:1/-1"><label>Item Name (Product/Service)</label><input id="iform-name" placeholder="e.g. Cat6 Cable Drops for Data"></div>
+        <div class="ifield" style="grid-column:1/-1"><label>Description</label><input id="iform-desc" placeholder="e.g. ADI PRO 0E-CAT6PBK CAT6 23/4 Plenum Cable, UTP"></div>
+        <div class="ifield"><label>Default Rate ($)</label><input id="iform-rate" type="number" step="0.01" value="0" min="0"></div>
+        <div class="ifield"><label>Default Qty</label><input id="iform-qty" type="number" step="1" value="1" min="0"></div>
+        <div class="ifield"><label>Default Cost (Internal $)</label><input id="iform-cost" type="number" step="0.01" value="0" min="0"></div>
+        <div class="ifield"><label>Vendor (Internal — not printed)</label><input id="iform-vendor" placeholder="e.g. Accu-Tech, Anixter..."></div>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:1.2rem;padding-top:1rem;border-top:1px solid #eee">
+        <button class="btn btn-sm" onclick="closeModal('item-form-modal')">Cancel</button>
+        <button class="btn btn-blue" onclick="saveLibraryItem()">Save Item</button>
+      </div>
     </div>
   </div>
 </div>
@@ -2276,6 +2317,115 @@ async function deleteProposal(id,name){
   await loadProposals();
 }
 
+// ITEM LIBRARY (localStorage)
+var ITEM_LIB_KEY = 'nf_item_library';
+
+function getLibraryItems(){
+  try { return JSON.parse(localStorage.getItem(ITEM_LIB_KEY)||'[]'); } catch(e){ return []; }
+}
+
+function saveLibraryItems(items){
+  localStorage.setItem(ITEM_LIB_KEY, JSON.stringify(items));
+}
+
+function openItemLibrary(){
+  renderLibraryItems();
+  document.getElementById('item-library-modal').classList.add('open');
+}
+
+function renderLibraryItems(){
+  var items = getLibraryItems();
+  var search = (document.getElementById('ilib-search')?document.getElementById('ilib-search').value:'').toLowerCase();
+  if(search) items = items.filter(function(i){ return (i.name+' '+i.desc+' '+i.vendor).toLowerCase().includes(search); });
+  var wrap = document.getElementById('ilib-list');
+  if(!wrap) return;
+  if(!items.length){
+    wrap.innerHTML='<div style="padding:24px;text-align:center;color:#bbb;font-size:13px">No saved items yet. Click "+ New Item" to add one.</div>';
+    return;
+  }
+  var html = '';
+  for(var i=0;i<items.length;i++){
+    var it = items[i];
+    html += '<div style="display:flex;align-items:center;gap:10px;padding:11px 16px;border-bottom:0.5px solid #f5f5f5">';
+    html += '<div style="flex:1">';
+    html += '<div style="font-size:13px;font-weight:600;color:#111">'+(it.name||'Unnamed')+'</div>';
+    html += '<div style="font-size:11px;color:#888;margin-top:2px">'+(it.desc||'')+(it.vendor?' <span style="color:#aaa">— Vendor: '+it.vendor+'</span>':'')+'</div>';
+    html += '</div>';
+    html += '<div style="font-size:13px;font-weight:700;color:#1B5E9B;white-space:nowrap">$'+Number(it.rate||0).toFixed(2)+' / ea</div>';
+    html += '<button class="btn btn-blue" onclick="addItemFromLibrary(\''+it.id+'\')" style="font-size:11px;padding:4px 10px">+ Add</button>';
+    html += '<button class="btn-sm" onclick="editLibraryItem(\''+it.id+'\')" style="font-size:11px">✏️</button>';
+    html += '<button class="btn-danger" onclick="deleteLibraryItem(\''+it.id+'\')" style="font-size:11px">🗑</button>';
+    html += '</div>';
+  }
+  wrap.innerHTML = html;
+}
+
+function addItemFromLibrary(id){
+  var items = getLibraryItems();
+  var it = items.find(function(i){ return i.id===id; });
+  if(!it) return;
+  addLineItem({product_service: it.name, description: it.desc, qty: it.qty||1, rate: it.rate||0, amount: (it.qty||1)*(it.rate||0), cost: it.cost||0, margin: 0});
+  closeModal('item-library-modal');
+}
+
+function openNewItemForm(){
+  document.getElementById('iform-title').textContent = 'New Item';
+  document.getElementById('iform-id').value = '';
+  document.getElementById('iform-name').value = '';
+  document.getElementById('iform-desc').value = '';
+  document.getElementById('iform-rate').value = '0';
+  document.getElementById('iform-qty').value = '1';
+  document.getElementById('iform-cost').value = '0';
+  document.getElementById('iform-vendor').value = '';
+  document.getElementById('item-form-modal').classList.add('open');
+}
+
+function editLibraryItem(id){
+  var items = getLibraryItems();
+  var it = items.find(function(i){ return i.id===id; });
+  if(!it) return;
+  document.getElementById('iform-title').textContent = 'Edit Item';
+  document.getElementById('iform-id').value = id;
+  document.getElementById('iform-name').value = it.name||'';
+  document.getElementById('iform-desc').value = it.desc||'';
+  document.getElementById('iform-rate').value = it.rate||0;
+  document.getElementById('iform-qty').value = it.qty||1;
+  document.getElementById('iform-cost').value = it.cost||0;
+  document.getElementById('iform-vendor').value = it.vendor||'';
+  document.getElementById('item-form-modal').classList.add('open');
+}
+
+function saveLibraryItem(){
+  var id = document.getElementById('iform-id').value;
+  var newItem = {
+    id: id || 'lib_'+Date.now(),
+    name: document.getElementById('iform-name').value.trim(),
+    desc: document.getElementById('iform-desc').value.trim(),
+    rate: parseFloat(document.getElementById('iform-rate').value)||0,
+    qty: parseFloat(document.getElementById('iform-qty').value)||1,
+    cost: parseFloat(document.getElementById('iform-cost').value)||0,
+    vendor: document.getElementById('iform-vendor').value.trim()
+  };
+  if(!newItem.name){ alert('Item name is required.'); return; }
+  var items = getLibraryItems();
+  if(id){
+    var idx = items.findIndex(function(i){ return i.id===id; });
+    if(idx>=0) items[idx]=newItem; else items.push(newItem);
+  } else {
+    items.push(newItem);
+  }
+  saveLibraryItems(items);
+  closeModal('item-form-modal');
+  renderLibraryItems();
+}
+
+function deleteLibraryItem(id){
+  if(!confirm('Remove this item from the library?')) return;
+  var items = getLibraryItems().filter(function(i){ return i.id!==id; });
+  saveLibraryItems(items);
+  renderLibraryItems();
+}
+
 // PRINT ESTIMATE
 async function printEstimate(id){
   var results=await Promise.all([
@@ -2334,8 +2484,24 @@ async function printEstimate(id){
 
   var pa=document.getElementById('print-area');
   pa.innerHTML=doc; pa.style.display='block';
+
+  // Set document title to control PDF filename: "Company. Data Cabling. Proposal. Project Name. Location"
+  var company = (primaryGC.company||'NetFiber').replace(/[\/\\:*?"<>|]/g,' ').trim();
+  var projName = (prop.project_name||'Proposal').replace(/[\/\\:*?"<>|]/g,' ').trim();
+  // Try to split project_name into project + location (e.g. "Aspen Dental - Willis, TX")
+  var projParts = projName.split(/[-–—]/);
+  var projTitle = projParts[0].trim();
+  var projLocation = projParts.length>1 ? projParts.slice(1).join('-').trim() : '';
+  var fileName = company + '. Data Cabling. Proposal. ' + projTitle + (projLocation ? '. ' + projLocation : '');
+  var origTitle = document.title;
+  document.title = fileName;
+
   window.print();
-  setTimeout(function(){pa.style.display='none';pa.innerHTML='';},1000);
+  setTimeout(function(){
+    pa.style.display='none';
+    pa.innerHTML='';
+    document.title = origTitle;
+  },1000);
 }
 
 // INVOICE
