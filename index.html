@@ -745,7 +745,7 @@ var today=new Date();today.setHours(0,0,0,0);
 var todayStr=today.toISOString().split('T')[0];
 
 var GROUPS={admin:['dashboard','bids','gc','retail','proposals','purchases','tasks','log','mgmt','pipeline'],sales:['dashboard','bids','gc','retail','proposals','purchases','tasks','pipeline'],staff:['dashboard','retail','tasks','pipeline'],field:['dashboard','tasks','pipeline']};
-function canAccess(p){return(GROUPS[CP?.group_name||'staff']||['dashboard','tasks']).includes(p);}
+function canAccess(p){if(CP&&CP.disabled)return false;return(GROUPS[CP?.group_name||'staff']||['dashboard','tasks']).includes(p);}
 
 // TIME
 function updateTime(){const n=new Date();document.getElementById('tb-time').textContent=n.toLocaleString('en-US',{weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});}
@@ -1498,6 +1498,16 @@ async function renderMgmt(){
       <div id="users-list"><div class="loading"><span class="spinner"></span></div></div>
     </div>
     <div class="mgmt-sec">
+      <div class="mgmt-hdr"><h3>Custom Groups</h3></div>
+      <div style="padding:16px">
+        <div style="display:flex;gap:8px;margin-bottom:14px">
+          <input id="new-group-name" placeholder="Group name (e.g. Estimator)" style="padding:8px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px;flex:1;outline:none">
+          <button class="btn btn-blue" onclick="addCustomGroup()">+ Add Group</button>
+        </div>
+        <div id="custom-groups-list"></div>
+      </div>
+    </div>
+    <div class="mgmt-sec">
       <div class="mgmt-hdr"><h3>Group Permissions</h3></div>
       <div style="padding:14px;overflow-x:auto">
         <table><thead><tr><th>Group</th><th>Bid Opportunities</th><th>GC Contacts</th><th>Retail</th><th>Purchases</th><th>To-Do</th><th>Activity Log</th><th>Management</th></tr></thead>
@@ -1510,8 +1520,64 @@ async function renderMgmt(){
       </div>
     </div>`;
   await loadUsers();
+  renderCustomGroups();
 }
-async function loadUsers(){const {data:users=[]}=await sbA.from('profiles').select('*').order('created_at',{ascending:true});const gc={admin:'g-admin',sales:'g-sales',staff:'g-staff',field:'g-field'};const ul=document.getElementById('users-list');if(!ul)return;ul.innerHTML=users.map(u=>`<div class="user-card"><div class="user-av">${inits(u.full_name)}</div><div style="flex:1"><div class="user-name">${u.full_name||'—'}<span class="gbadge ${gc[u.group_name]||'g-staff'}">${u.group_name||'staff'}</span></div><div class="user-email">${u.id}</div></div><div style="display:flex;gap:6px">${u.id!==CU.id?`<button class="btn-sm" onclick="openEditUser('${u.id}','${u.full_name||''}','${u.group_name||'staff'}')">Edit</button><button class="btn-danger" onclick="deleteUser('${u.id}','${u.full_name||''}')">×</button>`:'<span style="font-size:11px;color:#bbb;padding:4px 8px">You</span>'}</div></div>`).join('')||'<div class="loading">No users.</div>';}
+async function loadUsers(){
+  var res=await sbA.from('profiles').select('*').order('created_at',{ascending:true});
+  var users=res.data||[];
+  var ul=document.getElementById('users-list');
+  if(!ul)return;
+  var gc={admin:'g-admin',sales:'g-sales',staff:'g-staff',field:'g-field'};
+  var rows='';
+  users.forEach(function(u){
+    var isMe=u.id===CU.id;
+    var disabled=u.disabled===true;
+    var custom=getCustomGroups().map(function(g){return '<option value="'+g+'"'+(u.group_name===g?' selected':'')+'>'+g+'</option>';}).join('');
+    var groupSel='<select onchange="changeGroup(&quot;'+u.id+'&quot;,this.value)" style="padding:5px 8px;border:1px solid #ddd;border-radius:6px;font-size:12px">'
+      +'<option value="admin"'+(u.group_name==='admin'?' selected':'')+'>Admin</option>'
+      +'<option value="sales"'+(u.group_name==='sales'?' selected':'')+'>Sales</option>'
+      +'<option value="staff"'+(u.group_name==='staff'?' selected':'')+'>Staff</option>'
+      +'<option value="field"'+(u.group_name==='field'?' selected':'')+'>Field</option>'
+      +custom+'</select>';
+    var disBtn='<button onclick="toggleUserDisabled(&quot;'+u.id+'&quot;,'+disabled+')" style="padding:5px 12px;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;background:'+(disabled?'#1D9E75':'#E24B4A')+';color:#fff">'+(disabled?'Enable':'Disable')+'</button>';
+    rows+='<div class="user-card" style="opacity:'+(disabled?0.6:1)+';">'
+      +'<div class="user-av" style="background:'+(disabled?'#aaa':'#1B5E9B')+'">'+inits(u.full_name)+'</div>'
+      +'<div style="flex:1;min-width:0">'
+      +'<div class="user-name">'+(u.full_name||'—')
+      +(disabled?'<span style="background:#FCEBEB;color:#A32D2D;font-size:9px;font-weight:700;padding:2px 7px;border-radius:4px;margin-left:8px">DISABLED</span>':'')
+      +'<span class="gbadge '+(gc[u.group_name]||'g-staff')+'">'+(u.group_name||'staff')+'</span></div>'
+      +'<div class="user-email">'+(u.email||u.id)+'</div>'
+      +'</div>'
+      +'<div style="display:flex;gap:8px;align-items:center">'
+      +(!isMe?groupSel+disBtn:'<span style="font-size:12px;color:#aaa">You</span>')
+      +'</div></div>';
+  });
+  ul.innerHTML=rows||'<div style="padding:1rem;color:#aaa;font-size:13px">No users found</div>';
+}
+
+
+function buildCustomGroups(current){
+  var custom=getCustomGroups();
+  return custom.map(function(g){return '<option value="'+g+'"'+(current===g?' selected':'')+'>'+g+'</option>';}).join('');
+}
+
+function getCustomGroups(){
+  try{return JSON.parse(localStorage.getItem('netfiber_custom_groups')||'[]');}catch(e){return[];}
+}
+
+async function toggleUserDisabled(userId,currentlyDisabled){
+  var res=await sbA.from('profiles').update({disabled:!currentlyDisabled}).eq('id',userId);
+  if(res.error){alert('Error: '+res.error.message);return;}
+  await loadUsers();
+}
+
+async function changeGroup(userId,newGroup){
+  var res=await sbA.from('profiles').update({group_name:newGroup}).eq('id',userId);
+  if(res.error){alert('Error: '+res.error.message);}
+  await loadUsers();
+}
+
+
 async function createUser(){const name=document.getElementById('nu-name').value.trim();const email=document.getElementById('nu-email').value.trim();const pass=document.getElementById('nu-pass').value;const group=document.getElementById('nu-group').value;const msg=document.getElementById('create-msg');if(!name||!email||!pass){msg.textContent='Please fill all fields.';msg.style.color='#a32d2d';msg.style.display='block';return;}const {data,error}=await sbA.auth.admin.createUser({email,password:pass,email_confirm:true,user_metadata:{full_name:name}});if(error){msg.textContent='Error: '+error.message;msg.style.color='#a32d2d';msg.style.display='block';return;}await sbA.from('profiles').update({full_name:name,group_name:group,role:group==='admin'?'admin':'user'}).eq('id',data.user.id);await logAct('Created user','profiles',data.user.id,`Created ${name} (${group})`);msg.textContent=`✓ ${name} created. They can sign in at hub.netfibernetwork.com`;msg.style.color='#27500A';msg.style.display='block';document.getElementById('nu-name').value='';document.getElementById('nu-email').value='';document.getElementById('nu-pass').value='';await loadUsers();}
 function openEditUser(id,name,group){document.getElementById('eu-id').value=id;document.getElementById('eu-name').value=name;document.getElementById('eu-group').value=group;document.getElementById('edit-user-modal').classList.add('open');}
 async function saveUser(){const id=document.getElementById('eu-id').value;const name=document.getElementById('eu-name').value;const group=document.getElementById('eu-group').value;await sbA.from('profiles').update({full_name:name,group_name:group,role:group==='admin'?'admin':'user'}).eq('id',id);await logAct('Updated user','profiles',id,`Updated ${name} → ${group}`);closeModal('edit-user-modal');await loadUsers();}
@@ -1690,6 +1756,39 @@ async function renderPipeline(){
     ins.push(gr<30?{t:'GC Outreach: '+gr+'%',x:'Increase call frequency.',c:'#E24B4A'}:{t:'GC Response: '+gr+'%',x:'Good engagement!',c:'#1D9E75'});
     iEl.innerHTML=ins.map(function(i){return '<div style="background:#f8faff;border-radius:10px;padding:16px;border-left:4px solid '+i.c+'"><div style="font-size:13px;font-weight:700;color:#1a1a2e;margin-bottom:6px">'+i.t+'</div><div style="font-size:12px;color:#666;line-height:1.5">'+i.x+'</div></div>';}).join('');
   }
+}
+
+
+function renderCustomGroups(){
+  var groups=getCustomGroups();
+  var el=document.getElementById('custom-groups-list');
+  if(!el)return;
+  if(!groups.length){el.innerHTML='<div style="font-size:13px;color:#aaa">No custom groups yet.</div>';return;}
+  el.innerHTML=groups.map(function(g,i){
+    return '<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:#f8faff;border-radius:8px;margin-bottom:6px">'
+      +'<span style="flex:1;font-size:13px;font-weight:600;color:#1B5E9B">'+g+'</span>'
+      +'<button class="btn-danger" onclick="deleteCustomGroup('+i+')">Delete</button>'
+      +'</div>';
+  }).join('');
+}
+
+function addCustomGroup(){
+  var name=document.getElementById('new-group-name').value.trim();
+  if(!name){alert('Enter a group name');return;}
+  var groups=getCustomGroups();
+  if(groups.indexOf(name)>=0){alert('Group already exists');return;}
+  groups.push(name);
+  localStorage.setItem('netfiber_custom_groups',JSON.stringify(groups));
+  document.getElementById('new-group-name').value='';
+  renderCustomGroups();
+}
+
+function deleteCustomGroup(idx){
+  if(!confirm('Delete this group?'))return;
+  var groups=getCustomGroups();
+  groups.splice(idx,1);
+  localStorage.setItem('netfiber_custom_groups',JSON.stringify(groups));
+  renderCustomGroups();
 }
 
 </script>
