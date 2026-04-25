@@ -19,8 +19,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .auth-logo p{font-size:12px;color:#aaa;margin-top:4px}
 .auth-err{background:#fcebeb;color:#a32d2d;border:1px solid #f09595;border-radius:8px;padding:9px 13px;font-size:12px;margin-bottom:12px;display:none}
 .afield{margin-bottom:14px}
-.afield label{display:block;font-size:11px;font-weight:700;color:#555;margin-bottom:5px;text-transform:uppercase;letter-spacing:0.4px}
-.afield input{width:100%;padding:10px 14px;border:1px solid #e0e0e0;border-radius:8px;font-size:14px;outline:none;transition:border 0.15s;background:#fafafa}
+.auth-body .afield label{display:block;font-size:11px;font-weight:700;color:#555;margin-bottom:5px;text-transform:uppercase;letter-spacing:0.4px}
+.auth-body .afield input{width:100%;padding:10px 14px;border:1px solid #e0e0e0;border-radius:8px;font-size:14px;outline:none;transition:border 0.15s;background:#fafafa}
 .afield input:focus{border-color:#1B5E9B;background:#fff}
 .auth-btn{width:100%;padding:12px;border:none;border-radius:8px;background:#1B5E9B;color:#fff;font-size:14px;font-weight:700;cursor:pointer;letter-spacing:-0.2px}
 .auth-btn:hover{background:#0C447C}
@@ -341,16 +341,57 @@ tr:hover td{background:#fafcff}
 <body>
 <!-- AUTH -->
 <div id="auth-page" class="auth-wrap">
-  <div class="auth-card">
-    <div class="auth-logo">
-      <h1>NetFiber Hub</h1>
-      <p>Business Management Portal</p>
-    </div>
-    <div class="auth-err" id="auth-err"></div>
-    <div class="afield"><label>Email</label><input type="email" id="login-email" placeholder="your@email.com"></div>
-    <div class="afield"><label>Password</label><input type="password" id="login-pass" placeholder="Password"></div>
-    <button class="auth-btn" id="signin-btn">Sign In</button>
+<svg class="bg" viewBox="0 0 800 520" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <radialGradient id="gl1" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#1a4a8a" stop-opacity="0.6"/><stop offset="100%" stop-color="#040f1e" stop-opacity="0"/></radialGradient>
+    <radialGradient id="gl2" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#0066cc" stop-opacity="0.3"/><stop offset="100%" stop-color="#040f1e" stop-opacity="0"/></radialGradient>
+  </defs>
+  <ellipse cx="400" cy="260" rx="320" ry="240" fill="url(#gl1)"/>
+  <ellipse cx="0" cy="0" rx="200" ry="160" fill="url(#gl2)" opacity="0.7"/>
+  <ellipse cx="800" cy="0" rx="200" ry="160" fill="url(#gl2)" opacity="0.7"/>
+  <ellipse cx="0" cy="520" rx="200" ry="160" fill="url(#gl2)" opacity="0.5"/>
+  <ellipse cx="800" cy="520" rx="200" ry="160" fill="url(#gl2)" opacity="0.5"/>
+  <circle cx="400" cy="260" r="230" fill="none" stroke="#378ADD" stroke-width="0.5" opacity="0.3"/>
+  <circle cx="400" cy="260" r="190" fill="none" stroke="#5DB8FF" stroke-width="0.3" opacity="0.2"/>
+  <ellipse cx="400" cy="260" rx="230" ry="85" fill="none" stroke="#5DB8FF" stroke-width="0.4" opacity="0.2"/>
+  <ellipse cx="400" cy="260" rx="85" ry="230" fill="none" stroke="#5DB8FF" stroke-width="0.3" opacity="0.2"/>
+  <line x1="400" y1="30" x2="400" y2="490" stroke="#5DB8FF" stroke-width="0.4" opacity="0.2"/>
+  <path d="M0,0 Q160,100 290,220" fill="none" stroke="#5DB8FF" stroke-width="2" opacity="0.4" stroke-linecap="round"/>
+  <path d="M0,0 Q130,130 240,270" fill="none" stroke="#00aaff" stroke-width="1" opacity="0.25" stroke-linecap="round"/>
+  <path d="M10,0 Q190,70 320,190" fill="none" stroke="#5DB8FF" stroke-width="0.5" opacity="0.2" stroke-linecap="round"/>
+  <path d="M800,0 Q640,100 510,220" fill="none" stroke="#5DB8FF" stroke-width="2" opacity="0.4" stroke-linecap="round"/>
+  <path d="M800,0 Q670,130 560,270" fill="none" stroke="#00aaff" stroke-width="1" opacity="0.25" stroke-linecap="round"/>
+  <path d="M790,0 Q610,70 480,190" fill="none" stroke="#5DB8FF" stroke-width="0.5" opacity="0.2" stroke-linecap="round"/>
+  <path d="M0,520 Q150,410 290,300" fill="none" stroke="#5DB8FF" stroke-width="2" opacity="0.35" stroke-linecap="round"/>
+  <path d="M0,500 Q120,390 250,290" fill="none" stroke="#00aaff" stroke-width="1" opacity="0.2" stroke-linecap="round"/>
+  <path d="M800,520 Q650,410 510,300" fill="none" stroke="#5DB8FF" stroke-width="2" opacity="0.35" stroke-linecap="round"/>
+  <path d="M800,500 Q680,390 550,290" fill="none" stroke="#00aaff" stroke-width="1" opacity="0.2" stroke-linecap="round"/>
+  <circle cx="400" cy="30" r="4" fill="#5DB8FF" opacity="0.8"/><circle cx="400" cy="30" r="8" fill="#5DB8FF" opacity="0.2"/>
+  <circle cx="595" cy="110" r="3.5" fill="#00aaff" opacity="0.8"/><circle cx="595" cy="110" r="7" fill="#00aaff" opacity="0.2"/>
+  <circle cx="625" cy="320" r="3.5" fill="#5DB8FF" opacity="0.7"/><circle cx="625" cy="320" r="7" fill="#5DB8FF" opacity="0.15"/>
+  <circle cx="270" cy="475" r="3" fill="#5DB8FF" opacity="0.7"/><circle cx="270" cy="475" r="6" fill="#5DB8FF" opacity="0.15"/>
+  <circle cx="175" cy="320" r="3.5" fill="#00aaff" opacity="0.7"/><circle cx="175" cy="320" r="7" fill="#00aaff" opacity="0.15"/>
+  <circle cx="205" cy="110" r="3.5" fill="#5DB8FF" opacity="0.8"/><circle cx="205" cy="110" r="7" fill="#5DB8FF" opacity="0.2"/>
+  <line x1="400" y1="30" x2="595" y2="110" stroke="#5DB8FF" stroke-width="0.8" opacity="0.35"/>
+  <line x1="595" y1="110" x2="625" y2="320" stroke="#00aaff" stroke-width="0.6" opacity="0.3"/>
+  <line x1="175" y1="320" x2="205" y2="110" stroke="#00aaff" stroke-width="0.6" opacity="0.3"/>
+  <line x1="205" y1="110" x2="400" y2="30" stroke="#5DB8FF" stroke-width="0.8" opacity="0.35"/>
+</svg>
+<div class="auth-card">
+  <div class="auth-top">
+    <div style="font-size:26px;font-weight:900;letter-spacing:3px;color:#fff;line-height:1;text-shadow:0 0 20px rgba(93,184,255,0.4)">NETFIBER</div>
+    <div style="font-size:11px;color:rgba(255,255,255,0.6);margin-top:6px;letter-spacing:0.4px">Network Cabling Solutions</div>
+    <div style="width:50px;height:1px;background:rgba(255,255,255,0.2);margin:14px auto 0"></div>
+    <div style="font-size:13px;color:rgba(255,255,255,0.8);margin-top:14px;font-weight:500">Sign in to your account</div>
   </div>
+  <div class="auth-body">
+    <div class="auth-err" id="auth-err"></div>
+    <div class="afield"><label>Email</label><input type="email" id="login-email" placeholder="your@email.com" onkeydown="if(event.key==='Enter')doLogin()"></div>
+    <div class="afield"><label>Password</label><input type="password" id="login-pass" placeholder="Password" onkeydown="if(event.key==='Enter')doLogin()"></div>
+    <button class="auth-btn" id="signin-btn" onclick="doLogin()">Sign In</button>
+    <div style="text-align:center;margin-top:18px;font-size:11px;color:#bbc4d8">Business Management Portal</div>
+  </div>
+</div>
 </div>
 
 <!-- APP -->
