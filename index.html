@@ -1476,6 +1476,14 @@ async function renderLog(){
 }
 
 // MANAGEMENT
+
+function showToast(msg, color){
+  var t=document.createElement('div');
+  t.style.cssText='position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:'+(color||'#1B5E9B')+';color:#fff;padding:12px 24px;border-radius:10px;font-size:13px;font-weight:600;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,0.2);white-space:nowrap';
+  t.textContent=msg;
+  document.body.appendChild(t);
+  setTimeout(function(){t.style.opacity='0';t.style.transition='opacity 0.5s';setTimeout(function(){t.remove();},500);},2500);
+}
 async function renderMgmt(){
   const mc=document.getElementById('main-content');
   mc.innerHTML=`
