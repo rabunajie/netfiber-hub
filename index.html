@@ -13,16 +13,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
 /* AUTH */
 .auth-wrap{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:999;overflow:hidden;background:#040f1e}
-.auth-card{position:relative;z-index:2;width:380px;border-radius:20px;overflow:hidden;box-shadow:0 24px 80px rgba(0,0,0,0.6);border:1px solid rgba(93,184,255,0.15);margin:auto}
 .auth-top{background:#1B5E9B;padding:34px 40px 28px;text-align:center}
 .auth-body{background:#fff;padding:30px 40px 34px}
+.auth-card{position:relative;z-index:2;width:380px;border-radius:20px;overflow:hidden;box-shadow:0 24px 80px rgba(0,0,0,0.6);border:1px solid rgba(93,184,255,0.15);margin:auto}
 .auth-logo{text-align:center;margin-bottom:2rem}
 .auth-logo h1{font-size:22px;font-weight:800;color:#1B5E9B;letter-spacing:-0.5px}
 .auth-logo p{font-size:12px;color:#aaa;margin-top:4px}
 .auth-err{background:#fcebeb;color:#a32d2d;border:1px solid #f09595;border-radius:8px;padding:9px 13px;font-size:12px;margin-bottom:12px;display:none}
 .afield{margin-bottom:14px}
-.afield label{display:block;font-size:11px;font-weight:700;color:#555;margin-bottom:5px;text-transform:uppercase;letter-spacing:0.4px}
-.afield input{width:100%;padding:10px 14px;border:1px solid #e0e0e0;border-radius:8px;font-size:14px;outline:none;transition:border 0.15s;background:#fafafa}
+.auth-body .afield label{display:block;font-size:11px;font-weight:700;color:#555;margin-bottom:5px;text-transform:uppercase;letter-spacing:0.4px}
+.auth-body .afield input{width:100%;padding:10px 14px;border:1px solid #e0e0e0;border-radius:8px;font-size:14px;outline:none;transition:border 0.15s;background:#fafafa}
 .afield input:focus{border-color:#1B5E9B;background:#fff}
 .auth-btn{width:100%;padding:12px;border:none;border-radius:8px;background:#1B5E9B;color:#fff;font-size:14px;font-weight:700;cursor:pointer;letter-spacing:-0.2px}
 .auth-btn:hover{background:#0C447C}
@@ -47,7 +47,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .sb-item{padding:8px 10px;font-size:12px;color:#777;display:flex;align-items:center;gap:0;cursor:pointer;margin:1px 8px;border-radius:8px;letter-spacing:-0.1px;transition:all 0.1s}
 .sb-item:hover{background:#f5f7fa;color:#1B5E9B}
 .sb-item.on{background:#E6F1FB;color:#1B5E9B;font-weight:600}
-.sb-dot{width:16px;height:16px;display:inline-flex;align-items:center;justify-content:center;margin-right:8px;flex-shrink:0;opacity:0.5;color:#777}
+.sb-dot{width:16px;height:16px;display:inline-flex;align-items:center;justify-content:center;margin-right:8px;flex-shrink:0;opacity:0.55}
 .sb-item.on .sb-dot{opacity:1;color:#1B5E9B}
 .sb-badge{margin-left:auto;color:#fff;font-size:9px;font-weight:700;padding:1px 6px;border-radius:20px}
 .sb-foot{margin-top:auto;padding:12px 14px;border-top:1px solid #f0f2f6;display:flex;align-items:center;gap:9px}
@@ -343,7 +343,7 @@ tr:hover td{background:#fafcff}
 <body>
 <!-- AUTH -->
 <div id="auth-page" class="auth-wrap">
-<svg style="position:absolute;top:0;left:0;width:100%;height:100%;z-index:0;pointer-events:none" viewBox="0 0 800 520" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice">
+<svg class="bg" style="position:absolute;top:0;left:0;width:100%;height:100%;z-index:0;pointer-events:none" viewBox="0 0 800 520" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice">
   <defs>
     <radialGradient id="gl1" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#0a1f3d" stop-opacity="0.8"/><stop offset="100%" stop-color="#040f1e" stop-opacity="0"/></radialGradient>
     <radialGradient id="gl2" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#003d7a" stop-opacity="0.5"/><stop offset="100%" stop-color="#040f1e" stop-opacity="0"/></radialGradient>
@@ -356,14 +356,28 @@ tr:hover td{background:#fafcff}
   <circle cx="400" cy="260" r="230" fill="none" stroke="#378ADD" stroke-width="0.5" opacity="0.3"/>
   <circle cx="400" cy="260" r="190" fill="none" stroke="#5DB8FF" stroke-width="0.3" opacity="0.2"/>
   <ellipse cx="400" cy="260" rx="230" ry="85" fill="none" stroke="#5DB8FF" stroke-width="0.4" opacity="0.2"/>
+  <ellipse cx="400" cy="260" rx="85" ry="230" fill="none" stroke="#5DB8FF" stroke-width="0.3" opacity="0.2"/>
   <line x1="400" y1="30" x2="400" y2="490" stroke="#5DB8FF" stroke-width="0.4" opacity="0.2"/>
   <path d="M0,0 Q160,100 290,220" fill="none" stroke="#5DB8FF" stroke-width="2" opacity="0.4" stroke-linecap="round"/>
+  <path d="M0,0 Q130,130 240,270" fill="none" stroke="#00aaff" stroke-width="1" opacity="0.25" stroke-linecap="round"/>
+  <path d="M10,0 Q190,70 320,190" fill="none" stroke="#5DB8FF" stroke-width="0.5" opacity="0.2" stroke-linecap="round"/>
   <path d="M800,0 Q640,100 510,220" fill="none" stroke="#5DB8FF" stroke-width="2" opacity="0.4" stroke-linecap="round"/>
+  <path d="M800,0 Q670,130 560,270" fill="none" stroke="#00aaff" stroke-width="1" opacity="0.25" stroke-linecap="round"/>
+  <path d="M790,0 Q610,70 480,190" fill="none" stroke="#5DB8FF" stroke-width="0.5" opacity="0.2" stroke-linecap="round"/>
   <path d="M0,520 Q150,410 290,300" fill="none" stroke="#5DB8FF" stroke-width="2" opacity="0.35" stroke-linecap="round"/>
+  <path d="M0,500 Q120,390 250,290" fill="none" stroke="#00aaff" stroke-width="1" opacity="0.2" stroke-linecap="round"/>
   <path d="M800,520 Q650,410 510,300" fill="none" stroke="#5DB8FF" stroke-width="2" opacity="0.35" stroke-linecap="round"/>
-  <circle cx="400" cy="30" r="4" fill="#5DB8FF" opacity="0.8"/><circle cx="595" cy="110" r="3.5" fill="#00aaff" opacity="0.8"/>
-  <circle cx="625" cy="320" r="3.5" fill="#5DB8FF" opacity="0.7"/><circle cx="175" cy="320" r="3.5" fill="#00aaff" opacity="0.7"/>
-  <circle cx="205" cy="110" r="3.5" fill="#5DB8FF" opacity="0.8"/><circle cx="270" cy="475" r="3" fill="#5DB8FF" opacity="0.7"/>
+  <path d="M800,500 Q680,390 550,290" fill="none" stroke="#00aaff" stroke-width="1" opacity="0.2" stroke-linecap="round"/>
+  <circle cx="400" cy="30" r="4" fill="#5DB8FF" opacity="0.8"/><circle cx="400" cy="30" r="8" fill="#5DB8FF" opacity="0.2"/>
+  <circle cx="595" cy="110" r="3.5" fill="#00aaff" opacity="0.8"/><circle cx="595" cy="110" r="7" fill="#00aaff" opacity="0.2"/>
+  <circle cx="625" cy="320" r="3.5" fill="#5DB8FF" opacity="0.7"/><circle cx="625" cy="320" r="7" fill="#5DB8FF" opacity="0.15"/>
+  <circle cx="270" cy="475" r="3" fill="#5DB8FF" opacity="0.7"/><circle cx="270" cy="475" r="6" fill="#5DB8FF" opacity="0.15"/>
+  <circle cx="175" cy="320" r="3.5" fill="#00aaff" opacity="0.7"/><circle cx="175" cy="320" r="7" fill="#00aaff" opacity="0.15"/>
+  <circle cx="205" cy="110" r="3.5" fill="#5DB8FF" opacity="0.8"/><circle cx="205" cy="110" r="7" fill="#5DB8FF" opacity="0.2"/>
+  <line x1="400" y1="30" x2="595" y2="110" stroke="#5DB8FF" stroke-width="0.8" opacity="0.35"/>
+  <line x1="595" y1="110" x2="625" y2="320" stroke="#00aaff" stroke-width="0.6" opacity="0.3"/>
+  <line x1="175" y1="320" x2="205" y2="110" stroke="#00aaff" stroke-width="0.6" opacity="0.3"/>
+  <line x1="205" y1="110" x2="400" y2="30" stroke="#5DB8FF" stroke-width="0.8" opacity="0.35"/>
 </svg>
 <div class="auth-card">
   <div class="auth-top">
@@ -378,17 +392,21 @@ tr:hover td{background:#fafcff}
     <div class="afield"><label>Email</label><input type="email" id="login-email" placeholder="your@email.com" onkeydown="if(event.key==='Enter')doLogin()"></div>
     <div class="afield"><label>Password</label><input type="password" id="login-pass" placeholder="Password" onkeydown="if(event.key==='Enter')doLogin()"></div>
     <button class="auth-btn" id="signin-btn" onclick="doLogin()">Sign In</button>
-    <div style="text-align:center;margin-top:14px"><a href="#" onclick="showForgotPassword()" style="font-size:12px;color:#1B5E9B;text-decoration:none">Forgot your password?</a></div>
+    <div style="text-align:center;margin-top:14px">
+      <a href="#" onclick="showForgotPassword()" style="font-size:12px;color:#1B5E9B;text-decoration:none">Forgot your password?</a>
+    </div>
     <div style="text-align:center;margin-top:8px;font-size:11px;color:#bbc4d8">Business Management Portal</div>
-    </div>
-    <div id="forgot-panel" style="display:none">
-      <div style="font-size:13px;color:#555;margin-bottom:16px;line-height:1.5">Enter your email and we'll send a reset link.</div>
-      <div class="afield"><label>Email</label><input type="email" id="forgot-email" placeholder="your@email.com"></div>
-      <button class="auth-btn" onclick="sendReset()" style="background:#1B5E9B">Send Reset Link</button>
-      <div style="text-align:center;margin-top:12px"><a href="#" onclick="showLogin()" style="font-size:12px;color:#1B5E9B;text-decoration:none">Back to Sign In</a></div>
-      <div id="reset-msg" style="margin-top:12px;font-size:13px;text-align:center;display:none"></div>
-    </div>
+  </div></div>
+<!-- FORGOT PASSWORD PANEL -->
+<div id="forgot-panel" style="display:none">
+  <div style="font-size:13px;color:#555;margin-bottom:16px;line-height:1.5">Enter your email address and we'll send you a link to reset your password.</div>
+  <div class="afield"><label>Email</label><input type="email" id="forgot-email" placeholder="your@email.com" onkeydown="if(event.key==='Enter')sendReset()"></div>
+  <button class="auth-btn" onclick="sendReset()" style="background:#1B5E9B">Send Reset Link</button>
+  <div style="text-align:center;margin-top:12px">
+    <a href="#" onclick="showLogin()" style="font-size:12px;color:#1B5E9B;text-decoration:none">Back to Sign In</a>
   </div>
+  <div id="reset-msg" style="margin-top:12px;font-size:13px;text-align:center;display:none"></div>
+</div>
 </div>
 </div>
 
@@ -406,20 +424,26 @@ tr:hover td{background:#fafcff}
   <div class="body-wrap">
     <div class="sidebar" id="sidebar">
       <div class="sb-brand">
-        <div class="sb-co">NetFiber Network</div>
-        <div class="sb-tag">Cabling Solutions LLC</div>
+        <div style="font-size:17px;font-weight:900;letter-spacing:2.5px;color:#1B5E9B;line-height:1">NETFIBER</div>
+        <div style="font-size:11px;color:#aaa;font-weight:400;letter-spacing:0.2px;margin-top:3px">Network Cabling Solutions</div>
       </div>
       <div class="sb-sec">Overview</div>
       <div class="sb-item on" data-page="dashboard" onclick="showPage('dashboard')"><span class="sb-dot"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></span>Dashboard</div>
       <div class="sb-sec">Sales</div>
-      <div class="sb-item" data-page="bids" data-groups="admin,sales" onclick="showPage('bids')"><span class="sb-dot"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span>Bid Opportunities<span class="sb-badge" id="sb-bids-badge" style="background:#E24B4A;display:none"></span></div>
-      <div class="sb-item" data-page="gc" data-groups="admin,sales" onclick="showPage('gc')"><span class="sb-dot"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87m-4-12a4 4 0 010 7.75"/></svg></span>GC Contacts</div>
+      <div class="sb-item" data-page="bids" data-groups="admin,sales" onclick="showPage('bids')"><span class="sb-dot"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span>Bid Opportunities<span class="sb-badge" id="sb-bids-due" style="background:#854F0B;display:none" title="Bids due today"></span>
+        <span class="sb-badge" id="sb-bids-email" style="background:#1B5E9B;display:none" title="Email follow-up due"></span>
+        <span class="sb-badge" id="sb-bids-phone" style="background:#A32D2D;display:none" title="Phone follow-up due"></span></div>
+      <div class="sb-item" data-page="gc" data-groups="admin,sales" onclick="showPage('gc')"><span class="sb-dot"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87m-4-12a4 4 0 010 7.75"/></svg></span>GC Contacts
+        <span class="sb-badge" id="sb-gc-email" style="background:#854F0B;display:none" title="Email FU due"></span>
+        <span class="sb-badge" id="sb-gc-phone" style="background:#A32D2D;display:none" title="Phone call due"></span>
+        <span class="sb-badge" id="sb-gc-review" style="background:#5B3FCC;display:none" title="Bid review pending"></span>
+        <span class="sb-badge" id="sb-gc-accepted" style="background:#1D9E75;display:none" title="Bid accepted"></span></div>
       <div class="sb-item" data-page="retail" data-groups="admin,sales,staff" onclick="showPage('retail')"><span class="sb-dot"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg></span>Retail Contacts</div>
       <div class="sb-sec">Operations</div>
       <div class="sb-item" data-page="proposals" data-groups="admin,sales" onclick="showPage('proposals')"><span class="sb-dot"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></span>Proposals</div>
       <div class="sb-item" data-page="purchases" data-groups="admin,sales" onclick="showPage('purchases')"><span class="sb-dot"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 001.99-1.85l1.38-9.14H6"/></svg></span>Purchases</div>
       <div class="sb-item" data-page="tasks" data-groups="admin,sales,staff,field" onclick="showPage('tasks')"><span class="sb-dot"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="9,11 12,14 22,4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg></span>To-Do<span class="sb-badge" id="sb-tasks-badge" style="background:#BA7517;display:none"></span></div>
-      <div class="sb-item" data-page="pipeline" onclick="showPage('pipeline')"><span class="sb-dot"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="22,12 18,12 15,21 9,3 6,12 2,12"/></svg></span>Pipeline Report</div>
+      <div class="sb-item" data-page="pipeline" data-groups="admin,sales" onclick="showPage('pipeline')"><span class="sb-dot"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="22,12 18,12 15,21 9,3 6,12 2,12"/></svg></span>Pipeline Report</div>
       <div class="sb-sec">Admin</div>
       <div class="sb-item" data-page="log" data-groups="admin" onclick="showPage('log')"><span class="sb-dot"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg></span>Activity Log</div>
       <div class="sb-item" data-page="mgmt" data-groups="admin" onclick="showPage('mgmt')"><span class="sb-dot"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93l-1.41 1.41M5.34 18.66l-1.41 1.41M4.93 4.93l1.41 1.41M18.66 18.66l1.41 1.41M2 12h2M20 12h2M12 2v2M12 20v2"/></svg></span>Management</div>
@@ -734,7 +758,7 @@ var editBidId=null,editGCId=null,editRetailId=null,editPPId=null,editMatId=null,
 var today=new Date();today.setHours(0,0,0,0);
 var todayStr=today.toISOString().split('T')[0];
 
-// ===== SINGLE PERMISSION SYSTEM =====
+// Single source of truth for group permissions
 var DEFAULT_GROUPS={
   admin:['dashboard','bids','gc','retail','proposals','purchases','tasks','log','mgmt','pipeline'],
   sales:['dashboard','bids','gc','retail','tasks'],
@@ -742,30 +766,47 @@ var DEFAULT_GROUPS={
   field:['dashboard','tasks']
 };
 function getGroups(){
-  try{var s=localStorage.getItem('netfiber_groups');if(s){var p=JSON.parse(s);if(p&&typeof p==='object'&&Object.keys(p).length>0)return p;}}catch(e){}
+  try{
+    var saved=localStorage.getItem('netfiber_groups');
+    if(saved){
+      var parsed=JSON.parse(saved);
+      if(parsed&&typeof parsed==='object')return parsed;
+    }
+  }catch(e){}
   return JSON.parse(JSON.stringify(DEFAULT_GROUPS));
 }
-function saveGroups(g){
-  localStorage.setItem('netfiber_groups',JSON.stringify(g));
-}
+
 async function loadGroupsFromDB(){
   try{
+    // Load from any admin profile that has group_permissions set
     var res=await sb.from('profiles').select('group_permissions').eq('group_name','admin').not('group_permissions','is',null).limit(1);
     if(res.data&&res.data.length>0&&res.data[0].group_permissions){
       var parsed=JSON.parse(res.data[0].group_permissions);
       if(parsed&&typeof parsed==='object'&&Object.keys(parsed).length>0){
         localStorage.setItem('netfiber_groups',JSON.stringify(parsed));
+        GROUPS=parsed;
+        console.log('Groups loaded from DB:',Object.keys(parsed));
         return;
       }
     }
-  }catch(e){}
+  }catch(e){console.log('Using local groups:',e);}
+  GROUPS=getGroups();
+  console.log('Groups from localStorage:',Object.keys(GROUPS));
+}
+async function saveGroups(g){
+  localStorage.setItem('netfiber_groups',JSON.stringify(g));
+  try{
+    // Save to current admin user's profile
+    var r=await sbA.from('profiles').update({group_permissions:JSON.stringify(g)}).eq('id',CU.id);
+    if(r.error)console.log('Save warning:',r.error.message);
+  }catch(e){console.log('Saved to localStorage only:',e);}
 }
 var GROUPS=getGroups();
-
 function canAccess(p){
   if(CP&&CP.disabled)return false;
   var grps=getGroups();
-  var pages=grps[CP?CP.group_name||'staff':'staff']||['dashboard'];
+  var groupName=CP?CP.group_name||'staff':'staff';
+  var pages=grps[groupName]||['dashboard'];
   return pages.indexOf(p)>=0;
 }
 
@@ -807,8 +848,8 @@ async function initApp(user){
   CU=user;
   const {data:p}=await sb.from('profiles').select('*').eq('id',user.id).single();
   CP=p||{full_name:user.email,group_name:'staff'};
+  // Load group permissions from DB (cross-device sync)
   await loadGroupsFromDB();
-  GROUPS=getGroups();
   const name=CP.full_name||user.email;
   const ini=name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
   document.getElementById('tb-name').textContent=name;
@@ -824,14 +865,10 @@ async function initApp(user){
 /* getSession called in initSupabase */
 
 function applyPermissions(){
-  var grps=getGroups();
-  var groupName=CP?CP.group_name||'staff':'staff';
-  var allowed=grps[groupName]||['dashboard'];
-  // Show/hide sidebar items based on dynamic group permissions
-  document.querySelectorAll('.sb-item').forEach(function(el){
-    var page=el.dataset.page;
-    if(!page){el.style.display='flex';return;}
-    el.style.display=allowed.indexOf(page)>=0?'flex':'none';
+  const allowed=GROUPS[CP?.group_name||'staff']||['dashboard','tasks'];
+  document.querySelectorAll('.sb-item[data-groups]').forEach(el=>{
+    const gs=el.dataset.groups.split(',');
+    el.style.display=gs.includes(CP?.group_name||'staff')?'flex':'none';
   });
 }
 
@@ -850,12 +887,16 @@ function statusBadge(s){
 }
 
 var GC_FU={
-  none:   {l:'Not Contacted',   c:'gc-fu-inactive', days:0},
-  intro:  {l:'Intro Email Sent',c:'gc-fu-intro',    days:3},
-  form:   {l:'Form Needed',     c:'gc-fu-form',     days:7},
-  call:   {l:'Called — Follow Up', c:'gc-fu-call', days:14},
-  active: {l:'Active — Bidding',   c:'gc-fu-active',days:30},
-  nointerest:{l:'Not Interested',c:'gc-fu-inactive', days:0}
+  none:       {l:'Not Contacted',       c:'gc-fu-inactive',days:0},
+  intro:      {l:'Email Sent',          c:'gc-fu-intro',   days:3},
+  email_due:  {l:'Email Follow-Up Due', c:'gc-fu-call',    days:4},
+  form:       {l:'Form Needed',         c:'gc-fu-form',    days:7},
+  call:       {l:'Call Scheduled',      c:'gc-fu-call',    days:14},
+  active:     {l:'Active — Bidding',    c:'gc-fu-active',  days:30},
+  estimation: {l:'Bid Sent to Estimation',c:'gc-fu-form',  days:0},
+  est_yes:    {l:'Estimation — We Bid', c:'gc-fu-active',  days:0},
+  est_no:     {l:'Estimation — Pass',   c:'gc-fu-inactive',days:0},
+  nointerest: {l:'Not Interested',      c:'gc-fu-inactive',days:0}
 };
 function gcFuBadge(gc){
   if(!gc||!GC_FU) return '';
@@ -868,7 +909,7 @@ function gcFuBadge(gc){
     else if(diff===0) extra=' <span style="font-size:10px;font-weight:700;color:#BA7517">Today</span>';
     else if(diff<=3) extra=' <span style="font-size:10px;color:#888">in '+diff+'d</span>';
   }
-  return '<span class="gc-fu-badge '+f.c+'" onclick="openGCFU(event,\"'+gc.id+'\")" title="Click to log GC follow-up">'+f.l+extra+'</span>';
+  return '<span class="gc-fu-badge '+f.c+'" onclick="openGCFU(event,&quot;'+gc.id+'&quot;)" title="Click to log GC follow-up">'+f.l+extra+'</span>';
 }
 var FU={
   none:   {l:'No Follow-Up',    c:'fu-new'},
@@ -892,15 +933,15 @@ function fuBadge(bid){
     else if(diff===0) extra=' <span style="font-size:10px;font-weight:700;color:#BA7517">Today</span>';
     else if(diff<=3) extra=' <span style="font-size:10px;color:#888">in '+diff+'d</span>';
   }
-  return '<span class="fu-badge '+cls+'" onclick="openFU(event,\"'+bid.id+'\")" title="Click to log follow-up">'+f.l+extra+'</span>';
+  return '<span class="fu-badge '+cls+'" onclick="openFU(event,&quot;'+bid.id+'&quot;)" title="Click to log follow-up">'+f.l+extra+'</span>';
 }
 function rowCls(bid){if(!bid.fu_next_date)return'';const d=ddiff(bid.fu_next_date);if(d<0)return'ov-row';if(d===0)return'tod-row';return'';}
 
 // NAVIGATION
 function showPage(p){
   GROUPS=getGroups();
-  var allowed=getGroups()[CP?CP.group_name||'staff':'staff']||['dashboard'];
-  if(!canAccess(p)){p=allowed[0]||'dashboard';}
+  var grpPages=getGroups()[CP?CP.group_name||'staff':'staff']||['dashboard'];
+  if(!canAccess(p)){p=grpPages[0]||'dashboard';}
   document.querySelectorAll('.sb-item').forEach(el=>el.classList.toggle('on',el.dataset.page===p));
   const mc=document.getElementById('main-content');
   mc.innerHTML='<div class="loading"><span class="spinner"></span>Loading...</div>';
@@ -918,27 +959,46 @@ function showPage(p){
 
 // DASHBOARD
 
-function showToast(msg,color){
-  var t=document.createElement('div');
-  t.style.cssText='position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:'+(color||'#1B5E9B')+';color:#fff;padding:12px 24px;border-radius:10px;font-size:13px;font-weight:600;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,0.2);white-space:nowrap';
-  t.textContent=msg;document.body.appendChild(t);
-  setTimeout(function(){t.style.opacity='0';t.style.transition='opacity 0.5s';setTimeout(function(){t.remove();},500);},2500);
+function setSbBadge(id,count){
+  var el=document.getElementById(id);
+  if(el){el.textContent=count;el.style.display=count>0?'inline-block':'none';}
 }
 async function renderDashboard(){
   const mc=document.getElementById('main-content');
-  const [{data:bidsR},{data:tasksR}]=await Promise.all([
+  await loadGroupsFromDB();
+  const [{data:bidsR},{data:tasksR},{data:gcsR}]=await Promise.all([
     sb.from('bids').select('*'),
-    sb.from('tasks').select('*')
+    sb.from('tasks').select('*'),
+    sb.from('gc_contacts').select('*')
   ]);
-  const bids=bidsR||[];const tasks=tasksR||[];
+  const bids=bidsR||[];const tasks=tasksR||[];const gcs=gcsR||[];
   const wins=bids.filter(b=>b.status==='Win'||b.status==='Won');
   const overdueFollowups=bids.filter(b=>b.fu_next_date&&ddiff(b.fu_next_date)<0&&b.status!=='Win'&&b.status!=='Lost');
   const tasksDueToday=tasks.filter(t=>!t.done&&t.deadline===todayStr);
   const pendingTasks=tasks.filter(t=>!t.done);
 
   // Update sidebar badges
-  if(overdueFollowups.length){document.getElementById('sb-bids-badge').textContent=overdueFollowups.length;document.getElementById('sb-bids-badge').style.display='inline-block';}
+  // Bid Opportunities badges
+  var bidsDueCount=bids.filter(function(b){return b.due_date&&ddiff(b.due_date)<=0&&b.status==='Under Review';}).length;
+  var emailFUCount=bids.filter(function(b){if(b.status==='Win'||b.status==='Lost')return false;return b.fu_next_date&&ddiff(b.fu_next_date)<=0&&(b.fu_status==='email'||b.fu_status==='sent'||b.fu_status==='none'||!b.fu_status);}).length;
+  var phoneFUCount=bids.filter(function(b){if(b.status==='Win'||b.status==='Lost')return false;return b.fu_next_date&&ddiff(b.fu_next_date)<=0&&(b.fu_status==='call'||b.fu_status==='waiting');}).length;
+  // setSbBadge defined globally below
+  setSbBadge('sb-bids-due',bidsDueCount);
+  setSbBadge('sb-bids-email',emailFUCount);
+  setSbBadge('sb-bids-phone',phoneFUCount);
+  if(overdueFollowups.length){setSbBadge('sb-bids-phone',overdueFollowups.length);}
   if(tasksDueToday.length){document.getElementById('sb-tasks-badge').textContent=tasksDueToday.length;document.getElementById('sb-tasks-badge').style.display='inline-block';}
+  // GC sidebar badges - load from _gcs if available
+  if(typeof _gcs!=='undefined'&&_gcs.length){
+    var gcEmailDue=_gcs.filter(function(g){return g.gc_next_followup&&ddiff(g.gc_next_followup)<=0&&(g.gc_fu_status==='intro'||g.gc_fu_status==='email_due');}).length;
+    var gcCallDue=_gcs.filter(function(g){return g.gc_next_followup&&ddiff(g.gc_next_followup)<=0&&(g.gc_fu_status==='call'||g.gc_fu_status==='active');}).length;
+    var gcReview=_gcs.filter(function(g){return g.gc_fu_status==='estimation';}).length;
+    var gcAccepted=_gcs.filter(function(g){return g.gc_fu_status==='est_yes';}).length;
+    setSbBadge('sb-gc-email',gcEmailDue);
+    setSbBadge('sb-gc-phone',gcCallDue);
+    setSbBadge('sb-gc-review',gcReview);
+    setSbBadge('sb-gc-accepted',gcAccepted);
+  }
 
   const todayDate=new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
   const hour=new Date().getHours();
@@ -952,7 +1012,7 @@ async function renderDashboard(){
       </div>
       <div class="fbody" style="display:grid;grid-template-columns:repeat(auto-fill,110px);gap:10px;padding:16px;min-height:260px;align-content:start">
         ${canAccess('bids')?`<div class="mod-btn" onclick="showPage('bids')" style="border-top:3px solid #1B5E9B">
-          ${overdueFollowups.length?`<span class="mod-btn-badge" style="background:#FCEBEB;color:#A32D2D">${overdueFollowups.length}</span>`:''}
+          
           <span class="mod-btn-name">Bid Opportunities</span>
         </div>`:''}
         ${canAccess('gc')?`<div class="mod-btn" onclick="showPage('gc')" style="border-top:3px solid #1D9E75">
@@ -967,8 +1027,8 @@ async function renderDashboard(){
         ${canAccess('purchases')?`<div class="mod-btn" onclick="showPage('purchases')" style="border-top:3px solid #BA7517">
           <span class="mod-btn-name">Purchases</span>
         </div>`:''}
-        ${canAccess('tasks')?`<div class="mod-btn" onclick="showPage('tasks')" style="border-top:3px solid #5F5E5A">
-          ${tasksDueToday.length?`<span class="mod-btn-badge" style="background:#FEF3E2;color:#854F0B">${tasksDueToday.length}</span>`:''}
+
+        ${canAccess('tasks')?`<div class="mod-btn" onclick="showPage('tasks')" style="border-top:3px solid #1D9E75">
           <span class="mod-btn-name">To-Do</span>
         </div>`:''}
         ${canAccess('log')?`<div class="mod-btn" onclick="showPage('log')" style="border-top:3px solid #E24B4A">
@@ -977,15 +1037,21 @@ async function renderDashboard(){
         ${canAccess('mgmt')?`<div class="mod-btn" onclick="showPage('mgmt')" style="border-top:3px solid #854F0B">
           <span class="mod-btn-name">Management</span>
         </div>`:''}
-        <div class="mod-btn" onclick="showPage('pipeline')" style="border-top:3px solid #1D9E75">
+        ${canAccess('pipeline')?`<div class="mod-btn" onclick="showPage('pipeline')" style="border-top:3px solid #1D9E75">
           <span class="mod-btn-name">Pipeline</span>
-        </div>
+        </div>`:''}
       </div>
     </div>`;
 
   const opsModules='';
 
   const overdueSorted=[...overdueFollowups].sort((a,b)=>ddiff(a.fu_next_date)-ddiff(b.fu_next_date)).slice(0,4);
+  // Bids due today/overdue (Under Review only)
+  const bidsDueList=bids.filter(function(b){return b.due_date&&ddiff(b.due_date)<=0&&b.status==='Under Review';}).sort(function(a,b2){return ddiff(a.due_date)-ddiff(b2.due_date);}).slice(0,6);
+  // Follow-ups due (fu_next_date today or past, not won/lost)
+  const fuDueList=bids.filter(function(b){if(b.status==='Win'||b.status==='Lost')return false;return b.fu_next_date&&ddiff(b.fu_next_date)<=0;}).sort(function(a,b2){return ddiff(a.fu_next_date)-ddiff(b2.fu_next_date);}).slice(0,6);
+  // GC calls due
+  const gcDueList=gcs.filter(function(g){return g.gc_fu_status&&g.gc_fu_status!=='none'&&g.gc_fu_status!=='nointerest'&&g.gc_next_followup&&ddiff(g.gc_next_followup)<=0;}).sort(function(a,b){return ddiff(a.gc_next_followup)-ddiff(b.gc_next_followup);}).slice(0,5);
   const tasksSorted=tasks.filter(t=>!t.done&&(t.deadline===todayStr||t.priority==='high')).sort((a,b)=>{const po={high:0,medium:1,low:2};return(po[a.priority]||1)-(po[b.priority]||1);}).slice(0,4);
   const emailsDue=bids.filter(b=>b.fu_next_date&&ddiff(b.fu_next_date)<=0&&(b.fu_status==='email'||b.fu_status==='new'||b.fu_status==='call')&&b.status!=='Win'&&b.status!=='Lost').sort((a,b)=>ddiff(a.fu_next_date)-ddiff(b.fu_next_date)).slice(0,4);
   const waitingTooLong=bids.filter(b=>b.fu_status==='waiting'&&b.last_ping&&ddiff(b.last_ping)<-7&&b.status!=='Win'&&b.status!=='Lost').slice(0,4);
@@ -1013,7 +1079,7 @@ async function renderDashboard(){
 
       <div class="acard">
         <div class="achdr"><div class="acdot" style="background:#854F0B"></div>Bids due today &amp; overdue</div>
-        ${(()=>{const bidsDue=bids.filter(b=>b.due_date&&ddiff(b.due_date)<=0&&b.status!=='Win'&&b.status!=='Lost').sort((a,b2)=>ddiff(a.due_date)-ddiff(b2.due_date)).slice(0,5);return bidsDue.length?bidsDue.map(b=>{const d=ddiff(b.due_date);return`<div class="aitem" style="cursor:pointer" onclick="showPage('bids')"><div class="adot" style="background:${d<0?'#854F0B':'#E24B4A'}"></div><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${(b.project||b.ref||'').substring(0,22)}</span><span class="atag" style="background:${d===0?'#FCEBEB':'#FAEEDA'};color:${d===0?'#A32D2D':'#633806'}">${d===0?'Due today':Math.abs(d)+'d ago'}</span></div>`;}).join(''):'<div class="aitem" style="color:#bbb">No bids overdue</div>';})()}
+        ${(()=>{const bidsDue=bids.filter(b=>b.due_date&&ddiff(b.due_date)<=0&&b.status==='Under Review').sort((a,b2)=>ddiff(a.due_date)-ddiff(b2.due_date)).slice(0,5);return bidsDue.length?bidsDue.map(b=>{const d=ddiff(b.due_date);return`<div class="aitem" style="cursor:pointer" onclick="showPage('bids')"><div class="adot" style="background:${d<0?'#854F0B':'#E24B4A'}"></div><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${(b.project||b.ref||'').substring(0,22)}</span><span class="atag" style="background:${d===0?'#FCEBEB':'#FAEEDA'};color:${d===0?'#A32D2D':'#633806'}">${d===0?'Due today':Math.abs(d)+'d ago'}</span></div>`;}).join(''):'<div class="aitem" style="color:#bbb">No bids overdue</div>';})()}
       </div>
 
       <div class="acard">
@@ -1041,10 +1107,21 @@ async function renderDashboard(){
 async function renderBids(){
   const mc=document.getElementById('main-content');
   mc.innerHTML=`
+    <div id="bid-kpis" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px"></div>
     <div class="page-hdr"><div><div class="page-title">Bid Opportunities</div><div class="page-sub">All bids and follow-ups</div></div><button class="btn btn-blue" onclick="openBidModal()">+ New Bid</button></div>
     <div class="toolbar">
       <input type="text" id="bid-search" placeholder="Search project, GC, ref..." oninput="filterBids()" style="flex:1;min-width:180px">
-      <select id="bid-filter" onchange="filterBids()"><option value="">All statuses</option><option>Under Review</option><option>Bid Sent</option><option>Win</option><option>Lost</option></select>
+      <select id="bid-filter" onchange="filterBids()" style="padding:8px 12px;border:1px solid #e0e6f0;border-radius:8px;font-size:13px;background:#fff;cursor:pointer">
+  <option value="">All Bids</option>
+  <option value="Under Review">Under Review</option>
+  <option value="Bid Sent">Bid Sent</option>
+  <option value="Win">Won</option>
+  <option value="Lost">Lost</option>
+  <option value="due_today">📅 Bids Due Today</option>
+  <option value="due_overdue">⚠️ Bids Overdue</option>
+  <option value="fu_today">📧 Email Follow-Up Due</option>
+  <option value="fu_overdue">📞 Phone Follow-Up Due</option>
+</select>
     </div>
     <div class="tbl-wrap" style="overflow-x:auto">
       <table><thead><tr><th>Ref #</th><th>Project</th><th>GC</th><th>Status</th><th>Follow-Up</th><th>Price</th><th>Profit</th><th>Last Ping</th><th>Last Note</th><th>Employee</th><th></th></tr></thead>
@@ -1053,12 +1130,32 @@ async function renderBids(){
   await loadBids();
 }
 var _bids=[];
+
+function bidKpi(icon,label,sub,val,color,filter){
+  return '<div onclick="document.getElementById(\'bid-filter\').value=\''+filter+'\';filterBids()" style="cursor:pointer;background:#fff;border:0.5px solid #eaedf2;border-top:3px solid '+color+';border-radius:10px;padding:14px 16px">'
+    +'<div style="font-size:11px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px">'+icon+' '+label+'</div>'
+    +'<div style="font-size:26px;font-weight:800;color:'+color+'">'+val+'</div>'
+    +'<div style="font-size:11px;color:#bbb;margin-top:3px">'+sub+'</div>'
+    +'</div>';
+}
 async function loadBids(){
   const {data:rows,error}=await sb.from('bids').select('*').order('created_at',{ascending:false});
   if(error){console.error('Bids error:',error);_bids=[];filterBids();return;}
   // Get assignee names separately
   _bids=rows||[];
   console.log('Bids loaded:', _bids.length);
+  // KPI boxes
+  var kEl=document.getElementById('bid-kpis');
+  if(kEl){
+    var today2=new Date();today2.setHours(0,0,0,0);
+    var bidsDue=_bids.filter(function(b){return b.due_date&&ddiff(b.due_date)<=0&&b.status==='Under Review';}).length;
+    var fuEmail=_bids.filter(function(b){if(b.status==='Win'||b.status==='Lost')return false;return b.fu_next_date&&ddiff(b.fu_next_date)<=0&&(b.fu_status==='email'||b.fu_status==='sent'||b.fu_status==='none'||!b.fu_status);}).length;
+    var fuCall=_bids.filter(function(b){if(b.status==='Win'||b.status==='Lost')return false;return b.fu_next_date&&ddiff(b.fu_next_date)<=0&&(b.fu_status==='call'||b.fu_status==='waiting');}).length;
+    kEl.innerHTML=
+      bidKpi('📅','Bids Due Today','Under Review past due',bidsDue,'#854F0B','due_today')+
+      bidKpi('📧','Email Follow-Up','Due today or overdue',fuEmail,'#1B5E9B','fu_today')+
+      bidKpi('📞','Phone Follow-Up','Due today or overdue',fuCall,'#A32D2D','fu_overdue');
+  }
   filterBids();
 }
 function filterBids(){
@@ -1066,7 +1163,12 @@ function filterBids(){
     const search=(document.getElementById('bid-search')?.value||'').toLowerCase();
     const filter=document.getElementById('bid-filter')?.value||'';
     let rows=[..._bids];
-    if(filter) rows=rows.filter(function(r){return r.status===filter;});
+    // Handle special filter values
+    if(filter==='due_today') rows=rows.filter(function(r){return r.due_date&&ddiff(r.due_date)<=0&&r.status==='Under Review';});
+    else if(filter==='due_overdue') rows=rows.filter(function(r){return r.due_date&&ddiff(r.due_date)<0&&r.status==='Under Review';});
+    else if(filter==='fu_today') rows=rows.filter(function(r){return r.fu_next_date&&ddiff(r.fu_next_date)<=0&&r.status!=='Win'&&r.status!=='Lost';});
+    else if(filter==='fu_overdue') rows=rows.filter(function(r){return r.fu_next_date&&ddiff(r.fu_next_date)<0&&r.status!=='Win'&&r.status!=='Lost';});
+    else if(filter) rows=rows.filter(function(r){return r.status===filter;});
     if(search) rows=rows.filter(function(r){return ((r.project||'')+(r.gc||'')+(r.ref||'')+(r.poc||'')).toLowerCase().indexOf(search)>=0;});
     rows.sort(function(a,b){
       var da=a.fu_next_date?new Date(a.fu_next_date):new Date('2099-01-01');
@@ -1099,8 +1201,8 @@ function filterBids(){
       html+='<td style="max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:11px;color:#999">'+lastNote+'</td>';
       html+='<td style="font-size:11px;color:#1B5E9B;font-weight:500">'+(r.assigned_name||'—')+'</td>';
       html+='<td style="display:flex;gap:4px;white-space:nowrap">';
-      html+='<button class="btn-sm" onclick="editBid("'+rid+'")" >Edit</button>';
-      html+='<button class="btn-danger" onclick="delBid("'+rid+'","'+pname+'")" >×</button>';
+      html+='<button class="btn-sm" onclick="editBid(&quot;'+rid+'&quot;)">Edit</button>';
+      html+='<button class="btn-danger" onclick="delBid(&quot;'+rid+'&quot;,&quot;'+pname+'&quot;)">×</button>';
       html+='</td>';
       html+='</tr>';
     }
@@ -1120,10 +1222,19 @@ async function delBid(id,name){if(!confirm(`Delete bid "${name}"?`))return;await
 async function renderGC(){
   const mc=document.getElementById('main-content');
   mc.innerHTML=`
+    <div id="gc-kpis" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px"></div>
     <div class="page-hdr"><div><div class="page-title">GC Contacts</div><div class="page-sub">General contractor relationships</div></div><button class="btn btn-blue" onclick="openGCModal()">+ New GC</button></div>
     <div class="toolbar">
       <input type="text" id="gc-search" placeholder="Search company, contact..." oninput="filterGC()" style="flex:1;min-width:180px">
-      <select id="gc-filter" onchange="filterGC()"><option value="">All</option><option value="Yes">Replied</option><option value="No">No reply</option></select>
+      <select id="gc-filter" onchange="filterGC()" style="padding:8px 12px;border:1px solid #e0e6f0;border-radius:8px;font-size:13px;background:#fff;cursor:pointer">
+  <option value="">All Contacts</option>
+  <option value="email_today">📧 Email Follow-Up Due Today</option>
+  <option value="email_overdue">📧 Email Follow-Up Overdue</option>
+  <option value="call_today">📞 Phone Follow-Up Due Today</option>
+  <option value="call_overdue">📞 Phone Follow-Up Overdue</option>
+  <option value="bid_review">📋 Bid Review Pending</option>
+  <option value="bid_accepted">✅ Bid Accepted</option>
+</select>
     </div>
     <div class="tbl-wrap" style="overflow-x:auto">
       <table><thead><tr><th>Company</th><th>Contact</th><th>Email</th><th>Phone</th><th>City</th><th>Priority</th><th>Replied</th><th>Follow-Up</th><th>Next Call</th><th></th></tr></thead>
@@ -1132,8 +1243,53 @@ async function renderGC(){
   await loadGC();
 }
 var _gcs=[];
-async function loadGC(){const {data:rows,error}=await sb.from('gc_contacts').select('*').order('created_at',{ascending:false});if(error){console.error('GC error:',error);}_gcs=rows||[];filterGC();}
-function filterGC(){const search=(document.getElementById('gc-search')?.value||'').toLowerCase();const filter=document.getElementById('gc-filter')?.value||'';let rows=[..._gcs];if(filter)rows=rows.filter(r=>r.replied===filter);if(search)rows=rows.filter(r=>(r.company+r.contact+r.email).toLowerCase().includes(search));const tbody=document.getElementById('gc-body');if(!tbody)return;(function(){var gcRows='';for(var gi=0;gi<rows.length;gi++){var r=rows[gi];var nextC=r.gc_next_followup?fmtD(r.gc_next_followup):'—';var nextCCls=r.gc_next_followup&&ddiff(r.gc_next_followup)<0?'color:#E24B4A;font-weight:700':r.gc_next_followup&&ddiff(r.gc_next_followup)===0?'color:#BA7517;font-weight:700':'color:#888';gcRows+='<tr ondblclick="openGCFU(event,\"'+r.id+'\")">'+'<td style="font-weight:600">'+(r.company||'')+'</td>'+'<td style="font-size:12px">'+(r.contact||'').split('\n')[0]+'</td>'+'<td style="font-size:12px"><a href="mailto:'+(r.email||'').split('\n')[0]+'" style="color:#1B5E9B">'+(r.email||'').split('\n')[0]+'</a></td>'+'<td style="font-size:12px">'+(r.phone||'').split('\n')[0]+'</td>'+'<td style="font-size:12px">'+(r.city||'').split('\n')[0]+'</td>'+'<td><span class="'+(r.priority==='1st'?'pri-1':r.priority==='2nd'?'pri-2':'pri-3')+'">'+(r.priority||'—')+'</span></td>'+'<td><span class="badge '+(r.replied==='Yes'?'b-yes':'b-no')+'">'+(r.replied||'No')+'</span></td>'+'<td>'+gcFuBadge(r)+'</td>'+'<td style="font-size:11px;'+nextCCls+'">'+nextC+'</td>'+'<td style="display:flex;gap:4px"><button class="btn-sm" onclick="editGC(this.dataset.id)" data-id="'+r.id+'">Edit</button><button class="btn-danger" onclick="delGC(this.dataset.id,this.dataset.name)" data-id="'+r.id+'" data-name="'+(r.company||'').replace(/"/g,'')+'">×</button></td>'
+async function loadGC(){
+  var res=await sb.from('gc_contacts').select('*').order('created_at',{ascending:false});
+  if(res.error){console.error('GC error:',res.error);return;}
+  _gcs=res.data||[];
+  // Compute KPIs
+  var emailDue=_gcs.filter(function(r){return r.gc_next_followup&&ddiff(r.gc_next_followup)<=0&&(r.gc_fu_status==='intro'||r.gc_fu_status==='email_due');}).length;
+  var callDue=_gcs.filter(function(r){return r.gc_next_followup&&ddiff(r.gc_next_followup)<=0&&(r.gc_fu_status==='call'||r.gc_fu_status==='active');}).length;
+  var bidReview=_gcs.filter(function(r){return r.gc_fu_status==='estimation';}).length;
+  var bidAccepted=_gcs.filter(function(r){return r.gc_fu_status==='est_yes';}).length;
+  var kEl=document.getElementById('gc-kpis');
+  if(kEl){kEl.innerHTML=
+    gcKpi('📧','Follow-Up Email','Due Today',emailDue,'#854F0B','email_today')+
+    gcKpi('📞','Follow-Up Phone','Due Today',callDue,'#A32D2D','call_today')+
+    gcKpi('📋','Bid Review','Pending',bidReview,'#5B3FCC','bid_review')+
+    gcKpi('✅','Bid Accepted','This Period',bidAccepted,'#1D9E75','bid_accepted');
+  }
+  // Update sidebar GC badges
+  if(typeof setSbBadge==='function'){
+    var gcEm=_gcs.filter(function(g){return g.gc_next_followup&&ddiff(g.gc_next_followup)<=0&&(g.gc_fu_status==='intro'||g.gc_fu_status==='email_due');}).length;
+    var gcCl=_gcs.filter(function(g){return g.gc_next_followup&&ddiff(g.gc_next_followup)<=0&&(g.gc_fu_status==='call'||g.gc_fu_status==='active');}).length;
+    var gcRv=_gcs.filter(function(g){return g.gc_fu_status==='estimation';}).length;
+    var gcAc=_gcs.filter(function(g){return g.gc_fu_status==='est_yes';}).length;
+    setSbBadge('sb-gc-email',gcEm);setSbBadge('sb-gc-phone',gcCl);setSbBadge('sb-gc-review',gcRv);setSbBadge('sb-gc-accepted',gcAc);
+  }
+  filterGC();
+}
+function gcKpi(icon,label,sub,val,color,filter){
+  return '<div onclick="document.getElementById(\'gc-filter\').value=\''+filter+'\';filterGC()" style="cursor:pointer;background:#fff;border:0.5px solid #eaedf2;border-top:3px solid '+color+';border-radius:10px;padding:14px 16px">'
+    +'<div style="font-size:11px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px">'+icon+' '+label+'</div>'
+    +'<div style="font-size:26px;font-weight:800;color:'+color+'">'+val+'</div>'
+    +'<div style="font-size:11px;color:#bbb;margin-top:3px">'+sub+'</div>'
+    +'</div>';
+}
+function filterGC(){const search=(document.getElementById('gc-search')?.value||'').toLowerCase();const filter=document.getElementById('gc-filter')?.value||'';let rows=[..._gcs];if(filter==='email_today') rows=rows.filter(function(r){
+      return r.gc_next_followup && ddiff(r.gc_next_followup)<=0 && (r.gc_fu_status==='intro'||r.gc_fu_status==='email_due');
+    });
+    else if(filter==='email_overdue') rows=rows.filter(function(r){
+      return r.gc_next_followup && ddiff(r.gc_next_followup)<0 && (r.gc_fu_status==='intro'||r.gc_fu_status==='email_due');
+    });
+    else if(filter==='call_today') rows=rows.filter(function(r){
+      return r.gc_next_followup && ddiff(r.gc_next_followup)<=0 && (r.gc_fu_status==='call'||r.gc_fu_status==='active');
+    });
+    else if(filter==='call_overdue') rows=rows.filter(function(r){
+      return r.gc_next_followup && ddiff(r.gc_next_followup)<0 && (r.gc_fu_status==='call'||r.gc_fu_status==='active');
+    });
+    else if(filter==='bid_review') rows=rows.filter(function(r){return r.gc_fu_status==='estimation';});
+    else if(filter==='bid_accepted') rows=rows.filter(function(r){return r.gc_fu_status==='est_yes';});if(search)rows=rows.filter(r=>(r.company+r.contact+r.email).toLowerCase().includes(search));const tbody=document.getElementById('gc-body');if(!tbody)return;(function(){var gcRows='';for(var gi=0;gi<rows.length;gi++){var r=rows[gi];var nextC=r.gc_next_followup?fmtD(r.gc_next_followup):'—';var nextCCls=r.gc_next_followup&&ddiff(r.gc_next_followup)<0?'color:#E24B4A;font-weight:700':r.gc_next_followup&&ddiff(r.gc_next_followup)===0?'color:#BA7517;font-weight:700':'color:#888';gcRows+='<tr ondblclick="openGCFU(event,&quot;'+r.id+'&quot;)">'+'<td style="font-weight:600">'+(r.company||'')+'</td>'+'<td style="font-size:12px">'+(r.contact||'').split('\n')[0]+'</td>'+'<td style="font-size:12px"><a href="mailto:'+(r.email||'').split('\n')[0]+'" style="color:#1B5E9B">'+(r.email||'').split('\n')[0]+'</a></td>'+'<td style="font-size:12px">'+(r.phone||'').split('\n')[0]+'</td>'+'<td style="font-size:12px">'+(r.city||'').split('\n')[0]+'</td>'+'<td><span class="'+(r.priority==='1st'?'pri-1':r.priority==='2nd'?'pri-2':'pri-3')+'">'+(r.priority||'—')+'</span></td>'+'<td><span class="badge '+(r.replied==='Yes'?'b-yes':'b-no')+'">'+(r.replied||'No')+'</span></td>'+'<td>'+gcFuBadge(r)+'</td>'+'<td style="font-size:11px;'+nextCCls+'">'+nextC+'</td>'+'<td style="display:flex;gap:4px"><button class="btn-sm" onclick="editGC(this.dataset.id)" data-id="'+r.id+'">Edit</button><button class="btn-danger" onclick="delGC(this.dataset.id,this.dataset.name)" data-id="'+r.id+'" data-name="'+(r.company||'').replace(/"/g,'')+'">×</button></td>'
       +'</tr>';}tbody.innerHTML=gcRows||'<tr><td colspan="10" style="text-align:center;padding:2rem;color:#bbb">No contacts found.</td></tr>'})()||'<tr><td colspan="10" style="text-align:center;padding:2rem;color:#bbb">No contacts found.</td></tr>';}
 function openGCModal(){editGCId=null;document.getElementById('gc-modal-title').textContent='New GC Contact';['company','contact','email','phone','city','notes','fdate'].forEach(f=>document.getElementById('gm-'+f).value='');document.getElementById('gm-priority').value='1st';document.getElementById('gm-replied').value='No';document.getElementById('gc-modal').classList.add('open');}
 async function editGC(id){const {data:r}=await sb.from('gc_contacts').select('*').eq('id',id).single();if(!r)return;editGCId=id;document.getElementById('gc-modal-title').textContent='Edit GC';['company','contact','email','phone','city'].forEach(f=>document.getElementById('gm-'+f).value=r[f]||'');document.getElementById('gm-priority').value=r.priority||'1st';document.getElementById('gm-replied').value=r.replied||'No';document.getElementById('gm-notes').value=r.note||'';document.getElementById('gm-fdate').value=r.first_email||'';document.getElementById('gc-modal').classList.add('open');}
@@ -1264,6 +1420,7 @@ async function delMat(id){if(!confirm('Remove this item?'))return;await sb.from(
 async function renderTasks(){
   const mc=document.getElementById('main-content');
   mc.innerHTML=`
+    <div id="task-kpis" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px"></div>
     <div class="page-hdr"><div><div class="page-title">To-Do</div><div class="page-sub">Tasks and deadlines</div></div></div>
     <div style="background:#fff;border-radius:12px;border:0.5px solid #e4e8f0;padding:14px;margin-bottom:12px">
       <div style="font-size:12px;font-weight:700;color:#555;margin-bottom:10px">Add new task</div>
@@ -1271,6 +1428,7 @@ async function renderTasks(){
         <input type="text" id="new-task" placeholder="Task description..." onkeydown="if(event.key==='Enter')addTask()" style="flex:1;min-width:200px;padding:8px 12px;border:1px solid #e0e0e0;border-radius:8px;font-size:13px;outline:none">
         <select id="new-pri" style="padding:8px 10px;border:1px solid #e0e0e0;border-radius:8px;font-size:13px;outline:none"><option value="high">High</option><option value="medium" selected>Medium</option><option value="low">Low</option></select>
         <input type="date" id="new-date" style="padding:8px 10px;border:1px solid #e0e0e0;border-radius:8px;font-size:13px;outline:none">
+        <select id="new-assign" style="padding:8px 10px;border:1px solid #e0e0e0;border-radius:8px;font-size:13px;outline:none"><option value="">Assign to me</option></select>
         <button class="btn btn-blue" onclick="addTask()">+ Add</button>
       </div>
     </div>
@@ -1284,9 +1442,50 @@ async function renderTasks(){
       <div id="task-list"></div>
     </div>`;
   await loadTasks();
+  // Load profiles for assign dropdown
+  var pRes=await sb.from('profiles').select('full_name').order('full_name');
+  var assignEl=document.getElementById('new-assign');
+  if(assignEl&&pRes.data){
+    pRes.data.forEach(function(p){
+      if(p.full_name){
+        var opt=document.createElement('option');
+        opt.value=p.full_name;
+        opt.textContent=p.full_name;
+        assignEl.appendChild(opt);
+      }
+    });
+  }
 }
 var _tasks=[];
-async function loadTasks(){const {data:rows,error}=await sb.from('tasks').select('*').order('created_at',{ascending:false});if(error){console.error('Tasks error:',error);}_tasks=rows;filterTasks();}
+async function loadTasks(){
+  var {data:rows,error}=await sb.from('tasks').select('*').order('created_at',{ascending:false});
+  if(error){console.error('Tasks error:',error);return;}
+  // Show only tasks created by or assigned to current user
+  var myName=CP?CP.full_name||'':null;
+  var myId=CU?CU.id:null;
+  _tasks=(rows||[]).filter(function(t){
+    // Admin sees all tasks
+    if(CP&&CP.group_name==='admin') return true;
+    // Others see tasks they created or assigned to them
+    return t.created_by===myId || t.assigned_name===myName;
+  });
+  filterTasks();
+  // KPIs
+  var kEl=document.getElementById('task-kpis');
+  if(kEl){
+    var all=rows||[];
+    var myTasks=_tasks;
+    var high=myTasks.filter(function(t){return !t.done&&t.priority==='high';}).length;
+    var dueToday=myTasks.filter(function(t){return !t.done&&t.deadline&&ddiff(t.deadline)<=0;}).length;
+    var done=myTasks.filter(function(t){return t.done;}).length;
+    kEl.innerHTML=
+      taskKpi('Total Tasks','#1B5E9B',myTasks.length,'assigned to me')+
+      taskKpi('High Priority','#E24B4A',high,'need attention')+
+      taskKpi('Due Today','#854F0B',dueToday,'or overdue')+
+      taskKpi('Completed','#1D9E75',done,'tasks done');
+  }
+}
+function taskKpi(label,color,val,sub){return '<div style="cursor:pointer;background:#fff;border:0.5px solid #eaedf2;border-top:3px solid '+color+';border-radius:10px;padding:14px 16px"><div style="font-size:11px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px">'+label+'</div><div style="font-size:26px;font-weight:800;color:'+color+'">'+val+'</div><div style="font-size:11px;color:#bbb;margin-top:3px">'+sub+'</div></div>';}
 function filterTasks(){
   const search=(document.getElementById('task-search')?.value||'').toLowerCase();
   const filter=document.getElementById('task-filter')?.value||'all';
@@ -1308,17 +1507,30 @@ function filterTasks(){
       <div class="tname" style="font-size:13px">${t.name}</div>
       <div><span class="tbadge ${t.priority==='high'?'high':t.priority==='medium'?'medium':'low'}">${t.priority||'medium'}</span></div>
       <div>${dlHtml}</div>
-      <div class="by-cell">${t.creator?.full_name||'—'}</div>
-      <div class="by-cell">${t.assigned_name||'—'}</div>
+      <div class="by-cell">${t.assigned_name||t.creator?.full_name||'—'}</div>
       <div><span class="badge ${t.done?'b-win':'b-sent'}" style="cursor:pointer" onclick="toggleTask('${t.id}',${t.done})">${t.done?'Done':'Pending'}</span></div>
-      <div style="display:flex;gap:4px">
-        <button class="btn-sm" onclick="openEditTask('${t.id}')">Edit</button>
-        <button class="btn-danger" onclick="delTask('${t.id}','${t.name.replace(/'/g,'`')}')">×</button>
-      </div>
+      <div style="display:flex;gap:4px"><button class="btn-sm" onclick="openEditTask('${t.id}')">Edit</button><button class="btn-danger" onclick="delTask('${t.id}','${t.name.replace(/'/g,'`')}')">×</button></div>
     </div>`;
   }).join('')||'<div style="text-align:center;padding:2rem;color:#bbb;font-size:13px">No tasks found.</div>';
 }
-async function addTask(){const name=document.getElementById('new-task')?.value.trim();if(!name)return;const obj={name,priority:document.getElementById('new-pri').value,deadline:document.getElementById('new-date').value||null,done:false,created_by:CU.id,updated_by:CU.id};const {data}=await sb.from('tasks').insert(obj).select().single();await logAct('Added task','tasks',data?.id,`Added: ${name}`);document.getElementById('new-task').value='';document.getElementById('new-date').value='';await loadTasks();}
+async function addTask(){
+  var name=document.getElementById('new-task')?document.getElementById('new-task').value.trim():'';
+  if(!name){alert('Please enter a task description');return;}
+  var pri=document.getElementById('new-pri')?document.getElementById('new-pri').value:'medium';
+  var date=document.getElementById('new-date')?document.getElementById('new-date').value||null:null;
+  var assignEl=document.getElementById('new-assign');
+  var assignedName=assignEl&&assignEl.value?assignEl.value:null;
+  // If no assignment, assign to self
+  if(!assignedName&&CP) assignedName=CP.full_name||null;
+  var obj={name:name,priority:pri,deadline:date,done:false,assigned_name:assignedName,created_by:CU.id,updated_at:new Date().toISOString()};
+  var res=await sb.from('tasks').insert(obj).select().single();
+  if(res.error){console.error('Task error:',res.error);return;}
+  await logAct('Added task','tasks',res.data?res.data.id:null,'Added: '+name);
+  if(document.getElementById('new-task'))document.getElementById('new-task').value='';
+  if(assignEl)assignEl.value='';
+  await loadTasks();
+}
+
 async function toggleTask(id,wasDone){await sb.from('tasks').update({done:!wasDone,updated_by:CU.id,updated_at:new Date().toISOString()}).eq('id',id);await loadTasks();}
 async function delTask(id,name){if(!confirm(`Delete "${name}"?`))return;await sb.from('tasks').delete().eq('id',id);await loadTasks();}
 
@@ -1332,9 +1544,18 @@ async function renderLog(){
 }
 
 // MANAGEMENT
+
+function showToast(msg, color){
+  var t=document.createElement('div');
+  t.style.cssText='position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:'+(color||'#1B5E9B')+';color:#fff;padding:12px 24px;border-radius:10px;font-size:13px;font-weight:600;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,0.2);white-space:nowrap';
+  t.textContent=msg;
+  document.body.appendChild(t);
+  setTimeout(function(){t.style.opacity='0';t.style.transition='opacity 0.5s';setTimeout(function(){t.remove();},500);},2500);
+}
 async function renderMgmt(){
   const mc=document.getElementById('main-content');
   mc.innerHTML=`
+    <div class="page-hdr"><div><div class="page-title">Management</div><div class="page-sub">Users, groups, and access control</div></div></div>
     <div class="mgmt-sec">
       <div class="mgmt-hdr"><h3>Create New User</h3></div>
       <div style="padding:16px">
@@ -1342,7 +1563,7 @@ async function renderMgmt(){
           <div class="frow"><label>Full Name</label><input id="nu-name" placeholder="John Smith"></div>
           <div class="frow"><label>Email</label><input id="nu-email" type="email" placeholder="john@email.com"></div>
           <div class="frow"><label>Password</label><input id="nu-pass" type="password" placeholder="Min 6 characters"></div>
-          <div class="frow"><label>Group</label><select id="nu-group"><option value="admin">Admin</option><option value="sales" selected>Sales</option><option value="staff">Staff</option><option value="field">Field</option></select></div>
+          <div class="frow"><label>Group</label><select id="nu-group"><option value="admin">Admin — full access</option><option value="sales" selected>Sales — Sales, GC, Retail, Tasks</option><option value="staff">Staff — Retail + Tasks only</option><option value="field">Field — Tasks only</option></select></div>
         </div>
         <button class="btn btn-green" onclick="createUser()">Create User Account</button>
         <div id="create-msg" style="margin-top:10px;font-size:13px;display:none"></div>
@@ -1364,14 +1585,14 @@ async function renderMgmt(){
     </div>
     <div class="mgmt-sec">
       <div class="mgmt-hdr"><h3>Group Permissions</h3><button class="btn-sm" onclick="saveGroupPermissions()" style="background:#1D9E75;color:#fff;border:none">Save Changes</button></div>
-      <div style="padding:16px;overflow-x:auto"><div id="group-perms-table"></div></div>
-    </div>
-  `;
+      <div style="padding:16px;overflow-x:auto">
+        <div id="group-perms-table"></div>
+      </div>
+    </div>`;
   await loadUsers();
   renderCustomGroups();
   renderGroupPermsTable();
 }
-
 async function loadUsers(){
   var res=await sbA.from('profiles').select('*').order('created_at',{ascending:true});
   var users=res.data||[];
@@ -1379,12 +1600,16 @@ async function loadUsers(){
   if(!ul)return;
   var gc={admin:'g-admin',sales:'g-sales',staff:'g-staff',field:'g-field'};
   var rows='';
-  var allGroups=Object.keys(getGroups());
   users.forEach(function(u){
     var isMe=u.id===CU.id;
     var disabled=u.disabled===true;
-    var groupOpts=allGroups.map(function(g){return '<option value="'+g+'"'+(u.group_name===g?' selected':'')+'>'+g.charAt(0).toUpperCase()+g.slice(1)+'</option>';}).join('');
-    var groupSel='<select onchange="changeGroup(&quot;'+u.id+'&quot;,this.value)" style="padding:5px 8px;border:1px solid #ddd;border-radius:6px;font-size:12px">'+groupOpts+'</select>';
+    var custom=getCustomGroups().map(function(g){return '<option value="'+g+'"'+(u.group_name===g?' selected':'')+'>'+g+'</option>';}).join('');
+    var groupSel='<select onchange="changeGroup(&quot;'+u.id+'&quot;,this.value)" style="padding:5px 8px;border:1px solid #ddd;border-radius:6px;font-size:12px">'
+      +'<option value="admin"'+(u.group_name==='admin'?' selected':'')+'>Admin</option>'
+      +'<option value="sales"'+(u.group_name==='sales'?' selected':'')+'>Sales</option>'
+      +'<option value="staff"'+(u.group_name==='staff'?' selected':'')+'>Staff</option>'
+      +'<option value="field"'+(u.group_name==='field'?' selected':'')+'>Field</option>'
+      +custom+'</select>';
     var pwBtn='<button onclick="adminChangePassword(&quot;'+u.id+'&quot;,&quot;'+(u.full_name||u.email)+'&quot;)" style="padding:5px 12px;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;background:#854F0B;color:#fff">Reset PW</button>';
     var disBtn='<button onclick="toggleUserDisabled(&quot;'+u.id+'&quot;,'+disabled+')" style="padding:5px 12px;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;background:'+(disabled?'#1D9E75':'#E24B4A')+';color:#fff">'+(disabled?'Enable':'Disable')+'</button>';
     rows+='<div class="user-card" style="opacity:'+(disabled?0.6:1)+';">'
@@ -1399,107 +1624,31 @@ async function loadUsers(){
       +(!isMe?groupSel+pwBtn+disBtn:'<span style="font-size:12px;color:#aaa">You</span>')
       +'</div></div>';
   });
-  ul.innerHTML=rows||'<div style="padding:1rem;color:#aaa">No users found</div>';
+  ul.innerHTML=rows||'<div style="padding:1rem;color:#aaa;font-size:13px">No users found</div>';
 }
-async function changeGroup(uid,g){await sbA.from('profiles').update({group_name:g}).eq('id',uid);await loadUsers();}
-async function toggleUserDisabled(uid,cur){await sbA.from('profiles').update({disabled:!cur}).eq('id',uid);await loadUsers();}
-function adminChangePassword(uid,name){
-  document.getElementById('change-pw-uid').value=uid;
-  document.getElementById('change-pw-username').textContent='Changing password for: '+name;
-  document.getElementById('new-pw-input').value='';document.getElementById('confirm-pw-input').value='';
-  document.getElementById('pw-change-msg').style.display='none';
-  document.getElementById('change-pw-modal').classList.add('open');
+
+
+function buildCustomGroups(current){
+  var custom=getCustomGroups();
+  return custom.map(function(g){return '<option value="'+g+'"'+(current===g?' selected':'')+'>'+g+'</option>';}).join('');
 }
-async function doAdminChangePassword(){
-  var uid=document.getElementById('change-pw-uid').value;
-  var pw=document.getElementById('new-pw-input').value;
-  var pw2=document.getElementById('confirm-pw-input').value;
-  var msg=document.getElementById('pw-change-msg');
-  if(!pw||pw.length<6){msg.style.display='block';msg.style.color='#E24B4A';msg.textContent='Password must be at least 6 characters';return;}
-  if(pw!==pw2){msg.style.display='block';msg.style.color='#E24B4A';msg.textContent='Passwords do not match';return;}
-  msg.style.display='block';msg.style.color='#aaa';msg.textContent='Updating...';
-  var res=await sbA.auth.admin.updateUserById(uid,{password:pw});
-  if(res.error){msg.style.color='#E24B4A';msg.textContent='Error: '+res.error.message;}
-  else{msg.style.color='#1D9E75';msg.textContent='Password updated!';setTimeout(function(){closeModal('change-pw-modal');},1500);}
+
+function getCustomGroups(){
+  try{return JSON.parse(localStorage.getItem('netfiber_custom_groups')||'[]');}catch(e){return[];}
 }
-function getCustomGroups(){try{return JSON.parse(localStorage.getItem('netfiber_custom_groups')||'[]');}catch(e){return[];}}
-function renderCustomGroups(){
-  var el=document.getElementById('custom-groups-list');if(!el)return;
-  var groups=getCustomGroups();
-  if(!groups.length){el.innerHTML='<div style="font-size:13px;color:#aaa">No custom groups yet.</div>';return;}
-  el.innerHTML=groups.map(function(g,i){return '<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:#f8faff;border-radius:8px;margin-bottom:6px"><span style="flex:1;font-size:13px;font-weight:600;color:#1B5E9B">'+g+'</span><button class="btn-danger" onclick="deleteCustomGroup('+i+')">Delete</button></div>';}).join('');
+
+async function toggleUserDisabled(userId,currentlyDisabled){
+  var res=await sbA.from('profiles').update({disabled:!currentlyDisabled}).eq('id',userId);
+  if(res.error){alert('Error: '+res.error.message);return;}
+  await loadUsers();
 }
-function addCustomGroup(){
-  var name=document.getElementById('new-group-name').value.trim();
-  if(!name)return;
-  var groups=getCustomGroups();
-  if(groups.indexOf(name)>=0){alert('Group exists');return;}
-  groups.push(name);
-  localStorage.setItem('netfiber_custom_groups',JSON.stringify(groups));
-  var grps=getGroups();grps[name]=['dashboard','tasks'];saveGroups(grps);
-  document.getElementById('new-group-name').value='';
-  renderCustomGroups();renderGroupPermsTable();loadUsers();
+
+async function changeGroup(userId,newGroup){
+  var res=await sbA.from('profiles').update({group_name:newGroup}).eq('id',userId);
+  if(res.error){alert('Error: '+res.error.message);}
+  await loadUsers();
 }
-function deleteCustomGroup(i){
-  if(!confirm('Delete this group?'))return;
-  var groups=getCustomGroups();var name=groups[i];groups.splice(i,1);
-  localStorage.setItem('netfiber_custom_groups',JSON.stringify(groups));
-  var grps=getGroups();delete grps[name];saveGroups(grps);
-  renderCustomGroups();renderGroupPermsTable();loadUsers();
-}
-var ALL_PAGES=['dashboard','bids','gc','retail','proposals','purchases','tasks','log','mgmt','pipeline'];
-var PAGE_LABELS=['Dashboard','Bid Opp.','GC Contacts','Retail','Proposals','Purchases','To-Do','Activity Log','Management','Pipeline'];
-function renderGroupPermsTable(){
-  var el=document.getElementById('group-perms-table');if(!el)return;
-  var grps=getGroups();var groups=Object.keys(grps);
-  var h='<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr>';
-  h+='<th style="text-align:left;padding:8px 12px;background:#f8faff;border-bottom:2px solid #eaedf2;font-weight:700;color:#1B5E9B">Group</th>';
-  ALL_PAGES.forEach(function(p,i){h+='<th style="text-align:center;padding:8px 4px;background:#f8faff;border-bottom:2px solid #eaedf2;font-size:11px;font-weight:600;color:#555;white-space:nowrap">'+PAGE_LABELS[i]+'</th>';});
-  h+='<th style="background:#f8faff;border-bottom:2px solid #eaedf2"></th></tr></thead><tbody>';
-  groups.forEach(function(g){
-    var perms=grps[g]||[];var isAdmin=g==='admin';
-    var gc2={admin:'g-admin',sales:'g-sales',staff:'g-staff',field:'g-field'};
-    h+='<tr style="border-bottom:1px solid #f0f0f0"><td style="padding:8px 12px"><span class="gbadge '+(gc2[g]||'g-staff')+'">'+g+'</span></td>';
-    ALL_PAGES.forEach(function(p){
-      h+='<td style="text-align:center;padding:6px">'+(isAdmin?'<span style="color:#1D9E75;font-size:16px">&#10003;</span>':'<input type="checkbox" data-group="'+g+'" data-page="'+p+'"'+(perms.indexOf(p)>=0?' checked':'')+' style="width:16px;height:16px;cursor:pointer">')+'</td>';
-    });
-    h+='<td style="padding:6px 8px">'+(g!=='admin'?'<button onclick="deleteGroup(&quot;'+g+'&quot;)" class="btn-danger" style="font-size:11px">Delete</button>':'')+'</td></tr>';
-  });
-  h+='</tbody></table><div style="margin-top:10px;font-size:11px;color:#aaa">Check/uncheck pages per group, then click Save Changes. Admin always has full access.</div>';
-  el.innerHTML=h;
-}
-function saveGroupPermissions(){
-  var boxes=document.querySelectorAll('#group-perms-table input[type=checkbox]');
-  var grps=getGroups();
-  Object.keys(grps).forEach(function(g){if(g!=='admin')grps[g]=[];});
-  boxes.forEach(function(cb){var g=cb.getAttribute('data-group'),p=cb.getAttribute('data-page');if(cb.checked){if(!grps[g])grps[g]=[];grps[g].push(p);}});
-  grps['admin']=ALL_PAGES.slice();
-  Object.keys(grps).forEach(function(g){if(grps[g].indexOf('dashboard')<0)grps[g].unshift('dashboard');});
-  saveGroups(grps);
-  saveGroups(grps);
-  // Save to DB
-  sbA.from('profiles').update({group_permissions:JSON.stringify(grps)}).eq('group_name','admin');
-  showToast('Group permissions saved!','#1D9E75');renderGroupPermsTable();
-}
-function deleteGroup(g){
-  if(g==='admin'||g==='sales'||g==='staff'||g==='field'){alert('Cannot delete built-in groups.');return;}
-  if(!confirm('Delete group "'+g+'"?'))return;
-  sbA.from('profiles').update({group_name:'staff'}).eq('group_name',g);
-  var grps=getGroups();delete grps[g];saveGroups(grps);
-  var custom=getCustomGroups().filter(function(c){return c!==g;});
-  localStorage.setItem('netfiber_custom_groups',JSON.stringify(custom));
-  renderCustomGroups();renderGroupPermsTable();loadUsers();
-  showToast('Group "'+g+'" deleted');
-}
-function showForgotPassword(){document.getElementById('forgot-panel').style.display='block';document.getElementById('auth-form-content').style.display='none';}
-function showLogin(){document.getElementById('forgot-panel').style.display='none';document.getElementById('auth-form-content').style.display='block';}
-async function sendReset(){
-  var email=document.getElementById('forgot-email').value.trim();
-  var msg=document.getElementById('reset-msg');msg.style.display='block';msg.style.color='#aaa';msg.textContent='Sending...';
-  var {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:window.location.origin+window.location.pathname});
-  if(error){msg.style.color='#E24B4A';msg.textContent='Error: '+error.message;}
-  else{msg.style.color='#1D9E75';msg.textContent='Reset link sent! Check your email.';}
-}
+
 
 async function createUser(){const name=document.getElementById('nu-name').value.trim();const email=document.getElementById('nu-email').value.trim();const pass=document.getElementById('nu-pass').value;const group=document.getElementById('nu-group').value;const msg=document.getElementById('create-msg');if(!name||!email||!pass){msg.textContent='Please fill all fields.';msg.style.color='#a32d2d';msg.style.display='block';return;}const {data,error}=await sbA.auth.admin.createUser({email,password:pass,email_confirm:true,user_metadata:{full_name:name}});if(error){msg.textContent='Error: '+error.message;msg.style.color='#a32d2d';msg.style.display='block';return;}await sbA.from('profiles').update({full_name:name,group_name:group,role:group==='admin'?'admin':'user'}).eq('id',data.user.id);await logAct('Created user','profiles',data.user.id,`Created ${name} (${group})`);msg.textContent=`✓ ${name} created. They can sign in at hub.netfibernetwork.com`;msg.style.color='#27500A';msg.style.display='block';document.getElementById('nu-name').value='';document.getElementById('nu-email').value='';document.getElementById('nu-pass').value='';await loadUsers();}
 function openEditUser(id,name,group){document.getElementById('eu-id').value=id;document.getElementById('eu-name').value=name;document.getElementById('eu-group').value=group;document.getElementById('edit-user-modal').classList.add('open');}
@@ -1507,7 +1656,7 @@ async function saveUser(){const id=document.getElementById('eu-id').value;const 
 async function deleteUser(id,name){if(!confirm(`Remove "${name}"? They will lose access immediately.`))return;await sbA.auth.admin.deleteUser(id);await logAct('Deleted user','profiles',null,`Removed: ${name}`);await loadUsers();}
 
 // FOLLOW-UP
-async function openFU(e,bidId){e.stopPropagation();currentBidId=bidId;const {data:bid}=await sb.from('bids').select('*').eq('id',bidId).single();if(!bid)return;document.getElementById('fu-proj-name').textContent=bid.project||bid.ref||'Project';document.getElementById('fu-proj-gc').textContent=bid.gc||'';const cfg=FU[bid.fu_status||'new']||FU.new;document.getElementById('fu-cur-status').innerHTML='<span class="fu-badge '+cfg2.c+'">'+cfg2.l+'</span>';const nd=bid.fu_next_date;if(nd){const diff=ddiff(nd);document.getElementById('fu-next-action').innerHTML=diff<0?'<span style="color:#E24B4A">'+Math.abs(diff)+'d overdue — Act now!</span>':diff===0?'<span style="color:#BA7517">Due TODAY</span>':'In '+diff+' day'+(diff!==1?'s':'')+'  ('+fmtD(nd)+')';document.getElementById('fu-next-date').value=nd;}else{document.getElementById('fu-next-action').textContent='Not scheduled';const s=new Date();s.setDate(s.getDate()+4);document.getElementById('fu-next-date').value=s.toISOString().split('T')[0];}document.getElementById('fu-last-contact').textContent=bid.last_ping?fmtD(bid.last_ping):'Never';await loadFUHistory(bidId);document.getElementById('fu-modal').classList.add('open');}
+async function openFU(e,bidId){e.stopPropagation();currentBidId=bidId;const {data:bid}=await sb.from('bids').select('*').eq('id',bidId).single();if(!bid)return;document.getElementById('fu-proj-name').textContent=bid.project||bid.ref||'Project';document.getElementById('fu-proj-gc').textContent=bid.gc||'';var fuK=bid.fu_status||'none';if(fuK==='new')fuK='none';var cfg=FU[fuK]||{l:'Follow Up',c:'fu-new'};document.getElementById('fu-cur-status').innerHTML='<span class="fu-badge '+cfg.c+'">'+cfg.l+'</span>';const nd=bid.fu_next_date;if(nd){const diff=ddiff(nd);document.getElementById('fu-next-action').innerHTML=diff<0?'<span style="color:#E24B4A">'+Math.abs(diff)+'d overdue — Act now!</span>':diff===0?'<span style="color:#BA7517">Due TODAY</span>':'In '+diff+' day'+(diff!==1?'s':'')+'  ('+fmtD(nd)+')';document.getElementById('fu-next-date').value=nd;}else{document.getElementById('fu-next-action').textContent='Not scheduled';const s=new Date();s.setDate(s.getDate()+4);document.getElementById('fu-next-date').value=s.toISOString().split('T')[0];}document.getElementById('fu-last-contact').textContent=bid.last_ping?fmtD(bid.last_ping):'Never';await loadFUHistory(bidId);document.getElementById('fu-modal').classList.add('open');}
 async function loadFUHistory(bidId){const {data:logs=[]}=await sb.from('activity_log').select('*').eq('table_name','followup').eq('record_id',bidId).order('created_at',{ascending:false});const tc={email:'ftp-email',call:'ftp-call',meeting:'ftp-meeting',note:'ftp-note'};const tl={email:'Email',call:'Phone Call',meeting:'Meeting',note:'Note'};document.getElementById('fu-history').innerHTML=logs.length?logs.map(l=>{let p={};try{p=JSON.parse(l.details);}catch(e){p={note:l.details};}return`<div class="fu-log-item"><span class="fu-type-pill ${tc[p.type]||'ftp-note'}">${tl[p.type]||'Note'}</span><div style="flex:1"><div style="font-size:13px;color:#1a1a1a">${p.note||''}</div><div style="font-size:11px;color:#bbb;margin-top:3px">${l.user_name} · ${new Date(l.created_at).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})}</div></div></div>`;}).join(''):'<div style="color:#bbb;font-size:13px;padding:1rem 0">No follow-ups logged yet. Double-click a bid row to get started.</div>';}
 async function logFollowUp(){
   var type=document.getElementById('fu-type').value;
@@ -1557,7 +1706,7 @@ async function logGCFollowUp(){
   var type=document.getElementById('gc-fu-type').value;
   var note=document.getElementById('gc-fu-note-input').value.trim();
   var sa=document.getElementById('gc-fu-status-after').value;
-  var autoDays={intro:3,form:7,call:14,active:30,nointerest:0};
+  var autoDays={intro:3,email_due:4,form:7,call:14,active:30,estimation:0,est_yes:0,est_no:0,nointerest:0};
   var days=autoDays[sa]||14;
   var ndEl=document.getElementById('gc-fu-next-date');
   var nextDate=ndEl&&ndEl.value?ndEl.value:null;
@@ -1575,23 +1724,18 @@ async function logGCFollowUp(){
 
 async function openEditTask(taskId){
   var task=(_tasks||[]).find(function(t){return t.id===taskId;});
-  if(!task){alert('Task not found');return;}
+  if(!task)return;
   document.getElementById('et-id').value=task.id;
   document.getElementById('et-name').value=task.name||'';
   document.getElementById('et-priority').value=task.priority||'medium';
   document.getElementById('et-done').value=task.done?'true':'false';
   document.getElementById('et-deadline').value=task.deadline||'';
-  // Load profiles for assign dropdown
+  // Load profiles
+  var pRes=await sb.from('profiles').select('full_name');
   var assignEl=document.getElementById('et-assign');
   assignEl.innerHTML='<option value="">Unassigned</option>';
-  var pRes=await sb.from('profiles').select('full_name').order('full_name');
   (pRes.data||[]).forEach(function(p){
-    if(p.full_name){
-      var o=document.createElement('option');
-      o.value=p.full_name;o.textContent=p.full_name;
-      if(p.full_name===task.assigned_name)o.selected=true;
-      assignEl.appendChild(o);
-    }
+    if(p.full_name){var o=document.createElement('option');o.value=p.full_name;o.textContent=p.full_name;if(p.full_name===task.assigned_name)o.selected=true;assignEl.appendChild(o);}
   });
   document.getElementById('edit-task-modal').classList.add('open');
 }
@@ -1603,12 +1747,262 @@ async function saveEditTask(){
   var done=document.getElementById('et-done').value==='true';
   var deadline=document.getElementById('et-deadline').value||null;
   var assigned=document.getElementById('et-assign').value||null;
-  if(!name){alert('Please enter a task description');return;}
-  var update={name:name,priority:pri,done:done,deadline:deadline,assigned_name:assigned,updated_at:new Date().toISOString()};
-  var res=await sb.from('tasks').update(update).eq('id',id);
+  if(!name){alert('Task name required');return;}
+  var res=await sb.from('tasks').update({name:name,priority:pri,done:done,deadline:deadline,assigned_name:assigned,updated_by:CU.id,updated_at:new Date().toISOString()}).eq('id',id);
   if(res.error){alert('Error: '+res.error.message);return;}
   closeModal('edit-task-modal');
   await loadTasks();
+}
+
+
+// ============ PIPELINE MODULE ============
+var _pc={};
+function renderPipelinePage(){
+  var mc=document.getElementById('main-content');
+  mc.innerHTML='<div style="padding:0;background:#f0f3f8;min-height:100%">'
+    +'<div class="page-hdr" style="background:#f0f3f8"><div><div class="page-title">Business Pipeline Report</div><div class="page-sub">Track performance and drive growth</div></div>'
+    +'<div style="display:flex;gap:8px"><select id="pipeline-range" onchange="renderPipeline()" style="padding:8px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px;background:#fff"><option value="3">Last 3 months</option><option value="6" selected>Last 6 months</option><option value="12">Last 12 months</option><option value="0">All time</option></select>'
+    +'<button class="btn btn-blue" onclick="exportPipelinePDF()">Download PDF</button></div></div>'
+    +'<div id="pipeline-kpis" style="display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:20px"></div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px">'
+    +'<div style="background:#fff;border-radius:14px;padding:24px;border:0.5px solid #eaedf2"><div style="font-size:13px;font-weight:700;color:#1a1a2e;margin-bottom:20px">&#128202; Bids Sent per Month</div><canvas id="chart-bids-monthly" height="140"></canvas></div>'
+    +'<div style="background:#fff;border-radius:14px;padding:24px;border:0.5px solid #eaedf2"><div style="font-size:13px;font-weight:700;color:#1a1a2e;margin-bottom:20px">&#127942; Won vs Lost per Month</div><canvas id="chart-bid-status" height="140"></canvas></div>'
+    +'</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px">'
+    +'<div style="background:#fff;border-radius:14px;padding:24px;border:0.5px solid #eaedf2"><div style="font-size:13px;font-weight:700;color:#1a1a2e;margin-bottom:20px">&#128200; Win Rate % per Month</div><canvas id="chart-win-rate" height="140"></canvas></div>'
+    +'<div style="background:#fff;border-radius:14px;padding:24px;border:0.5px solid #eaedf2"><div style="font-size:13px;font-weight:700;color:#1a1a2e;margin-bottom:20px">&#128176; Revenue Pipeline ($)</div><canvas id="chart-revenue" height="140"></canvas></div>'
+    +'</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px">'
+    +'<div style="background:#fff;border-radius:14px;padding:24px;border:0.5px solid #eaedf2"><div style="font-size:13px;font-weight:700;color:#1a1a2e;margin-bottom:20px">&#128222; GC Response Rate</div><canvas id="chart-gc-response" height="140"></canvas></div>'
+    +'<div style="background:#fff;border-radius:14px;padding:24px;border:0.5px solid #eaedf2"><div style="font-size:13px;font-weight:700;color:#1a1a2e;margin-bottom:20px">&#129309; New GC Contacts per Month</div><canvas id="chart-gc-status" height="140"></canvas></div>'
+    +'</div>'
+    +'<div style="background:#fff;border-radius:14px;padding:24px;border:0.5px solid #eaedf2;margin-bottom:40px"><div style="font-size:13px;font-weight:700;color:#1a1a2e;margin-bottom:14px">&#128161; Key Insights</div><div id="pipeline-insights" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px"></div></div>'
+    +'</div>';
+  setTimeout(renderPipeline,150);
+}
+
+async function renderPipeline(){
+  var months=parseInt((document.getElementById('pipeline-range')||{value:'6'}).value)||6;
+  var now=new Date(),cutoff=months===0?new Date('2020-01-01'):new Date(now.getFullYear(),now.getMonth()-months+1,1);
+  var br=await sb.from('bids').select('*'),gr=await sb.from('gc_contacts').select('*');
+  var bids=br.data||[],gcs=gr.data||[];
+  var nM=months===0?24:months,labels=[];
+  for(var m=nM-1;m>=0;m--){var d=new Date(now.getFullYear(),now.getMonth()-m,1);labels.push(d.toLocaleString('en-US',{month:'short',year:'2-digit'}));}
+  function gl(ds){if(!ds)return null;return new Date(ds).toLocaleString('en-US',{month:'short',year:'2-digit'});}
+  function gbd(b){return b.due_date||b.last_ping||b.created_at||null;}
+  var act=bids.filter(function(b){return ['Bid Sent','Submitted','Win','Lost','Under Review'].indexOf(b.status||'')>=0;});
+  var fil=act.filter(function(b){var d=gbd(b);return d&&new Date(d)>=cutoff;});
+  if(!fil.length)fil=act;
+  var bpm={},wpm={},lpm={},rpm={},wvpm={};
+  labels.forEach(function(l){bpm[l]=0;wpm[l]=0;lpm[l]=0;rpm[l]=0;wvpm[l]=0;});
+  fil.forEach(function(b){var l=gl(gbd(b));if(!l||bpm[l]===undefined)return;bpm[l]++;if(b.status==='Win'){wpm[l]++;wvpm[l]+=(b.price||0);}if(b.status==='Lost')lpm[l]++;rpm[l]+=(b.price||0);});
+  var wrpm=labels.map(function(l){return bpm[l]>0?Math.round((wpm[l]/bpm[l])*100):0;});
+  var gcpm={};labels.forEach(function(l){gcpm[l]=0;});
+  gcs.forEach(function(g){var l=gl(g.created_at);if(l&&gcpm[l]!==undefined)gcpm[l]++;});
+  var gcR=gcs.filter(function(g){return ['call','active','est_yes'].indexOf(g.gc_fu_status||'')>=0;}).length;
+  var gcN=gcs.filter(function(g){return !g.gc_fu_status||g.gc_fu_status==='none'||g.gc_fu_status==='intro';}).length;
+  var gcI=gcs.filter(function(g){return g.gc_fu_status==='nointerest';}).length;
+  var tB=fil.length,tW=fil.filter(function(b){return b.status==='Win';}).length;
+  var tL=fil.filter(function(b){return b.status==='Lost';}).length;
+  var tV=fil.reduce(function(s,b){return s+(b.price||0);},0);
+  var wr=tB>0?Math.round((tW/tB)*100):0;
+  var kEl=document.getElementById('pipeline-kpis');
+  if(kEl)kEl.innerHTML=plKpi('Bids Sent','#1B5E9B',tB,'in period')+plKpi('Won','#1D9E75',tW,'projects')+plKpi('Lost','#E24B4A',tL,'projects')+plKpi('Win Rate','#854F0B',wr+'%','of bids')+plKpi('Value','#1B5E9B','$'+fmt$(tV),'total');
+  Object.values(_pc).forEach(function(c){if(c)c.destroy();});_pc={};
+  if(typeof Chart==='undefined'){console.error('Chart.js not loaded');return;}
+  function lo(cb){return{responsive:true,plugins:{legend:{position:'top',labels:{usePointStyle:true,font:{size:11}}}},scales:{x:{grid:{display:false}},y:{beginAtZero:true,ticks:{callback:cb||function(v){return Number.isInteger(v)?v:'';}}}}};} 
+  function mk(id,ds2,yf){var el=document.getElementById(id);if(!el)return null;return new Chart(el,{type:'line',data:{labels:labels,datasets:ds2},options:lo(yf)});}
+  function ds(label,color,data){return{label:label,data:data,borderColor:color,backgroundColor:'transparent',borderWidth:2.5,tension:0.3,fill:false,pointBackgroundColor:color,pointBorderColor:'#fff',pointRadius:5,pointHoverRadius:7};}
+  _pc.a=mk('chart-bids-monthly',[ds('Bids Sent','#1B5E9B',labels.map(function(l){return bpm[l];}))]);
+  _pc.b=mk('chart-bid-status',[ds('Won','#1D9E75',labels.map(function(l){return wpm[l];})),ds('Lost','#E24B4A',labels.map(function(l){return lpm[l];}))]);
+  var gcEl=document.getElementById('chart-gc-response');
+  if(gcEl)_pc.c=new Chart(gcEl,{type:'doughnut',data:{labels:['Responded','No Response','Not Interested'],datasets:[{data:[gcR,gcN,gcI],backgroundColor:['rgba(29,158,117,0.8)','rgba(186,117,23,0.8)','rgba(226,75,74,0.8)'],borderWidth:2,borderColor:'#fff'}]},options:{responsive:true,plugins:{legend:{position:'bottom'}},cutout:'60%'}});
+  _pc.d=mk('chart-revenue',[ds('Bid Value','#1B5E9B',labels.map(function(l){return Math.round(rpm[l]);})),ds('Won Value','#1D9E75',labels.map(function(l){return Math.round(wvpm[l]);}))],function(v){return v>=1000?'$'+Math.round(v/1000)+'k':'$'+v;});
+  _pc.e=mk('chart-win-rate',[ds('Win Rate %','#1D9E75',wrpm)],function(v){return v+'%';});
+  _pc.f=mk('chart-gc-status',[ds('New GC Contacts','#6B4FA8',labels.map(function(l){return gcpm[l];}))]);
+  var iEl=document.getElementById('pipeline-insights');
+  if(iEl){var ins=[];
+    ins.push(tB<5?{t:'Low Bid Volume',x:'Only '+tB+' bids. Aim for 5-10/month.',c:'#E24B4A'}:{t:'Good Bid Volume',x:tB+' bids submitted!',c:'#1D9E75'});
+    ins.push(wr===0?{t:'No Wins Yet',x:'Focus on follow-up quality.',c:'#E24B4A'}:wr<20?{t:'Win Rate: '+wr+'%',x:'Aim for 20-30%.',c:'#BA7517'}:{t:'Win Rate: '+wr+'%',x:'Strong! Track best GCs.',c:'#1D9E75'});
+    var gr=gcs.length>0?Math.round((gcR/gcs.length)*100):0;
+    ins.push(gr<30?{t:'GC Outreach: '+gr+'%',x:'Increase call frequency.',c:'#E24B4A'}:{t:'GC Response: '+gr+'%',x:'Good engagement!',c:'#1D9E75'});
+    iEl.innerHTML=ins.map(function(i){return '<div style="background:#f8faff;border-radius:10px;padding:16px;border-left:4px solid '+i.c+'"><div style="font-size:13px;font-weight:700;color:#1a1a2e;margin-bottom:6px">'+i.t+'</div><div style="font-size:12px;color:#666;line-height:1.5">'+i.x+'</div></div>';}).join('');
+  }
+}
+
+
+function renderCustomGroups(){
+  var groups=getCustomGroups();
+  var el=document.getElementById('custom-groups-list');
+  if(!el)return;
+  if(!groups.length){el.innerHTML='<div style="font-size:13px;color:#aaa">No custom groups yet.</div>';return;}
+  el.innerHTML=groups.map(function(g,i){
+    return '<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:#f8faff;border-radius:8px;margin-bottom:6px">'
+      +'<span style="flex:1;font-size:13px;font-weight:600;color:#1B5E9B">'+g+'</span>'
+      +'<button class="btn-danger" onclick="deleteCustomGroup('+i+')">Delete</button>'
+      +'</div>';
+  }).join('');
+}
+
+function addCustomGroup(){
+  var name=document.getElementById('new-group-name').value.trim();
+  if(!name){alert('Enter a group name');return;}
+  var groups=getCustomGroups();
+  if(groups.indexOf(name)>=0){alert('Group already exists');return;}
+  groups.push(name);
+  localStorage.setItem('netfiber_custom_groups',JSON.stringify(groups));
+  // Add to GROUPS object with basic access
+  var grps=getGroups();
+  grps[name]=['dashboard','tasks'];
+  GROUPS=grps;
+  saveGroups(grps);
+  document.getElementById('new-group-name').value='';
+  renderCustomGroups();
+  renderGroupPermsTable();
+}
+
+function deleteCustomGroup(idx){
+  if(!confirm('Delete this group?'))return;
+  var groups=getCustomGroups();
+  groups.splice(idx,1);
+  localStorage.setItem('netfiber_custom_groups',JSON.stringify(groups));
+  renderCustomGroups();
+}
+
+
+var ALL_PAGES=['dashboard','bids','gc','retail','proposals','purchases','tasks','log','mgmt','pipeline'];
+var PAGE_LABELS=['Dashboard','Bid Opp.','GC Contacts','Retail','Proposals','Purchases','To-Do','Activity Log','Management','Pipeline'];
+
+function renderGroupPermsTable(){
+  var el=document.getElementById('group-perms-table');
+  if(!el)return;
+  GROUPS=getGroups();
+  var groups=Object.keys(GROUPS);
+  var html2='<table style="width:100%;border-collapse:collapse;font-size:12px">';
+  html2+='<thead><tr><th style="text-align:left;padding:8px 12px;background:#f8faff;border-bottom:2px solid #eaedf2;font-weight:700;color:#1B5E9B">Group</th>';
+  ALL_PAGES.forEach(function(p,i){
+    html2+='<th style="text-align:center;padding:8px 6px;background:#f8faff;border-bottom:2px solid #eaedf2;font-weight:600;color:#555;white-space:nowrap">'+PAGE_LABELS[i]+'</th>';
+  });
+  html2+='<th style="background:#f8faff;border-bottom:2px solid #eaedf2"></th></tr></thead><tbody>';
+  groups.forEach(function(g){
+    var perms=GROUPS[g]||[];
+    var isAdmin=g==='admin';
+    html2+='<tr style="border-bottom:1px solid #f0f0f0">';
+    html2+='<td style="padding:8px 12px"><span class="gbadge g-'+(g==='admin'?'admin':g==='sales'?'sales':g==='staff'?'staff':'field')+'">'+g+'</span></td>';
+    ALL_PAGES.forEach(function(p){
+      var checked=perms.indexOf(p)>=0;
+      html2+='<td style="text-align:center;padding:6px">'
+        +(isAdmin
+          ? '<span style="color:#1D9E75;font-size:16px">✓</span>'
+          : '<input type="checkbox" data-group="'+g+'" data-page="'+p+'"'+(checked?' checked':'')
+            +' style="width:16px;height:16px;cursor:pointer">'
+        )+'</td>';
+    });
+    html2+='<td style="padding:6px 12px">'
+            +(g!=='admin'?'<button onclick="deleteGroup(&quot;'+g+'&quot;)" class="btn-danger" style="font-size:11px">Delete</button>':'')
+      +'</td></tr>';
+  });
+  html2+='</tbody></table>';
+  html2+='<div style="margin-top:12px;font-size:11px;color:#aaa">Check/uncheck pages per group, then click Save Changes. Admin always has full access.</div>';
+  el.innerHTML=html2;
+}
+
+function saveGroupPermissions(){
+  var boxes=document.querySelectorAll('#group-perms-table input[type=checkbox]');
+  var newGroups={};
+  // Start with current groups
+  Object.keys(GROUPS).forEach(function(g){newGroups[g]=[];});
+  // Always include dashboard for everyone
+  boxes.forEach(function(cb){
+    var g=cb.getAttribute('data-group');
+    var p=cb.getAttribute('data-page');
+    if(cb.checked){if(!newGroups[g])newGroups[g]=[];newGroups[g].push(p);}
+  });
+  // Admin always has all
+  newGroups['admin']=ALL_PAGES.slice();
+  // Ensure dashboard always included
+  Object.keys(newGroups).forEach(function(g){
+    if(newGroups[g].indexOf('dashboard')<0)newGroups[g].unshift('dashboard');
+  });
+  GROUPS=newGroups;
+  saveGroups(newGroups).then(function(){
+    showToast('Group permissions saved!','#1D9E75');
+    renderGroupPermsTable();
+  });
+}
+
+function deleteGroup(groupName){
+  if(groupName==='admin'||groupName==='sales'||groupName==='staff'||groupName==='field'){
+    alert('Cannot delete built-in groups.');return;
+  }
+  if(!confirm('Delete group "'+groupName+'"? Users in this group will be moved to Staff.'))return;
+  // Move users out first
+  sbA.from('profiles').update({group_name:'staff'}).eq('group_name',groupName).then(function(){});
+  var grps=getGroups();
+  delete grps[groupName];
+  GROUPS=grps;
+  saveGroups(grps);
+  // Remove from custom groups list
+  var custom=getCustomGroups().filter(function(g){return g!==groupName;});
+  localStorage.setItem('netfiber_custom_groups',JSON.stringify(custom));
+  renderCustomGroups();
+  renderGroupPermsTable();
+  loadUsers();
+  showToast('Group "'+groupName+'" deleted');
+}
+
+// loadSavedGroups removed - getGroups() handles this
+
+
+// ===== FORGOT PASSWORD =====
+function showForgotPassword(){
+  document.getElementById('forgot-panel').style.display='block';
+  document.getElementById('auth-form-content').style.display='none';
+  document.getElementById('forgot-email').value='';
+  document.getElementById('reset-msg').style.display='none';
+}
+function showLogin(){
+  document.getElementById('forgot-panel').style.display='none';
+  document.getElementById('auth-form-content').style.display='block';
+  document.getElementById('auth-err').textContent='';
+}
+async function sendReset(){
+  var email=document.getElementById('forgot-email').value.trim();
+  if(!email){alert('Please enter your email');return;}
+  var msgEl=document.getElementById('reset-msg');
+  msgEl.style.display='block';
+  msgEl.style.color='#aaa';
+  msgEl.textContent='Sending...';
+  var {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:window.location.origin+window.location.pathname});
+  if(error){
+    msgEl.style.color='#E24B4A';
+    msgEl.textContent='Error: '+error.message;
+  } else {
+    msgEl.style.color='#1D9E75';
+    msgEl.textContent='Reset link sent! Check your email inbox.';
+  }
+}
+
+function adminChangePassword(userId, userName){
+  document.getElementById('change-pw-uid').value=userId;
+  document.getElementById('change-pw-username').textContent='Changing password for: '+userName;
+  document.getElementById('new-pw-input').value='';
+  document.getElementById('confirm-pw-input').value='';
+  document.getElementById('pw-change-msg').style.display='none';
+  document.getElementById('change-pw-modal').classList.add('open');
+}
+
+async function doAdminChangePassword(){
+  var uid=document.getElementById('change-pw-uid').value;
+  var pw=document.getElementById('new-pw-input').value;
+  var pw2=document.getElementById('confirm-pw-input').value;
+  var msg=document.getElementById('pw-change-msg');
+  if(!pw||pw.length<6){msg.style.display='block';msg.style.color='#E24B4A';msg.textContent='Password must be at least 6 characters';return;}
+  if(pw!==pw2){msg.style.display='block';msg.style.color='#E24B4A';msg.textContent='Passwords do not match';return;}
+  msg.style.display='block';msg.style.color='#aaa';msg.textContent='Updating...';
+  var res=await sbA.auth.admin.updateUserById(uid,{password:pw});
+  if(res.error){msg.style.color='#E24B4A';msg.textContent='Error: '+res.error.message;}
+  else{msg.style.color='#1D9E75';msg.textContent='Password updated successfully!';setTimeout(function(){closeModal('change-pw-modal');},1500);}
 }
 
 </script>
@@ -2051,11 +2445,15 @@ document.addEventListener('input',function(e){if(e.target&&e.target.id==='ped-ta
           </select></div>
         <div style="flex:0 0 170px"><div style="font-size:10px;font-weight:700;color:#555;margin-bottom:4px;text-transform:uppercase">Update Status</div>
           <select id="gc-fu-status-after" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:8px;font-size:12px;outline:none">
-            <option value="intro">Intro Email Sent (3d)</option>
-            <option value="form">GC Needs Form (7d)</option>
-            <option value="call">Called — follow up 14d</option>
-            <option value="active">Active — providing bids (30d)</option>
-            <option value="nointerest">Not Interested</option>
+            <option value="intro">📧 Intro Email Sent (follow up 3d)</option>
+            <option value="email_due">📧 Email Follow-Up Due</option>
+            <option value="call">📞 Called GC (follow up 14d)</option>
+            <option value="active">📞 Active — keeps calling (30d)</option>
+            <option value="estimation">📋 GC Sent Bid — Sent to Estimation</option>
+            <option value="est_yes">✅ Estimation Approved — We Bid</option>
+            <option value="est_no">❌ Estimation Declined — Pass</option>
+            <option value="form">📄 GC Needs Form (7d)</option>
+            <option value="nointerest">🚫 Not Interested</option>
           </select></div>
         <div style="flex:0 0 130px"><div style="font-size:10px;font-weight:700;color:#555;margin-bottom:4px;text-transform:uppercase">Next Follow-Up</div>
           <input type="date" id="gc-fu-next-date" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:8px;font-size:12px;outline:none"></div>
@@ -2069,14 +2467,77 @@ document.addEventListener('input',function(e){if(e.target&&e.target.id==='ped-ta
   </div>
 </div>
 
+<script>function plKpi(label,color,value,sub){
+  return '<div style="background:#fff;border-radius:12px;padding:18px 20px;border:0.5px solid #eaedf2;border-top:3px solid '+color+'">'
+    +'<div style="font-size:10px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">'+label+'</div>'
+    +'<div style="font-size:26px;font-weight:800;color:'+color+'">'+value+'</div>'
+    +'<div style="font-size:11px;color:#bbb;margin-top:4px">'+sub+'</div>'
+    +'</div>';
+}
 
+
+function exportPipelinePDF(){
+  var w=window.open('','_blank');
+  var tag1='<'+'html><'+'head><title>Pipeline<'+'/title>';
+  var tag2='<style>body{font-family:Arial,sans-serif;padding:20px}h1{color:#1B5E9B}<'+'/style>';
+  var tag3='<'+'/'+'head><'+'body>';
+  var tag4='<h1>NetFiber Pipeline Report<'+'/h1>';
+  var tag5='<p>'+new Date().toLocaleDateString()+'<'+'/p>';
+  var tag6='<'+'/'+'body><'+'/'+'html>';
+  w.document.write(tag1+tag2+tag3+tag4+tag5+document.getElementById('main-content').innerHTML+tag6);
+  w.document.close();
+  setTimeout(function(){w.print();},1500);
+}
+</script>
+<!-- EDIT TASK MODAL -->
+<div class="modal-bg" id="edit-task-modal">
+  <div class="modal-card" style="max-width:480px">
+    <div class="modal-title">Edit Task</div>
+    <input type="hidden" id="et-id">
+    <div class="fgrid">
+      <div class="ifield" style="grid-column:1/-1"><label>Task</label><input id="et-name" type="text" placeholder="Task description"></div>
+      <div class="ifield"><label>Priority</label>
+        <select id="et-priority">
+          <option value="high">High</option>
+          <option value="medium">Medium</option>
+          <option value="low">Low</option>
+        </select>
+      </div>
+      <div class="ifield"><label>Status</label>
+        <select id="et-done">
+          <option value="false">Pending</option>
+          <option value="true">Done</option>
+        </select>
+      </div>
+      <div class="ifield"><label>Deadline</label><input id="et-deadline" type="date"></div>
+      <div class="ifield"><label>Assigned To</label>
+        <select id="et-assign">
+          <option value="">Assign to...</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('edit-task-modal')" style="background:#f0f0f0;color:#666">Cancel</button>
+      <button class="btn btn-blue" onclick="saveEditTask()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- CHANGE PASSWORD MODAL -->
 <div class="modal-bg" id="change-pw-modal">
   <div class="fu-panel" style="max-width:420px">
     <div style="font-size:16px;font-weight:700;color:#1B5E9B;margin-bottom:6px">Reset User Password</div>
     <div id="change-pw-username" style="font-size:13px;color:#aaa;margin-bottom:20px"></div>
     <input type="hidden" id="change-pw-uid">
-    <div style="margin-bottom:14px"><label style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;display:block;margin-bottom:6px">New Password</label><input type="password" id="new-pw-input" placeholder="Min 6 characters" style="width:100%;padding:10px 12px;border:1.5px solid #dde4ee;border-radius:8px;font-size:13px;outline:none"></div>
-    <div style="margin-bottom:20px"><label style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;display:block;margin-bottom:6px">Confirm Password</label><input type="password" id="confirm-pw-input" placeholder="Repeat password" style="width:100%;padding:10px 12px;border:1.5px solid #dde4ee;border-radius:8px;font-size:13px;outline:none"></div>
+    <div class="ifield" style="margin-bottom:14px">
+      <label style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;display:block;margin-bottom:6px">New Password</label>
+      <input type="password" id="new-pw-input" placeholder="Min 6 characters" style="width:100%;padding:10px 12px;border:1.5px solid #dde4ee;border-radius:8px;font-size:13px;outline:none">
+    </div>
+    <div class="ifield" style="margin-bottom:20px">
+      <label style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;display:block;margin-bottom:6px">Confirm Password</label>
+      <input type="password" id="confirm-pw-input" placeholder="Repeat password" style="width:100%;padding:10px 12px;border:1.5px solid #dde4ee;border-radius:8px;font-size:13px;outline:none">
+    </div>
     <div id="pw-change-msg" style="font-size:13px;margin-bottom:12px;display:none"></div>
     <div style="display:flex;gap:8px;justify-content:flex-end">
       <button class="btn" onclick="closeModal('change-pw-modal')" style="background:#f0f0f0;color:#666">Cancel</button>
@@ -2084,47 +2545,64 @@ document.addEventListener('input',function(e){if(e.target&&e.target.id==='ped-ta
     </div>
   </div>
 </div>
+</body></html>';w.document.write(h);w.document.close();setTimeout(function(){w.print();},1500);}
 
+<!-- EDIT TASK MODAL -->
 <div class="modal-bg" id="edit-task-modal">
-  <div class="fu-panel" style="max-width:480px;width:95%">
-    <div style="font-size:16px;font-weight:700;color:#1B5E9B;margin-bottom:18px">Edit Task</div>
+  <div class="modal-card" style="max-width:480px">
+    <div class="modal-title">Edit Task</div>
     <input type="hidden" id="et-id">
-    <div style="margin-bottom:14px">
-      <label style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;display:block;margin-bottom:6px">Task Description</label>
-      <input id="et-name" type="text" style="width:100%;padding:10px 12px;border:1.5px solid #dde4ee;border-radius:8px;font-size:13px;outline:none" placeholder="Task description">
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
-      <div>
-        <label style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;display:block;margin-bottom:6px">Priority</label>
-        <select id="et-priority" style="width:100%;padding:9px 10px;border:1.5px solid #dde4ee;border-radius:8px;font-size:13px;outline:none">
+    <div class="fgrid">
+      <div class="ifield" style="grid-column:1/-1"><label>Task</label><input id="et-name" type="text" placeholder="Task description"></div>
+      <div class="ifield"><label>Priority</label>
+        <select id="et-priority">
           <option value="high">High</option>
           <option value="medium">Medium</option>
           <option value="low">Low</option>
         </select>
       </div>
-      <div>
-        <label style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;display:block;margin-bottom:6px">Status</label>
-        <select id="et-done" style="width:100%;padding:9px 10px;border:1.5px solid #dde4ee;border-radius:8px;font-size:13px;outline:none">
+      <div class="ifield"><label>Status</label>
+        <select id="et-done">
           <option value="false">Pending</option>
           <option value="true">Done</option>
         </select>
       </div>
-      <div>
-        <label style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;display:block;margin-bottom:6px">Deadline</label>
-        <input id="et-deadline" type="date" style="width:100%;padding:9px 10px;border:1.5px solid #dde4ee;border-radius:8px;font-size:13px;outline:none">
-      </div>
-      <div>
-        <label style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;display:block;margin-bottom:6px">Assigned To</label>
-        <select id="et-assign" style="width:100%;padding:9px 10px;border:1.5px solid #dde4ee;border-radius:8px;font-size:13px;outline:none">
-          <option value="">Unassigned</option>
+      <div class="ifield"><label>Deadline</label><input id="et-deadline" type="date"></div>
+      <div class="ifield"><label>Assigned To</label>
+        <select id="et-assign">
+          <option value="">Assign to...</option>
         </select>
       </div>
     </div>
-    <div style="display:flex;gap:8px;justify-content:flex-end;padding-top:14px;border-top:1px solid #f0f0f0">
+    <div class="modal-footer">
       <button class="btn" onclick="closeModal('edit-task-modal')" style="background:#f0f0f0;color:#666">Cancel</button>
       <button class="btn btn-blue" onclick="saveEditTask()">Save Changes</button>
     </div>
   </div>
 </div>
+
+
+<!-- CHANGE PASSWORD MODAL -->
+<div class="modal-bg" id="change-pw-modal">
+  <div class="fu-panel" style="max-width:420px">
+    <div style="font-size:16px;font-weight:700;color:#1B5E9B;margin-bottom:6px">Reset User Password</div>
+    <div id="change-pw-username" style="font-size:13px;color:#aaa;margin-bottom:20px"></div>
+    <input type="hidden" id="change-pw-uid">
+    <div class="ifield" style="margin-bottom:14px">
+      <label style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;display:block;margin-bottom:6px">New Password</label>
+      <input type="password" id="new-pw-input" placeholder="Min 6 characters" style="width:100%;padding:10px 12px;border:1.5px solid #dde4ee;border-radius:8px;font-size:13px;outline:none">
+    </div>
+    <div class="ifield" style="margin-bottom:20px">
+      <label style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;display:block;margin-bottom:6px">Confirm Password</label>
+      <input type="password" id="confirm-pw-input" placeholder="Repeat password" style="width:100%;padding:10px 12px;border:1.5px solid #dde4ee;border-radius:8px;font-size:13px;outline:none">
+    </div>
+    <div id="pw-change-msg" style="font-size:13px;margin-bottom:12px;display:none"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn" onclick="closeModal('change-pw-modal')" style="background:#f0f0f0;color:#666">Cancel</button>
+      <button class="btn btn-blue" onclick="doAdminChangePassword()">Set New Password</button>
+    </div>
+  </div>
+</div>
 </body>
-</html>
+</html
+        ${canAccess('tasks')?`<div class="mod-btn" onclick="showPage('tasks')" style="border-top:3px solid #1D9E75">>
