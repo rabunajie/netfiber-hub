@@ -761,8 +761,30 @@ function getGroups(){
   }catch(e){}
   return JSON.parse(JSON.stringify(DEFAULT_GROUPS));
 }
-function saveGroups(g){
+
+async function loadGroupsFromDB(){
+  // Load saved group permissions from admin profile
+  try{
+    var res=await sbA.from('profiles').select('group_permissions').eq('group_name','admin').single();
+    if(res.data&&res.data.group_permissions){
+      var parsed=JSON.parse(res.data.group_permissions);
+      if(parsed&&typeof parsed==='object'){
+        localStorage.setItem('netfiber_groups',JSON.stringify(parsed));
+        GROUPS=parsed;
+        return;
+      }
+    }
+  }catch(e){}
+  GROUPS=getGroups();
+}
+async function saveGroups(g){
   localStorage.setItem('netfiber_groups',JSON.stringify(g));
+  // Also save to Supabase so all users get the same permissions
+  try{
+    await sbA.from('profiles').update({group_permissions:JSON.stringify(g)}).eq('role','admin_config').limit(1);
+    // If no admin_config row, store in the admin user's profile as a settings field
+    await sbA.from('profiles').update({group_permissions:JSON.stringify(g)}).eq('group_name','admin').limit(1);
+  }catch(e){console.log('Saved to localStorage only');}
 }
 var GROUPS=getGroups();
 function canAccess(p){
@@ -811,6 +833,8 @@ async function initApp(user){
   CU=user;
   const {data:p}=await sb.from('profiles').select('*').eq('id',user.id).single();
   CP=p||{full_name:user.email,group_name:'staff'};
+  // Load group permissions from DB (cross-device sync)
+  await loadGroupsFromDB();
   const name=CP.full_name||user.email;
   const ini=name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
   document.getElementById('tb-name').textContent=name;
@@ -1548,16 +1572,6 @@ async function renderMgmt(){
       <div style="padding:16px;overflow-x:auto">
         <div id="group-perms-table"></div>
       </div>
-    </div><div class="mgmt-hdr"><h3>Group Permissions</h3></div>
-      <div style="padding:14px;overflow-x:auto">
-        <table><thead><tr><th>Group</th><th>Bid Opportunities</th><th>GC Contacts</th><th>Retail</th><th>Purchases</th><th>To-Do</th><th>Activity Log</th><th>Management</th></tr></thead>
-        <tbody>
-          <tr><td><span class="gbadge g-admin">Admin</span></td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr>
-          <tr><td><span class="gbadge g-sales">Sales</span></td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>—</td><td>—</td></tr>
-          <tr><td><span class="gbadge g-staff">Staff</span></td><td>—</td><td>—</td><td>✓</td><td>—</td><td>✓</td><td>—</td><td>—</td></tr>
-          <tr><td><span class="gbadge g-field">Field</span></td><td>—</td><td>—</td><td>—</td><td>—</td><td>✓</td><td>—</td><td>—</td></tr>
-        </tbody></table>
-      </div>
     </div>`;
   await loadUsers();
   renderCustomGroups();
@@ -1894,9 +1908,10 @@ function saveGroupPermissions(){
     if(newGroups[g].indexOf('dashboard')<0)newGroups[g].unshift('dashboard');
   });
   GROUPS=newGroups;
-  saveGroups(newGroups);
-  showToast('Group permissions saved!','#1D9E75');
-  renderGroupPermsTable();
+  saveGroups(newGroups).then(function(){
+    showToast('Group permissions saved!','#1D9E75');
+    renderGroupPermsTable();
+  });
 }
 
 function deleteGroup(groupName){
