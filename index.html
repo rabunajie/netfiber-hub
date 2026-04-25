@@ -1619,7 +1619,7 @@ async function loadUsers(){
       +'<div class="user-email">'+(u.email||u.id)+'</div>'
       +'</div>'
       +'<div style="display:flex;gap:8px;align-items:center">'
-      +(!isMe?groupSel+disBtn:'<span style="font-size:12px;color:#aaa">You</span>')
+      +(!isMe?groupSel+pwBtn+disBtn:'<span style="font-size:12px;color:#aaa">You</span>')
       +'</div></div>';
   });
   ul.innerHTML=rows||'<div style="padding:1rem;color:#aaa;font-size:13px">No users found</div>';
