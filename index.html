@@ -335,6 +335,10 @@ tr:hover td{background:#fafcff}
 .print-work-item:last-child{border-bottom:none}
 
 
+
+.modal-card{background:#fff;border-radius:16px;padding:28px;width:100%;box-shadow:0 8px 40px rgba(0,0,0,0.18)}
+.modal-title{font-size:16px;font-weight:700;color:#1B5E9B;margin-bottom:18px}
+.modal-footer{display:flex;gap:8px;justify-content:flex-end;padding-top:14px;border-top:1px solid #f0f0f0;margin-top:4px}
 </style>
 
 
@@ -2494,7 +2498,7 @@ function exportPipelinePDF(){
   <div class="modal-card" style="max-width:480px">
     <div class="modal-title">Edit Task</div>
     <input type="hidden" id="et-id">
-    <div class="fgrid">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
       <div class="ifield" style="grid-column:1/-1"><label>Task</label><input id="et-name" type="text" placeholder="Task description"></div>
       <div class="ifield"><label>Priority</label>
         <select id="et-priority">
@@ -2516,7 +2520,7 @@ function exportPipelinePDF(){
         </select>
       </div>
     </div>
-    <div class="modal-footer">
+    <div style="display:flex;gap:8px;justify-content:flex-end;padding-top:14px;border-top:1px solid #f0f0f0;margin-top:4px">
       <button class="btn" onclick="closeModal('edit-task-modal')" style="background:#f0f0f0;color:#666">Cancel</button>
       <button class="btn btn-blue" onclick="saveEditTask()">Save Changes</button>
     </div>
