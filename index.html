@@ -313,7 +313,7 @@ tr:hover td{background:#fafcff}
 .print-est-detail{margin-bottom:16px;font-size:12px;color:#555}
 .print-table{width:100%;border-collapse:collapse;margin-bottom:16px}
 .print-table th{background:#1B5E9B;color:#fff;padding:8px 10px;text-align:left;font-size:11px;font-weight:700}
-.print-table td{padding:7px 10px;border-bottom:0.5px solid #eee;font-size:12px}
+.print-table td{padding:14px 10px;border-bottom:0.5px solid #eee;font-size:12px}
 .print-table tr:nth-child(even) td{background:#f9fafb}
 .print-totals{display:flex;justify-content:flex-end;margin-bottom:20px}
 .print-totals-box{width:260px}
@@ -2460,8 +2460,8 @@ async function printEstimate(id){
     +'<div style="margin-top:80px;font-size:12px;color:#aaa;line-height:1.8">NetFiber Network Cabling Solutions LLC<br>4840 North Shepherd Dr #4303, Houston, Texas 77018<br>www.netfibernetwork.com</div>'
     +'</div>'
     +'<div style="page-break-after:always">'
-    +'<div class="print-header"><div><div class="print-co" style="font-size:11px;font-weight:700">ESTIMATE</div><div class="print-co">NETFIBER NETWORK CABLING SOLUTIONS LLC</div><div style="font-size:11px;color:#555;margin-top:2px">4840 North Shepherd Dr #4303, Houston, TX 77018</div></div>'
-    +'<div class="print-contact">mabunajie@netfibernetwork.com<br>+1 (214) 542-7839<br>https://www.netfibernetwork.com/</div></div>'
+    +'<div class="print-header"><div class="print-contact">mabunajie@netfibernetwork.com<br>+1 (214) 542-7839<br>https://www.netfibernetwork.com/</div>'
+    +'<div style="text-align:right"><div class="print-co" style="font-size:13px;font-weight:800;letter-spacing:1px">ESTIMATE</div><div class="print-co" style="font-size:11px">NETFIBER NETWORK CABLING SOLUTIONS LLC</div><div style="font-size:11px;color:#555;margin-top:2px">4840 North Shepherd Dr #4303</div><div style="font-size:11px;color:#555">Houston, TX 77018</div></div></div>'
     +'<div class="print-bill-row"><div class="print-bill-box"><div class="print-bill-label">Bill To</div><div class="print-bill-content"><strong>'+(primaryGC.company||'')+'</strong><br>'+(primaryGC.address||'')+'</div></div>'
     +'<div class="print-bill-box"><div class="print-bill-label">Ship To</div><div class="print-bill-content"><strong>'+(prop.project_name||'')+'</strong><br>'+(prop.ship_to_address||'')+'</div></div></div>'
     +'<div class="print-est-detail"><strong>Estimate details</strong><br>Estimate no.: '+(prop.estimate_no||'')+' &nbsp;&nbsp; Estimate date: '+propDateShort+'</div>'
