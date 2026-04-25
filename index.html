@@ -1125,6 +1125,13 @@ async function renderBids(){
   <option value="due_overdue">⚠️ Bids Overdue</option>
   <option value="fu_today">📧 Email Follow-Up Due</option>
   <option value="fu_overdue">📞 Phone Follow-Up Due</option>
+  <optgroup label="── By Scope ──">
+    <option value="scope_comm">📡 Comm / Data Cabling (GC26-22-xx)</option>
+    <option value="scope_av">📺 AV (GC26-23-xx)</option>
+    <option value="scope_sec">🔒 Security (GC26-24-xx)</option>
+    <option value="scope_net">🌐 Networking</option>
+    <option value="scope_wireless">📶 Wireless</option>
+  </optgroup>
 </select>
     </div>
     <div class="tbl-wrap" style="overflow-x:auto">
@@ -1172,12 +1179,20 @@ function filterBids(){
     else if(filter==='due_overdue') rows=rows.filter(function(r){return r.due_date&&ddiff(r.due_date)<0&&r.status==='Under Review';});
     else if(filter==='fu_today') rows=rows.filter(function(r){return r.fu_next_date&&ddiff(r.fu_next_date)<=0&&r.status!=='Win'&&r.status!=='Lost';});
     else if(filter==='fu_overdue') rows=rows.filter(function(r){return r.fu_next_date&&ddiff(r.fu_next_date)<0&&r.status!=='Win'&&r.status!=='Lost';});
+    else if(filter==='scope_comm') rows=rows.filter(function(r){return (r.ref||'').includes('-22-')||(r.scope||'').toLowerCase().includes('comm')||(r.scope||'').toLowerCase().includes('data');});
+    else if(filter==='scope_av') rows=rows.filter(function(r){return (r.ref||'').includes('-23-')||(r.scope||'').toLowerCase().includes('av');});
+    else if(filter==='scope_sec') rows=rows.filter(function(r){return (r.ref||'').includes('-24-')||(r.scope||'').toLowerCase().includes('sec');});
+    else if(filter==='scope_net') rows=rows.filter(function(r){return (r.scope||'').toLowerCase().includes('network');});
+    else if(filter==='scope_wireless') rows=rows.filter(function(r){return (r.scope||'').toLowerCase().includes('wireless');});
     else if(filter) rows=rows.filter(function(r){return r.status===filter;});
     if(search) rows=rows.filter(function(r){return ((r.project||'')+(r.gc||'')+(r.ref||'')+(r.poc||'')).toLowerCase().indexOf(search)>=0;});
+    // Sort by ref# descending (newest/highest ref on top)
     rows.sort(function(a,b){
-      var da=a.fu_next_date?new Date(a.fu_next_date):new Date('2099-01-01');
-      var db=b.fu_next_date?new Date(b.fu_next_date):new Date('2099-01-01');
-      return da-db;
+      var ra=a.ref||'';var rb=b.ref||'';
+      // Extract number from ref e.g. GC26-22-037
+      var na=parseInt((ra.match(/(\d+)$/)||[0,0])[1]||0);
+      var nb=parseInt((rb.match(/(\d+)$/)||[0,0])[1]||0);
+      return nb-na;
     });
     const tbody=document.getElementById('bid-body');
     if(!tbody) return;
@@ -1438,7 +1453,7 @@ async function renderTasks(){
     </div>
     <div class="toolbar">
       <input type="text" id="task-search" placeholder="Search tasks..." oninput="filterTasks()" style="flex:1;min-width:180px">
-      <select id="task-filter" onchange="filterTasks()"><option value="all">All</option><option value="pending">Pending</option><option value="done">Done</option><option value="high">High priority</option></select>
+      <select id="task-filter" onchange="filterTasks()"><option value="all">All</option><option value="due_today">Due Today</option><option value="high">High Priority</option><option value="pending">Pending</option><option value="done">Done</option><option value="high">High priority</option></select>
     </div>
     <div id="today-tasks-section"></div>
     <div class="tbl-wrap">
@@ -1483,13 +1498,17 @@ async function loadTasks(){
     var dueToday=myTasks.filter(function(t){return !t.done&&t.deadline&&ddiff(t.deadline)<=0;}).length;
     var done=myTasks.filter(function(t){return t.done;}).length;
     kEl.innerHTML=
-      taskKpi('Total Tasks','#1B5E9B',myTasks.length,'assigned to me')+
-      taskKpi('High Priority','#E24B4A',high,'need attention')+
-      taskKpi('Due Today','#854F0B',dueToday,'or overdue')+
-      taskKpi('Completed','#1D9E75',done,'tasks done');
+      taskKpi('Total Tasks','#1B5E9B',myTasks.length,'assigned to me','all')+
+      taskKpi('High Priority','#E24B4A',high,'need attention','high')+
+      taskKpi('Due Today','#854F0B',dueToday,'or overdue','due_today')+
+      taskKpi('Completed','#1D9E75',done,'tasks done','done');
   }
 }
-function taskKpi(label,color,val,sub){return '<div style="cursor:pointer;background:#fff;border:0.5px solid #eaedf2;border-top:3px solid '+color+';border-radius:10px;padding:14px 16px"><div style="font-size:11px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px">'+label+'</div><div style="font-size:26px;font-weight:800;color:'+color+'">'+val+'</div><div style="font-size:11px;color:#bbb;margin-top:3px">'+sub+'</div></div>';}
+function setTaskFilter(val){
+  var el=document.getElementById('task-filter');
+  if(el){el.value=val;filterTasks();}
+}
+function taskKpi(label,color,val,sub,filterVal){return '<div onclick="setTaskFilter(&quot;'+filterVal+'&quot;)" style="cursor:pointer;background:#fff;border:0.5px solid #eaedf2;border-top:3px solid '+color+';border-radius:10px;padding:14px 16px"><div style="font-size:11px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px">'+label+'</div><div style="font-size:26px;font-weight:800;color:'+color+'">'+val+'</div><div style="font-size:11px;color:#bbb;margin-top:3px">'+sub+'</div></div>';}
 function filterTasks(){
   const search=(document.getElementById('task-search')?.value||'').toLowerCase();
   const filter=document.getElementById('task-filter')?.value||'all';
@@ -1497,6 +1516,8 @@ function filterTasks(){
   if(filter==='pending')rows=rows.filter(t=>!t.done);
   if(filter==='done')rows=rows.filter(t=>t.done);
   if(filter==='high')rows=rows.filter(t=>t.priority==='high'&&!t.done);
+  if(filter==='due_today')rows=rows.filter(t=>!t.done&&t.deadline&&ddiff(t.deadline)<=0);
+  if(filter==='all')rows=rows;
   if(search)rows=rows.filter(t=>t.name.toLowerCase().includes(search));
   rows.sort((a,b)=>{if(a.done!==b.done)return a.done?1:-1;const po={high:0,medium:1,low:2};if((po[a.priority]||1)!==(po[b.priority]||1))return(po[a.priority]||1)-(po[b.priority]||1);if(a.deadline&&b.deadline)return new Date(a.deadline)-new Date(b.deadline);if(a.deadline)return -1;if(b.deadline)return 1;return 0;});
   const todayTasks=_tasks.filter(t=>!t.done&&t.deadline===todayStr);
