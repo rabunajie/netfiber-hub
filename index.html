@@ -777,28 +777,29 @@ function getGroups(){
 }
 
 async function loadGroupsFromDB(){
-  // Load saved group permissions from admin profile
   try{
-    var res=await sbA.from('profiles').select('group_permissions').eq('group_name','admin').single();
-    if(res.data&&res.data.group_permissions){
-      var parsed=JSON.parse(res.data.group_permissions);
-      if(parsed&&typeof parsed==='object'){
+    // Load from any admin profile that has group_permissions set
+    var res=await sb.from('profiles').select('group_permissions').eq('group_name','admin').not('group_permissions','is',null).limit(1);
+    if(res.data&&res.data.length>0&&res.data[0].group_permissions){
+      var parsed=JSON.parse(res.data[0].group_permissions);
+      if(parsed&&typeof parsed==='object'&&Object.keys(parsed).length>0){
         localStorage.setItem('netfiber_groups',JSON.stringify(parsed));
         GROUPS=parsed;
+        console.log('Groups loaded from DB:',Object.keys(parsed));
         return;
       }
     }
-  }catch(e){}
+  }catch(e){console.log('Using local groups:',e);}
   GROUPS=getGroups();
+  console.log('Groups from localStorage:',Object.keys(GROUPS));
 }
 async function saveGroups(g){
   localStorage.setItem('netfiber_groups',JSON.stringify(g));
-  // Also save to Supabase so all users get the same permissions
   try{
-    await sbA.from('profiles').update({group_permissions:JSON.stringify(g)}).eq('role','admin_config').limit(1);
-    // If no admin_config row, store in the admin user's profile as a settings field
-    await sbA.from('profiles').update({group_permissions:JSON.stringify(g)}).eq('group_name','admin').limit(1);
-  }catch(e){console.log('Saved to localStorage only');}
+    // Save to current admin user's profile
+    var r=await sbA.from('profiles').update({group_permissions:JSON.stringify(g)}).eq('id',CU.id);
+    if(r.error)console.log('Save warning:',r.error.message);
+  }catch(e){console.log('Saved to localStorage only:',e);}
 }
 var GROUPS=getGroups();
 function canAccess(p){
@@ -964,6 +965,7 @@ function setSbBadge(id,count){
 }
 async function renderDashboard(){
   const mc=document.getElementById('main-content');
+  await loadGroupsFromDB();
   const [{data:bidsR},{data:tasksR},{data:gcsR}]=await Promise.all([
     sb.from('bids').select('*'),
     sb.from('tasks').select('*'),
@@ -1035,9 +1037,9 @@ async function renderDashboard(){
         ${canAccess('mgmt')?`<div class="mod-btn" onclick="showPage('mgmt')" style="border-top:3px solid #854F0B">
           <span class="mod-btn-name">Management</span>
         </div>`:''}
-        <div class="mod-btn" onclick="showPage('pipeline')" style="border-top:3px solid #1D9E75">
+        ${canAccess('pipeline')?`<div class="mod-btn" onclick="showPage('pipeline')" style="border-top:3px solid #1D9E75">
           <span class="mod-btn-name">Pipeline</span>
-        </div>
+        </div>`:''}
       </div>
     </div>`;
 
