@@ -1220,14 +1220,9 @@ async function loadBids(){
       bidKpi('📧','Email Follow-Up','Due today or overdue',fuEmail,'#1B5E9B','fu_today')+
       bidKpi('📞','Phone Follow-Up','Due today or overdue',fuCall,'#A32D2D','fu_overdue');
   }
-  // Set initial scope: admins default to All, others default to My Bids
-  if(CP&&CP.group_name==='admin'){
-    _bidScope='all';
-    var btnMy=document.getElementById('btn-my-bids');
-    var btnAll=document.getElementById('btn-all-bids');
-    if(btnMy&&btnAll){btnMy.style.background='#fff';btnMy.style.color='#555';btnAll.style.background='#1B5E9B';btnAll.style.color='#fff';}
-  }
-  filterBids();
+  // Set initial scope: admins default to All Bids, others default to My Bids
+  var defaultScope=(CP&&CP.group_name==='admin')?'all':'mine';
+  setBidScope(defaultScope);
 }
 var _bidScope='mine';
 function setBidScope(scope){
@@ -1243,10 +1238,9 @@ function filterBids(){
     const search=(document.getElementById('bid-search')?.value||'').toLowerCase();
     const filter=document.getElementById('bid-filter')?.value||'';
     let rows=[..._bids];
-    // Scope filter: non-admins see only their bids by default
-    var isAdmin=CP&&CP.group_name==='admin';
-    if(!isAdmin&&_bidScope==='mine'){
-      rows=rows.filter(function(r){return r.assigned_to===CU.id||(r.assigned_name&&CP&&r.assigned_name===(CP.full_name||''));});
+    // Scope filter: My Bids shows only bids assigned to current user
+    if(_bidScope==='mine'){
+      rows=rows.filter(function(r){return r.assigned_to===CU.id;});
     }
     // Handle special filter values
     if(filter==='due_today') rows=rows.filter(function(r){return r.due_date&&ddiff(r.due_date)<=0&&r.status==='Under Review';});
