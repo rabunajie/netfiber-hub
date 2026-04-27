@@ -982,7 +982,7 @@ function fuBadge(bid){
   }
   return '<span class="fu-badge '+cls+'" onclick="openFU(event,&quot;'+bid.id+'&quot;)" title="Click to log follow-up">'+f.l+extra+'</span>';
 }
-function rowCls(bid){if(!bid.fu_next_date)return'';const d=ddiff(bid.fu_next_date);if(d<0)return'ov-row';if(d===0)return'tod-row';return'';}
+function rowCls(bid){if(!bid.fu_next_date)return'';if(bid.fu_status==='closed'||bid.status==='Win'||bid.status==='Lost')return'';const d=ddiff(bid.fu_next_date);if(d<0)return'ov-row';if(d===0)return'tod-row';return'';}
 
 // NAVIGATION
 function showPage(p){
@@ -1158,6 +1158,10 @@ async function renderBids(){
     <div class="page-hdr"><div><div class="page-title">Bid Opportunities</div><div class="page-sub">All bids and follow-ups</div></div><button class="btn btn-blue" onclick="openBidModal()">+ New Bid</button></div>
     <div class="toolbar">
       <input type="text" id="bid-search" placeholder="Search project, GC, ref..." oninput="filterBids()" style="flex:1;min-width:180px">
+      <div id="bid-scope-toggle" style="display:flex;border:1px solid #e0e6f0;border-radius:8px;overflow:hidden;font-size:13px">
+        <button id="btn-my-bids" onclick="setBidScope('mine')" style="padding:8px 14px;border:none;cursor:pointer;background:#1B5E9B;color:#fff;font-weight:600">My Bids</button>
+        <button id="btn-all-bids" onclick="setBidScope('all')" style="padding:8px 14px;border:none;cursor:pointer;background:#fff;color:#555;font-weight:500">All Bids</button>
+      </div>
       <select id="bid-filter" onchange="filterBids()" style="padding:8px 12px;border:1px solid #e0e6f0;border-radius:8px;font-size:13px;background:#fff;cursor:pointer">
   <option value="">All Bids</option>
   <option value="Under Review">Under Review</option>
@@ -1195,8 +1199,14 @@ function bidKpi(icon,label,sub,val,color,filter){
 async function loadBids(){
   const {data:rows,error}=await sb.from('bids').select('*').order('created_at',{ascending:false});
   if(error){console.error('Bids error:',error);_bids=[];filterBids();return;}
-  // Get assignee names separately
-  _bids=rows||[];
+  // Resolve assigned_name from profiles using assigned_to UUID
+  var profRes=await sb.from('profiles').select('id,full_name');
+  var profMap={};
+  (profRes.data||[]).forEach(function(p){if(p.id)profMap[p.id]=p.full_name||'';});
+  _bids=(rows||[]).map(function(b){
+    if(b.assigned_to && profMap[b.assigned_to]) b.assigned_name=profMap[b.assigned_to];
+    return b;
+  });
   console.log('Bids loaded:', _bids.length);
   // KPI boxes
   var kEl=document.getElementById('bid-kpis');
@@ -1210,6 +1220,22 @@ async function loadBids(){
       bidKpi('📧','Email Follow-Up','Due today or overdue',fuEmail,'#1B5E9B','fu_today')+
       bidKpi('📞','Phone Follow-Up','Due today or overdue',fuCall,'#A32D2D','fu_overdue');
   }
+  // Set initial scope: admins default to All, others default to My Bids
+  if(CP&&CP.group_name==='admin'){
+    _bidScope='all';
+    var btnMy=document.getElementById('btn-my-bids');
+    var btnAll=document.getElementById('btn-all-bids');
+    if(btnMy&&btnAll){btnMy.style.background='#fff';btnMy.style.color='#555';btnAll.style.background='#1B5E9B';btnAll.style.color='#fff';}
+  }
+  filterBids();
+}
+var _bidScope='mine';
+function setBidScope(scope){
+  _bidScope=scope;
+  document.getElementById('btn-my-bids').style.background=scope==='mine'?'#1B5E9B':'#fff';
+  document.getElementById('btn-my-bids').style.color=scope==='mine'?'#fff':'#555';
+  document.getElementById('btn-all-bids').style.background=scope==='all'?'#1B5E9B':'#fff';
+  document.getElementById('btn-all-bids').style.color=scope==='all'?'#fff':'#555';
   filterBids();
 }
 function filterBids(){
@@ -1217,6 +1243,11 @@ function filterBids(){
     const search=(document.getElementById('bid-search')?.value||'').toLowerCase();
     const filter=document.getElementById('bid-filter')?.value||'';
     let rows=[..._bids];
+    // Scope filter: non-admins see only their bids by default
+    var isAdmin=CP&&CP.group_name==='admin';
+    if(!isAdmin&&_bidScope==='mine'){
+      rows=rows.filter(function(r){return r.assigned_to===CU.id||(r.assigned_name&&CP&&r.assigned_name===(CP.full_name||''));});
+    }
     // Handle special filter values
     if(filter==='due_today') rows=rows.filter(function(r){return r.due_date&&ddiff(r.due_date)<=0&&r.status==='Under Review';});
     else if(filter==='due_overdue') rows=rows.filter(function(r){return r.due_date&&ddiff(r.due_date)<0&&r.status==='Under Review';});
@@ -1286,7 +1317,7 @@ function filterBids(){
 }
 async function openBidModal(){editBidId=null;document.getElementById('bid-modal-title').textContent='New Bid';['ref','project','gc','poc','email','phone','notes','scope'].forEach(f=>document.getElementById('bm-'+f).value='');['price','cost'].forEach(f=>document.getElementById('bm-'+f).value='0');['due','ping'].forEach(f=>document.getElementById('bm-'+f).value='');document.getElementById('bm-source').value='PlanHub';document.getElementById('bm-status').value='Under Review';await loadUsersDropdown('bm-assigned',null);document.getElementById('bid-modal').classList.add('open');}
 async function editBid(id){const {data:r}=await sb.from('bids').select('*').eq('id',id).single();if(!r)return;editBidId=id;document.getElementById('bid-modal-title').textContent='Edit Bid';const sm={'Submitted':'Bid Sent','Won':'Win','WON':'Win','LOST':'Lost','Replied':'Bid Sent','Did Not replay':'Under Review'};document.getElementById('bm-ref').value=r.ref||'';document.getElementById('bm-source').value=r.source||'PlanHub';document.getElementById('bm-project').value=r.project||'';document.getElementById('bm-status').value=sm[r.status]||r.status||'Under Review';document.getElementById('bm-gc').value=r.gc||'';document.getElementById('bm-poc').value=r.poc||'';document.getElementById('bm-email').value=r.email||'';document.getElementById('bm-phone').value=r.phone||'';document.getElementById('bm-price').value=r.price||0;document.getElementById('bm-cost').value=r.cost||0;document.getElementById('bm-due').value=r.due_date||'';document.getElementById('bm-ping').value=r.last_ping||'';document.getElementById('bm-notes').value=r.notes||'';document.getElementById('bm-scope').value=r.scope||'';await loadUsersDropdown('bm-assigned',r.assigned_to||null);document.getElementById('bid-modal').classList.add('open');}
-async function saveBid(){const price=parseFloat(document.getElementById('bm-price').value)||0;const cost=parseFloat(document.getElementById('bm-cost').value)||0;const obj={ref:document.getElementById('bm-ref').value,source:document.getElementById('bm-source').value,project:document.getElementById('bm-project').value,status:document.getElementById('bm-status').value,gc:document.getElementById('bm-gc').value,poc:document.getElementById('bm-poc').value,email:document.getElementById('bm-email').value,phone:document.getElementById('bm-phone').value,price,cost,profit:price-cost,due_date:document.getElementById('bm-due').value||null,last_ping:document.getElementById('bm-ping').value||null,notes:document.getElementById('bm-notes').value,scope:document.getElementById('bm-scope').value,assigned_to:document.getElementById('bm-assigned').value||null,updated_by:CU.id,updated_at:new Date().toISOString()};if(editBidId){await sb.from('bids').update(obj).eq('id',editBidId);await logAct('Updated bid','bids',editBidId,`Updated ${obj.ref}`);}else{obj.created_by=CU.id;const {data}=await sb.from('bids').insert(obj).select().single();await logAct('Added bid','bids',data?.id,`Added ${obj.ref} - ${obj.project}`);}closeModal('bid-modal');await loadBids();}
+async function saveBid(){const price=parseFloat(document.getElementById('bm-price').value)||0;const cost=parseFloat(document.getElementById('bm-cost').value)||0;const obj={ref:document.getElementById('bm-ref').value,source:document.getElementById('bm-source').value,project:document.getElementById('bm-project').value,status:document.getElementById('bm-status').value,gc:document.getElementById('bm-gc').value,poc:document.getElementById('bm-poc').value,email:document.getElementById('bm-email').value,phone:document.getElementById('bm-phone').value,price,cost,profit:price-cost,due_date:document.getElementById('bm-due').value||null,last_ping:document.getElementById('bm-ping').value||null,notes:document.getElementById('bm-notes').value,scope:document.getElementById('bm-scope').value,assigned_to:document.getElementById('bm-assigned').value||null,assigned_name:(document.getElementById('bm-assigned').options[document.getElementById('bm-assigned').selectedIndex]?.text||'').replace('— Unassigned —','')||null,updated_by:CU.id,updated_at:new Date().toISOString()};if(editBidId){await sb.from('bids').update(obj).eq('id',editBidId);await logAct('Updated bid','bids',editBidId,`Updated ${obj.ref}`);}else{obj.created_by=CU.id;const {data}=await sb.from('bids').insert(obj).select().single();await logAct('Added bid','bids',data?.id,`Added ${obj.ref} - ${obj.project}`);}closeModal('bid-modal');await loadBids();}
 async function delBid(id,name){if(!confirm(`Delete bid "${name}"?`))return;await sb.from('bids').delete().eq('id',id);await logAct('Deleted bid','bids',null,`Deleted: ${name}`);await loadBids();}
 
 // GC
