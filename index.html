@@ -1259,7 +1259,7 @@ function filterBids(){
       var dueCellStyle = 'font-size:12px;';
       if(dueDateStr){
         var diff=ddiff(dueDateStr);
-        if(diff<=0) dueCellStyle+='color:#E24B4A;font-weight:700;';
+        if(diff<=0 && r.status==='Under Review') dueCellStyle+='color:#E24B4A;font-weight:700;';
       }
       var dueFmt = dueDateStr ? fmtD(dueDateStr) : '—';
       html+='<td style="font-size:12px">'+gc+'</td>';
