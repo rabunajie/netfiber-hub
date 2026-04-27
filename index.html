@@ -1178,8 +1178,8 @@ async function renderBids(){
 </select>
     </div>
     <div class="tbl-wrap" style="overflow-x:auto">
-      <table><thead><tr><th>Ref #</th><th>Project</th><th>GC</th><th>Status</th><th>Follow-Up</th><th>Price</th><th>Profit</th><th>Last Ping</th><th>Last Note</th><th>Employee</th><th></th></tr></thead>
-      <tbody id="bid-body"><tr><td colspan="11" class="loading"><span class="spinner"></span></td></tr></tbody></table>
+      <table><thead><tr><th>Ref #</th><th>Project</th><th>GC</th><th>Bid Due</th><th>Status</th><th>Follow-Up</th><th>Price</th><th>Profit</th><th>Last Ping</th><th>Last Note</th><th>Employee</th><th></th></tr></thead>
+      <tbody id="bid-body"><tr><td colspan="12" class="loading"><span class="spinner"></span></td></tr></tbody></table>
     </div>`;
   await loadBids();
 }
@@ -1239,7 +1239,7 @@ function filterBids(){
     });
     const tbody=document.getElementById('bid-body');
     if(!tbody) return;
-    if(rows.length===0){tbody.innerHTML='<tr><td colspan="11" style="text-align:center;padding:2rem;color:#bbb">No bids found.</td></tr>';return;}
+    if(rows.length===0){tbody.innerHTML='<tr><td colspan="12" style="text-align:center;padding:2rem;color:#bbb">No bids found.</td></tr>';return;}
     var html='';
     for(var i=0;i<rows.length;i++){
       var r=rows[i];
@@ -1254,7 +1254,16 @@ function filterBids(){
       html+='<tr class="'+rc+'">';
       html+='<td style="font-weight:700;font-size:12px;color:#1B5E9B">'+ref+'</td>';
       html+='<td><div style="font-weight:600;font-size:13px">'+proj+'</div><div style="font-size:11px;color:#aaa">'+(r.source||'')+'</div></td>';
+      // Bid Due date cell with red color if today or past
+      var dueDateStr = r.due_date || '';
+      var dueCellStyle = 'font-size:12px;';
+      if(dueDateStr){
+        var diff=ddiff(dueDateStr);
+        if(diff<=0) dueCellStyle+='color:#E24B4A;font-weight:700;';
+      }
+      var dueFmt = dueDateStr ? fmtD(dueDateStr) : '—';
       html+='<td style="font-size:12px">'+gc+'</td>';
+      html+='<td style="'+dueCellStyle+'">'+dueFmt+'</td>';
       html+='<td>'+statusBadge(r.status)+'</td>';
       html+='<td>'+fuBadge(r)+'</td>';
       html+='<td style="font-weight:700">'+fmt$(r.price)+'</td>';
@@ -1262,17 +1271,17 @@ function filterBids(){
       html+='<td style="font-size:11px;color:#aaa">'+fmtD(r.last_ping)+'</td>';
       html+='<td style="max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:11px;color:#999">'+lastNote+'</td>';
       html+='<td style="font-size:11px;color:#1B5E9B;font-weight:500">'+(r.assigned_name||'—')+'</td>';
-      html+='<td style="display:flex;gap:4px;white-space:nowrap">';
+      html+='<td style="white-space:nowrap"><div style="display:flex;gap:4px">';
       html+='<button class="btn-sm" onclick="editBid(&quot;'+rid+'&quot;)">Edit</button>';
       html+='<button class="btn-danger" onclick="delBid(&quot;'+rid+'&quot;,&quot;'+pname+'&quot;)">×</button>';
-      html+='</td>';
+      html+='</div></td>';
       html+='</tr>';
     }
     tbody.innerHTML=html;
   }catch(err){
     console.error('filterBids error:',err);
     var tbody=document.getElementById('bid-body');
-    if(tbody) tbody.innerHTML='<tr><td colspan="11" style="text-align:center;padding:2rem;color:red">Error loading bids: '+err.message+'</td></tr>';
+    if(tbody) tbody.innerHTML='<tr><td colspan="12" style="text-align:center;padding:2rem;color:red">Error loading bids: '+err.message+'</td></tr>';
   }
 }
 async function openBidModal(){editBidId=null;document.getElementById('bid-modal-title').textContent='New Bid';['ref','project','gc','poc','email','phone','notes','scope'].forEach(f=>document.getElementById('bm-'+f).value='');['price','cost'].forEach(f=>document.getElementById('bm-'+f).value='0');['due','ping'].forEach(f=>document.getElementById('bm-'+f).value='');document.getElementById('bm-source').value='PlanHub';document.getElementById('bm-status').value='Under Review';await loadUsersDropdown('bm-assigned',null);document.getElementById('bid-modal').classList.add('open');}
