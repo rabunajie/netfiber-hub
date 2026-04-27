@@ -451,6 +451,7 @@ tr:hover td{background:#fafcff}
       <div class="sb-item" data-page="tasks" data-groups="admin,sales,staff,field" onclick="showPage('tasks')"><span class="sb-dot"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="9,11 12,14 22,4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg></span>To-Do<span class="sb-badge" id="sb-tasks-badge" style="background:#BA7517;display:none"></span></div>
       <div class="sb-item" data-page="pipeline" data-groups="admin,sales" onclick="showPage('pipeline')"><span class="sb-dot"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="22,12 18,12 15,21 9,3 6,12 2,12"/></svg></span>Pipeline Report</div>
       <div class="sb-sec">Admin</div>
+      <div class="sb-item" data-page="ai" data-groups="admin,sales" onclick="showPage('ai')"><span class="sb-dot"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2a10 10 0 1 0 10 10"/><path d="M12 8v4l3 3"/><circle cx="18" cy="5" r="3" fill="currentColor" stroke="none"/></svg></span>AI Advisor<span class="sb-badge" id="sb-ai-badge" style="background:#533AB7;color:#fff;display:none"></span></div>
       <div class="sb-item" data-page="log" data-groups="admin" onclick="showPage('log')"><span class="sb-dot"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg></span>Activity Log</div>
       <div class="sb-item" data-page="mgmt" data-groups="admin" onclick="showPage('mgmt')"><span class="sb-dot"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93l-1.41 1.41M5.34 18.66l-1.41 1.41M4.93 4.93l1.41 1.41M18.66 18.66l1.41 1.41M2 12h2M20 12h2M12 2v2M12 20v2"/></svg></span>Management</div>
       <div class="sb-foot">
@@ -1002,6 +1003,7 @@ function showPage(p){
   else if(p==='log')renderLog();
   else if(p==='mgmt')renderMgmt();
   else if(p==='pipeline')renderPipelinePage();
+  else if(p==='ai')renderAIAdvisor();
 }
 
 // DASHBOARD
@@ -1871,6 +1873,273 @@ async function saveEditTask(){
 
 // ============ PIPELINE MODULE ============
 var _pc={};
+
+// ═══════════════════════════════════════════════════════
+//  AI ADVISOR — NetFiber Business Intelligence
+// ═══════════════════════════════════════════════════════
+var _aiChat = [];
+var _aiThinking = false;
+
+function renderAIAdvisor(){
+  var mc = document.getElementById('main-content');
+  mc.innerHTML = `
+  <div style="display:flex;height:100%;overflow:hidden;background:#f0f3f8">
+
+    <!-- LEFT: Quick actions + stats panel -->
+    <div style="width:260px;flex-shrink:0;border-right:1px solid #e0e6f0;background:#fff;display:flex;flex-direction:column;overflow-y:auto;padding:20px 16px">
+      <div style="font-size:13px;font-weight:700;color:#1B5E9B;margin-bottom:4px;display:flex;align-items:center;gap:6px">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1B5E9B" stroke-width="2"><path d="M12 2a10 10 0 1 0 10 10"/><circle cx="18" cy="5" r="3" fill="#1B5E9B" stroke="none"/></svg>
+        NetFiber AI Advisor
+      </div>
+      <div style="font-size:11px;color:#888;margin-bottom:20px">Powered by Claude · Your business data</div>
+
+      <div style="font-size:11px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">Quick Actions</div>
+      <div id="ai-quick-btns" style="display:flex;flex-direction:column;gap:6px;margin-bottom:20px"></div>
+
+      <div style="font-size:11px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">Live Snapshot</div>
+      <div id="ai-stats-panel" style="font-size:12px;color:#555;line-height:1.8">Loading...</div>
+    </div>
+
+    <!-- RIGHT: Chat area -->
+    <div style="flex:1;display:flex;flex-direction:column;overflow:hidden">
+      <div id="ai-messages" style="flex:1;overflow-y:auto;padding:24px 32px;display:flex;flex-direction:column;gap:16px">
+        <div style="text-align:center;padding:40px 20px">
+          <div style="font-size:28px;margin-bottom:12px">👋</div>
+          <div style="font-size:16px;font-weight:600;color:#1B5E9B;margin-bottom:8px">Hey — I'm your NetFiber AI Advisor</div>
+          <div style="font-size:13px;color:#888;max-width:400px;margin:0 auto;line-height:1.7">I know your bids, your pipeline, your GCs, and your goal — to build NetFiber into a full-time business. Ask me anything or pick a quick action on the left.</div>
+        </div>
+      </div>
+      <div style="padding:16px 24px;border-top:1px solid #e0e6f0;background:#fff">
+        <div style="display:flex;gap:10px;align-items:flex-end">
+          <textarea id="ai-input" placeholder="Ask anything — win rate, which GCs to focus on, follow-up email, what to do today..." 
+            style="flex:1;padding:10px 14px;border:1px solid #d0dcea;border-radius:10px;font-size:13px;resize:none;height:44px;line-height:1.5;font-family:inherit;max-height:120px;overflow-y:auto"
+            onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendAIMessage()}"></textarea>
+          <button onclick="sendAIMessage()" style="padding:10px 20px;background:#1B5E9B;color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;height:44px;white-space:nowrap">Send</button>
+        </div>
+        <div style="font-size:11px;color:#bbb;margin-top:6px;padding-left:2px">Shift+Enter for new line</div>
+      </div>
+    </div>
+  </div>`;
+
+  // Build quick actions
+  var quickBtns = [
+    {label:"📊 How is NetFiber doing?", msg:"Give me a full business health check for NetFiber based on all my data. Tell me the win rate, pipeline value, revenue, and what the numbers say about where I'm headed."},
+    {label:"🎯 What should I focus on today?", msg:"Based on my current bids, follow-ups, and pipeline — what are the 3 most important things I should do today to move NetFiber forward?"},
+    {label:"💰 Am I close to quitting my job?", msg:"Based on my current revenue, win rate, and pipeline — honestly tell me how close I am to being able to quit my full-time job and run NetFiber full time. What do I need to hit?"},
+    {label:"✉️ Write a follow-up email", msg:"Look at my bids that are overdue for follow-up and help me write a professional follow-up email for the most urgent one."},
+    {label:"🏆 Which GCs should I target?", msg:"Based on my win history and bid data, which GCs or customer types give me the best chance of winning? Who should my wife be focusing on for relationship building?"},
+    {label:"📈 Best source for new bids?", msg:"Analyze my bid sources — PlanHub, BuildingConnect, ConstructConnect — and tell me which one is producing the best results and where I should focus my time."},
+    {label:"🔧 Improve my win rate", msg:"What can I do to improve my win rate? Look at my bid history and give me specific, actionable advice based on what I'm winning vs losing."},
+    {label:"📝 Draft a proposal scope", msg:"Help me write a professional scope of work for a typical commercial data cabling project. I can give you the project details."},
+  ];
+
+  var qEl = document.getElementById('ai-quick-btns');
+  quickBtns.forEach(function(b){
+    var btn = document.createElement('button');
+    btn.textContent = b.label;
+    btn.style.cssText = 'text-align:left;padding:8px 10px;background:#f5f8fc;border:1px solid #e0e6f0;border-radius:8px;font-size:12px;cursor:pointer;color:#333;line-height:1.4';
+    btn.onmouseover = function(){this.style.background='#e8f0fb';this.style.borderColor='#1B5E9B';};
+    btn.onmouseout = function(){this.style.background='#f5f8fc';this.style.borderColor='#e0e6f0';};
+    btn.onclick = function(){ document.getElementById('ai-input').value = b.msg; sendAIMessage(); };
+    qEl.appendChild(btn);
+  });
+
+  // Load live stats into sidebar
+  buildAIStats();
+}
+
+async function buildAIStats(){
+  var el = document.getElementById('ai-stats-panel');
+  if(!el) return;
+  var bids = _bids || [];
+  if(!bids.length){
+    var res = await sb.from('bids').select('status,price,cost,source,fu_next_date,fu_status,assigned_to,created_at');
+    bids = res.data || [];
+  }
+  var won   = bids.filter(function(b){return b.status==='Win';});
+  var lost  = bids.filter(function(b){return b.status==='Lost';});
+  var sent  = bids.filter(function(b){return b.status==='Bid Sent';});
+  var under = bids.filter(function(b){return b.status==='Under Review';});
+  var decided = won.length + lost.length;
+  var winRate = decided > 0 ? Math.round(won.length/decided*100) : 0;
+  var wonRev  = won.reduce(function(s,b){return s+(parseFloat(b.price)||0);},0);
+  var wonProfit = won.reduce(function(s,b){return s+(parseFloat(b.price)||0)-(parseFloat(b.cost)||0);},0);
+  var pipeline= sent.reduce(function(s,b){return s+(parseFloat(b.price)||0);},0);
+  var overdue = bids.filter(function(b){
+    return b.fu_next_date && ddiff(b.fu_next_date)<=0 && b.status!=='Win' && b.status!=='Lost' && b.fu_status!=='closed';
+  }).length;
+
+  function fmt(n){return '$'+Math.round(n).toLocaleString();}
+  function stat(label,val,color){
+    return '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f0f0f0">'
+      +'<span style="color:#888">'+label+'</span>'
+      +'<span style="font-weight:700;color:'+(color||'#1B5E9B')+'">'+val+'</span></div>';
+  }
+  el.innerHTML =
+    stat('Total bids', bids.length) +
+    stat('Won', won.length, '#1D9E75') +
+    stat('Win rate', winRate+'%', winRate>=30?'#1D9E75':'#E24B4A') +
+    stat('Revenue', fmt(wonRev), '#1D9E75') +
+    stat('Profit', fmt(wonProfit), '#1D9E75') +
+    stat('Pipeline', fmt(pipeline), '#BA7517') +
+    stat('Under review', under.length) +
+    stat('Overdue follow-ups', overdue, overdue>0?'#E24B4A':'#1D9E75');
+}
+
+function aiMsg(role, text){
+  var msgs = document.getElementById('ai-messages');
+  if(!msgs) return;
+  var isUser = role==='user';
+  var div = document.createElement('div');
+  div.style.cssText = 'display:flex;gap:10px;align-items:flex-start' + (isUser?';flex-direction:row-reverse':'');
+  var avatar = document.createElement('div');
+  avatar.style.cssText = 'width:32px;height:32px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;'
+    + (isUser ? 'background:#1B5E9B;color:#fff' : 'background:#EEF4FB;color:#1B5E9B;border:1px solid #cde');
+  avatar.textContent = isUser ? (CP&&CP.full_name?CP.full_name[0].toUpperCase():'U') : 'AI';
+  var bubble = document.createElement('div');
+  bubble.style.cssText = 'max-width:72%;padding:12px 16px;border-radius:12px;font-size:13px;line-height:1.7;white-space:pre-wrap;'
+    + (isUser ? 'background:#1B5E9B;color:#fff;border-radius:12px 2px 12px 12px' : 'background:#fff;border:1px solid #e0e6f0;color:#333;border-radius:2px 12px 12px 12px');
+  bubble.textContent = text;
+  div.appendChild(avatar);
+  div.appendChild(bubble);
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+  return bubble;
+}
+
+function aiTypingIndicator(){
+  var msgs = document.getElementById('ai-messages');
+  if(!msgs) return null;
+  var div = document.createElement('div');
+  div.id = 'ai-typing';
+  div.style.cssText = 'display:flex;gap:10px;align-items:flex-start';
+  div.innerHTML = '<div style="width:32px;height:32px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;background:#EEF4FB;color:#1B5E9B;border:1px solid #cde">AI</div>'
+    +'<div style="background:#fff;border:1px solid #e0e6f0;border-radius:2px 12px 12px 12px;padding:12px 16px">'
+    +'<span style="display:inline-flex;gap:4px"><span style="width:6px;height:6px;border-radius:50%;background:#1B5E9B;animation:aiDot 1.2s infinite 0s"></span><span style="width:6px;height:6px;border-radius:50%;background:#1B5E9B;animation:aiDot 1.2s infinite 0.2s"></span><span style="width:6px;height:6px;border-radius:50%;background:#1B5E9B;animation:aiDot 1.2s infinite 0.4s"></span></span></div>';
+  if(!document.getElementById('ai-dot-style')){
+    var s=document.createElement('style');
+    s.id='ai-dot-style';
+    s.textContent='@keyframes aiDot{0%,80%,100%{opacity:0.3;transform:scale(0.8)}40%{opacity:1;transform:scale(1)}}';
+    document.head.appendChild(s);
+  }
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+  return div;
+}
+
+async function buildAIContext(){
+  var bids = _bids || [];
+  if(!bids.length){
+    var r = await sb.from('bids').select('*').order('created_at',{ascending:false});
+    bids = r.data || [];
+  }
+  var won   = bids.filter(function(b){return b.status==='Win';});
+  var lost  = bids.filter(function(b){return b.status==='Lost';});
+  var sent  = bids.filter(function(b){return b.status==='Bid Sent';});
+  var under = bids.filter(function(b){return b.status==='Under Review';});
+  var decided = won.length + lost.length;
+  var winRate = decided > 0 ? Math.round(won.length/decided*100) : 0;
+  var wonRev  = Math.round(won.reduce(function(s,b){return s+(parseFloat(b.price)||0);},0));
+  var wonProfit = Math.round(won.reduce(function(s,b){return s+(parseFloat(b.price)||0)-(parseFloat(b.cost)||0);},0));
+  var pipeline= Math.round(sent.reduce(function(s,b){return s+(parseFloat(b.price)||0);},0));
+
+  var sources={};
+  bids.forEach(function(b){var s=b.source||'Unknown';sources[s]=(sources[s]||0)+1;});
+  var srcWin={};
+  won.forEach(function(b){var s=b.source||'Unknown';srcWin[s]=(srcWin[s]||0)+1;});
+
+  var gcWin={};
+  won.forEach(function(b){var g=b.gc||b.gc_name||'Unknown';gcWin[g]=(gcWin[g]||0)+1;});
+  var topGCs=Object.entries(gcWin).sort(function(a,b){return b[1]-a[1];}).slice(0,5);
+
+  var overdueFU = bids.filter(function(b){
+    return b.fu_next_date && ddiff(b.fu_next_date)<=0 && b.status!=='Win' && b.status!=='Lost' && b.fu_status!=='closed';
+  });
+
+  var monthly={};
+  bids.forEach(function(b){var m=(b.created_at||'').slice(0,7);if(m)monthly[m]=(monthly[m]||0)+1;});
+
+  var recentBids = bids.slice(0,10).map(function(b){
+    return {ref:b.ref,project:b.project,gc:b.gc||b.gc_name,status:b.status,price:b.price,source:b.source,due:b.due_date};
+  });
+
+  return `You are the AI Business Advisor for NetFiber Network Cabling Solutions LLC, a startup based in Houston, TX.
+
+COMPANY BACKGROUND:
+- Owner: runs the company while working full-time as a Network Engineer (CCNA, CCNP, Aruba, Ekahu certified, pursuing RCDD)
+- Goal: grow NetFiber enough to quit full-time job and run it full-time
+- Business: commercial data cabling, network infrastructure installs for local GCs and businesses
+- Team: owner + wife helping with relationship building and business development
+- Stage: Year 1-2 startup, building local GC relationships
+
+LIVE BUSINESS DATA:
+- Total bids: ${bids.length}
+- Won: ${won.length} | Lost: ${lost.length} | Bid Sent: ${sent.length} | Under Review: ${under.length}
+- Win rate: ${winRate}% (of decided bids)
+- Total revenue from won bids: $${wonRev.toLocaleString()}
+- Total profit from won bids: $${wonProfit.toLocaleString()}
+- Active pipeline (Bid Sent): $${pipeline.toLocaleString()}
+- Overdue follow-ups: ${overdueFU.length}
+- Bid sources: ${JSON.stringify(sources)}
+- Source wins: ${JSON.stringify(srcWin)}
+- Top GC wins: ${JSON.stringify(topGCs)}
+- Monthly bid volume: ${JSON.stringify(monthly)}
+
+MOST URGENT FOLLOW-UPS NEEDED:
+${overdueFU.slice(0,5).map(function(b){return '- '+b.project+' ('+b.gc+') — due '+b.fu_next_date+' via '+(b.fu_status||'unknown');}).join('\n')||'None overdue'}
+
+RECENT BIDS:
+${recentBids.map(function(b){return '- '+b.ref+': '+b.project+' | GC: '+b.gc+' | Status: '+b.status+' | $'+b.price+' | Source: '+b.source;}).join('\n')}
+
+Be direct, specific, and honest. Reference actual numbers from the data. Give actionable advice. You know this is a real startup trying to grow. Don't be generic — use the actual data to give real insights. Keep responses clear and structured with line breaks.`;
+}
+
+async function sendAIMessage(){
+  if(_aiThinking) return;
+  var input = document.getElementById('ai-input');
+  if(!input) return;
+  var text = input.value.trim();
+  if(!text) return;
+  input.value = '';
+  input.style.height = '44px';
+
+  _aiThinking = true;
+  aiMsg('user', text);
+  _aiChat.push({role:'user', content:text});
+
+  var typing = aiTypingIndicator();
+
+  try{
+    var sysPrompt = await buildAIContext();
+    var messages = _aiChat.slice(-12); // Keep last 12 messages for context
+
+    var resp = await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:1000,
+        system: sysPrompt,
+        messages: messages
+      })
+    });
+    var data = await resp.json();
+    if(typing) typing.remove();
+
+    var reply = (data.content&&data.content[0]&&data.content[0].text) || 'Sorry, I had trouble responding. Please try again.';
+    aiMsg('assistant', reply);
+    _aiChat.push({role:'assistant', content:reply});
+
+  } catch(err){
+    if(typing) typing.remove();
+    aiMsg('assistant', 'Error reaching AI: '+err.message+'. Please try again.');
+  }
+  _aiThinking = false;
+
+  // Refresh stats panel after each message
+  buildAIStats();
+}
+
 function renderPipelinePage(){
   var mc=document.getElementById('main-content');
   mc.innerHTML='<div style="padding:0;background:#f0f3f8;min-height:100%">'
