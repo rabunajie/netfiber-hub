@@ -808,8 +808,8 @@ var todayStr=today.toISOString().split('T')[0];
 
 // Single source of truth for group permissions
 var DEFAULT_GROUPS={
-  admin:['dashboard','bids','gc','retail','proposals','purchases','tasks','log','mgmt','pipeline'],
-  sales:['dashboard','bids','gc','retail','tasks'],
+  admin:['dashboard','bids','gc','retail','proposals','purchases','tasks','log','mgmt','pipeline','ai'],
+  sales:['dashboard','bids','gc','retail','tasks','ai'],
   staff:['dashboard','tasks'],
   field:['dashboard','tasks']
 };
@@ -825,6 +825,8 @@ function getGroups(){
 }
 
 async function loadGroupsFromDB(){
+  // Auto-add 'ai' page to any saved groups that are missing it
+  try{var sg=localStorage.getItem('netfiber_groups');if(sg){var pg=JSON.parse(sg);var changed=false;['admin','sales'].forEach(function(g){if(pg[g]&&pg[g].indexOf('ai')<0){pg[g].push('ai');changed=true;}});if(changed){localStorage.setItem('netfiber_groups',JSON.stringify(pg));GROUPS=pg;}}}catch(e){}
   try{
     // Load from any admin profile that has group_permissions set
     var res=await sb.from('profiles').select('group_permissions').eq('group_name','admin').not('group_permissions','is',null).limit(1);
