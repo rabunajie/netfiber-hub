@@ -833,8 +833,17 @@ async function loadGroupsFromDB(){
     if(res.data&&res.data.length>0&&res.data[0].group_permissions){
       var parsed=JSON.parse(res.data[0].group_permissions);
       if(parsed&&typeof parsed==='object'&&Object.keys(parsed).length>0){
+        // Always ensure 'ai' page is present for admin and sales
+        var needsSave=false;
+        ['admin','sales'].forEach(function(g){
+          if(parsed[g]&&parsed[g].indexOf('ai')<0){parsed[g].push('ai');needsSave=true;}
+        });
         localStorage.setItem('netfiber_groups',JSON.stringify(parsed));
         GROUPS=parsed;
+        if(needsSave){
+          // Write the patched version back to DB silently
+          try{sbA.from('profiles').update({group_permissions:JSON.stringify(parsed)}).eq('group_name','admin');}catch(e){}
+        }
         console.log('Groups loaded from DB:',Object.keys(parsed));
         return;
       }
