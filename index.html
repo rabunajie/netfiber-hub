@@ -2124,9 +2124,12 @@ async function sendAIMessage(){
     var sysPrompt = await buildAIContext();
     var messages = _aiChat.slice(-12); // Keep last 12 messages for context
 
-    var resp = await fetch('https://api.anthropic.com/v1/messages',{
+    // Use Supabase Edge Function proxy to avoid CORS
+    var PROXY = 'https://vaubqkmsjsgfqeqbqbvy.supabase.co/functions/v1/ai-proxy';
+    var SB_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZhdWJxa21zanNnZnFlcWJxYnZ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY5MDQxNzAsImV4cCI6MjA5MjQ4MDE3MH0.FjZ6oK-6fG_T38oZDGukAVj7cBJsarGh8Stwp14wCZM';
+    var resp = await fetch(PROXY,{
       method:'POST',
-      headers:{'Content-Type':'application/json'},
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+SB_ANON},
       body:JSON.stringify({
         model:'claude-sonnet-4-20250514',
         max_tokens:1000,
@@ -2137,6 +2140,7 @@ async function sendAIMessage(){
     var data = await resp.json();
     if(typing) typing.remove();
 
+    if(data.error){throw new Error(data.error.message||JSON.stringify(data.error));}
     var reply = (data.content&&data.content[0]&&data.content[0].text) || 'Sorry, I had trouble responding. Please try again.';
     aiMsg('assistant', reply);
     _aiChat.push({role:'assistant', content:reply});
