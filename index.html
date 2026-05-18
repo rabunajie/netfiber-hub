@@ -1931,7 +1931,7 @@ function inboxTagBadge(tag){
 }
 
 async function loadInboxItems(){
-  var res = await sb.from('tasks').select('*').eq('category','inbox').order('created_at',{ascending:false});
+  var res = await sb.from('quick_save').select('*').order('created_at',{ascending:false});
   _inboxItems = (res.data||[]);
   return _inboxItems;
 }
@@ -2020,7 +2020,7 @@ function renderInboxList(){
   if(!el) return;
   var search = (document.getElementById('inbox-search')?.value||'').toLowerCase();
   var items = _inboxItems.filter(function(i){
-    if(_inboxFilter!=='all' && i.label!==_inboxFilter) return false;
+    if(_inboxFilter!=='all' && i.tag!==_inboxFilter) return false;
     if(search && !(i.title||'').toLowerCase().includes(search) && !(i.notes||'').toLowerCase().includes(search)) return false;
     return true;
   });
@@ -2031,9 +2031,9 @@ function renderInboxList(){
   }
 
   el.innerHTML = items.map(function(item){
-    var tag = item.label||'Other';
+    var tag = item.tag||'Other';
     var c = INBOX_TAG_COLORS[tag]||'#888';
-    var urlHtml = item.description ? '<a href="'+item.description+'" target="_blank" style="font-size:12px;color:#1B5E9B;word-break:break-all;display:block;margin-top:4px">🔗 '+item.description+'</a>' : '';
+    var urlHtml = item.url ? '<a href="'+item.url+'" target="_blank" style="font-size:12px;color:#1B5E9B;word-break:break-all;display:block;margin-top:4px">🔗 '+item.url+'</a>' : '';
     var notesHtml = item.notes ? '<div style="font-size:12px;color:#555;margin-top:8px;line-height:1.6;white-space:pre-wrap">'+item.notes+'</div>' : '';
     var date = item.created_at ? new Date(item.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '';
     return '<div style="background:#fff;border:1px solid #e0e6f0;border-left:4px solid '+c+';border-radius:10px;padding:16px 18px;margin-bottom:10px">'+
@@ -2061,8 +2061,8 @@ function openInboxModal(id){
     var item = _inboxItems.find(function(i){return i.id===id;});
     if(!item) return;
     document.getElementById('ib-title').value = item.title||'';
-    document.getElementById('ib-url').value = item.description||'';
-    document.getElementById('ib-tag').value = item.label||'Other';
+    document.getElementById('ib-url').value = item.url||'';
+    document.getElementById('ib-tag').value = item.tag||'Other';
     document.getElementById('ib-notes').value = item.notes||'';
   } else {
     document.getElementById('ib-title').value='';
@@ -2081,18 +2081,20 @@ async function saveInboxItem(){
   if(!title){ alert('Please enter a title.'); return; }
   var obj = {
     title: title,
-    description: document.getElementById('ib-url').value.trim(),
-    label: document.getElementById('ib-tag').value,
+    url: document.getElementById('ib-url').value.trim(),
+    tag: document.getElementById('ib-tag').value,
     notes: document.getElementById('ib-notes').value.trim(),
-    category: 'inbox',
-    done: false,
     created_by: CU?.id
   };
+  var err;
   if(_inboxEditId){
-    await sb.from('tasks').update(obj).eq('id',_inboxEditId);
+    var r = await sb.from('quick_save').update(obj).eq('id',_inboxEditId);
+    err = r.error;
   } else {
-    await sb.from('tasks').insert(obj);
+    var r = await sb.from('quick_save').insert(obj);
+    err = r.error;
   }
+  if(err){ alert('Error saving: '+err.message); return; }
   closeModal('inbox-modal');
   await loadInboxItems();
   renderInboxList();
@@ -2101,7 +2103,7 @@ async function saveInboxItem(){
 
 async function deleteInboxItem(id){
   if(!confirm('Delete this saved item?')) return;
-  await sb.from('tasks').delete().eq('id',id);
+  await sb.from('quick_save').delete().eq('id',id);
   _inboxItems = _inboxItems.filter(function(i){return i.id!==id;});
   renderInboxList();
   updateInboxBadge();
@@ -2110,7 +2112,7 @@ async function deleteInboxItem(id){
 function updateInboxBadge(){
   var badge = document.getElementById('sb-inbox-badge');
   if(!badge) return;
-  var count = _inboxItems.filter(function(i){return i.category==='inbox'&&!i.done;}).length;
+  var count = _inboxItems.length;
   if(count>0){badge.textContent=count;badge.style.display='inline-block';}
   else{badge.style.display='none';}
 }
