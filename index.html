@@ -453,6 +453,7 @@ tr:hover td{background:#fafcff}
       <div class="sb-item" data-page="pipeline" data-groups="admin,sales" onclick="showPage('pipeline')"><span class="sb-dot"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="22,12 18,12 15,21 9,3 6,12 2,12"/></svg></span>Pipeline Report</div>
       <div class="sb-sec">Admin</div>
       <div class="sb-item" data-page="ai" data-groups="admin,sales" onclick="showPage('ai')"><span class="sb-dot"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2a10 10 0 1 0 10 10"/><path d="M12 8v4l3 3"/><circle cx="18" cy="5" r="3" fill="currentColor" stroke="none"/></svg></span>AI Advisor<span class="sb-badge" id="sb-ai-badge" style="background:#533AB7;color:#fff;display:none"></span></div>
+      <div class="sb-item" data-page="inbox" data-groups="admin,sales" onclick="showPage('inbox')"><span class="sb-dot">📥</span>Quick Save<span class="sb-badge" id="sb-inbox-badge" style="background:#BA7517;color:#fff;display:none"></span></div>
       <div class="sb-item" data-page="log" data-groups="admin" onclick="showPage('log')"><span class="sb-dot"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg></span>Activity Log</div>
       <div class="sb-item" data-page="mgmt" data-groups="admin" onclick="showPage('mgmt')"><span class="sb-dot"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93l-1.41 1.41M5.34 18.66l-1.41 1.41M4.93 4.93l1.41 1.41M18.66 18.66l1.41 1.41M2 12h2M20 12h2M12 2v2M12 20v2"/></svg></span>Management</div>
       <div class="sb-foot">
@@ -828,8 +829,8 @@ var todayStr=today.toISOString().split('T')[0];
 
 // Single source of truth for group permissions
 var DEFAULT_GROUPS={
-  admin:['dashboard','bids','gc','retail','proposals','purchases','tasks','log','mgmt','pipeline','ai'],
-  sales:['dashboard','bids','gc','retail','tasks','ai'],
+  admin:['dashboard','bids','gc','retail','proposals','purchases','tasks','log','mgmt','pipeline','ai','inbox'],
+  sales:['dashboard','bids','gc','retail','tasks','ai','inbox'],
   staff:['dashboard','tasks'],
   field:['dashboard','tasks']
 };
@@ -857,6 +858,7 @@ async function loadGroupsFromDB(){
         var needsSave=false;
         ['admin','sales'].forEach(function(g){
           if(parsed[g]&&parsed[g].indexOf('ai')<0){parsed[g].push('ai');needsSave=true;}
+          if(parsed[g]&&parsed[g].indexOf('inbox')<0){parsed[g].push('inbox');needsSave=true;}
         });
         localStorage.setItem('netfiber_groups',JSON.stringify(parsed));
         GROUPS=parsed;
@@ -1035,6 +1037,7 @@ function showPage(p){
   else if(p==='mgmt')renderMgmt();
   else if(p==='pipeline')renderPipelinePage();
   else if(p==='ai')renderAIAdvisor();
+  else if(p==='inbox')renderInbox();
 }
 
 // DASHBOARD
@@ -1119,6 +1122,9 @@ async function renderDashboard(){
         </div>`:''}
         ${canAccess('pipeline')?`<div class="mod-btn" onclick="showPage('pipeline')" style="border-top:3px solid #1D9E75">
           <span class="mod-btn-name">Pipeline</span>
+        </div>`:''}
+        ${canAccess('inbox')?`<div class="mod-btn" onclick="showPage('inbox')" style="border-top:3px solid #BA7517">
+          <span class="mod-btn-name">📥 Quick Save</span>
         </div>`:''}
       </div>
     </div>`;
@@ -1905,6 +1911,211 @@ async function saveEditTask(){
 // ============ PIPELINE MODULE ============
 var _pc={};
 
+
+// ═══════════════════════════════════════════════════════
+//  QUICK SAVE INBOX
+// ═══════════════════════════════════════════════════════
+var _inboxItems = [];
+var _inboxFilter = 'all';
+var _inboxEditId = null;
+
+var INBOX_TAGS = ['Portal','Contact','Website','Document','Bid Lead','Tool','Other'];
+var INBOX_TAG_COLORS = {
+  'Portal':'#1B5E9B','Contact':'#1D9E75','Website':'#534AB7',
+  'Document':'#BA7517','Bid Lead':'#E24B4A','Tool':'#0F6E56','Other':'#888'
+};
+
+function inboxTagBadge(tag){
+  var c=INBOX_TAG_COLORS[tag]||'#888';
+  return '<span style="display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;background:'+c+'22;color:'+c+';border:1px solid '+c+'44">'+tag+'</span>';
+}
+
+async function loadInboxItems(){
+  var res = await sb.from('tasks').select('*').eq('category','inbox').order('created_at',{ascending:false});
+  _inboxItems = (res.data||[]);
+  return _inboxItems;
+}
+
+async function renderInbox(){
+  var mc = document.getElementById('main-content');
+  mc.innerHTML = '<div style="padding:24px;max-width:900px;margin:0 auto"><div style="text-align:center;padding:60px"><span class="spinner"></span></div></div>';
+  await loadInboxItems();
+
+  mc.innerHTML = `
+  <div style="padding:24px;max-width:900px;margin:0 auto">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px">
+      <div>
+        <div style="font-size:20px;font-weight:700;color:#1B5E9B">📥 Quick Save</div>
+        <div style="font-size:13px;color:#888;margin-top:2px">Save anything you find and deal with it later</div>
+      </div>
+      <button onclick="openInboxModal()" style="padding:9px 18px;background:#1B5E9B;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">+ Save Item</button>
+    </div>
+
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px" id="inbox-filters">
+      <button onclick="setInboxFilter('all')" id="ibf-all" style="padding:6px 14px;border-radius:20px;border:1px solid #1B5E9B;background:#1B5E9B;color:#fff;font-size:12px;cursor:pointer;font-weight:600">All</button>
+      ${INBOX_TAGS.map(t=>`<button onclick="setInboxFilter('${t}')" id="ibf-${t.replace(' ','-')}" style="padding:6px 14px;border-radius:20px;border:1px solid #e0e6f0;background:#fff;color:#555;font-size:12px;cursor:pointer">${t}</button>`).join('')}
+    </div>
+
+    <div id="inbox-search-row" style="margin-bottom:16px">
+      <input id="inbox-search" placeholder="Search saved items..." oninput="renderInboxList()" style="width:100%;padding:9px 14px;border:1px solid #d0dcea;border-radius:8px;font-size:13px;outline:none;box-sizing:border-box">
+    </div>
+
+    <div id="inbox-list"></div>
+  </div>
+
+  <!-- MODAL -->
+  <div class="modal-bg" id="inbox-modal" style="align-items:center">
+    <div class="modal" style="max-width:520px;width:100%">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;background:#1B5E9B;border-radius:12px 12px 0 0">
+        <span style="color:#fff;font-size:15px;font-weight:700" id="inbox-modal-title">Save Item</span>
+        <button onclick="closeModal('inbox-modal')" style="background:rgba(255,255,255,0.2);border:none;color:#fff;border-radius:6px;padding:4px 10px;cursor:pointer">✕</button>
+      </div>
+      <div style="padding:20px;display:flex;flex-direction:column;gap:14px">
+        <div class="ifield">
+          <label>Title *</label>
+          <input id="ib-title" placeholder="e.g. City of Houston Vendor Portal">
+        </div>
+        <div class="ifield">
+          <label>URL / Link</label>
+          <input id="ib-url" placeholder="https://...">
+        </div>
+        <div class="ifield">
+          <label>Tag</label>
+          <select id="ib-tag">
+            ${INBOX_TAGS.map(t=>`<option>${t}</option>`).join('')}
+          </select>
+        </div>
+        <div class="ifield">
+          <label>Notes</label>
+          <textarea id="ib-notes" style="height:90px;font-size:13px;resize:vertical" placeholder="What is this? Why did you save it? What do you need to do?"></textarea>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;padding-top:4px">
+          <button class="btn btn-sm" onclick="closeModal('inbox-modal')">Cancel</button>
+          <button class="btn btn-blue" onclick="saveInboxItem()">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+
+  renderInboxList();
+}
+
+function setInboxFilter(tag){
+  _inboxFilter = tag;
+  // Update button styles
+  document.querySelectorAll('[id^="ibf-"]').forEach(function(b){
+    b.style.background='#fff'; b.style.color='#555'; b.style.borderColor='#e0e6f0'; b.style.fontWeight='400';
+  });
+  var activeId = 'ibf-'+(tag==='all'?'all':tag.replace(' ','-'));
+  var activeBtn = document.getElementById(activeId);
+  if(activeBtn){
+    var c = tag==='all'?'#1B5E9B':(INBOX_TAG_COLORS[tag]||'#1B5E9B');
+    activeBtn.style.background=c; activeBtn.style.color='#fff'; activeBtn.style.borderColor=c; activeBtn.style.fontWeight='600';
+  }
+  renderInboxList();
+}
+
+function renderInboxList(){
+  var el = document.getElementById('inbox-list');
+  if(!el) return;
+  var search = (document.getElementById('inbox-search')?.value||'').toLowerCase();
+  var items = _inboxItems.filter(function(i){
+    if(_inboxFilter!=='all' && i.label!==_inboxFilter) return false;
+    if(search && !(i.title||'').toLowerCase().includes(search) && !(i.notes||'').toLowerCase().includes(search)) return false;
+    return true;
+  });
+
+  if(items.length===0){
+    el.innerHTML='<div style="text-align:center;padding:60px 20px;color:#bbb"><div style="font-size:32px;margin-bottom:12px">📭</div><div style="font-size:14px">Nothing saved yet</div><div style="font-size:12px;margin-top:6px">Hit "+ Save Item" whenever you find something worth keeping</div></div>';
+    return;
+  }
+
+  el.innerHTML = items.map(function(item){
+    var tag = item.label||'Other';
+    var c = INBOX_TAG_COLORS[tag]||'#888';
+    var urlHtml = item.description ? '<a href="'+item.description+'" target="_blank" style="font-size:12px;color:#1B5E9B;word-break:break-all;display:block;margin-top:4px">🔗 '+item.description+'</a>' : '';
+    var notesHtml = item.notes ? '<div style="font-size:12px;color:#555;margin-top:8px;line-height:1.6;white-space:pre-wrap">'+item.notes+'</div>' : '';
+    var date = item.created_at ? new Date(item.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '';
+    return '<div style="background:#fff;border:1px solid #e0e6f0;border-left:4px solid '+c+';border-radius:10px;padding:16px 18px;margin-bottom:10px">'+
+      '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">'+
+      '<div style="flex:1">'+
+      '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">'+
+      inboxTagBadge(tag)+
+      '<span style="font-size:11px;color:#bbb">'+date+'</span>'+
+      '</div>'+
+      '<div style="font-size:14px;font-weight:700;color:#111">'+item.title+'</div>'+
+      urlHtml+notesHtml+
+      '</div>'+
+      '<div style="display:flex;gap:6px;flex-shrink:0">'+
+      '<button onclick="editInboxItem(\''+item.id+'\')" style="padding:5px 10px;border:1px solid #e0e6f0;border-radius:6px;font-size:12px;cursor:pointer;background:#fff">Edit</button>'+
+      '<button onclick="deleteInboxItem(\''+item.id+'\')" style="padding:5px 10px;border:1px solid #fcc;border-radius:6px;font-size:12px;cursor:pointer;background:#fff;color:#E24B4A">Delete</button>'+
+      '</div>'+
+      '</div></div>';
+  }).join('');
+}
+
+function openInboxModal(id){
+  _inboxEditId = id||null;
+  document.getElementById('inbox-modal-title').textContent = id ? 'Edit Item' : 'Save Item';
+  if(id){
+    var item = _inboxItems.find(function(i){return i.id===id;});
+    if(!item) return;
+    document.getElementById('ib-title').value = item.title||'';
+    document.getElementById('ib-url').value = item.description||'';
+    document.getElementById('ib-tag').value = item.label||'Other';
+    document.getElementById('ib-notes').value = item.notes||'';
+  } else {
+    document.getElementById('ib-title').value='';
+    document.getElementById('ib-url').value='';
+    document.getElementById('ib-tag').value='Other';
+    document.getElementById('ib-notes').value='';
+  }
+  document.getElementById('inbox-modal').classList.add('open');
+  setTimeout(function(){document.getElementById('ib-title').focus();},100);
+}
+
+function editInboxItem(id){ openInboxModal(id); }
+
+async function saveInboxItem(){
+  var title = document.getElementById('ib-title').value.trim();
+  if(!title){ alert('Please enter a title.'); return; }
+  var obj = {
+    title: title,
+    description: document.getElementById('ib-url').value.trim(),
+    label: document.getElementById('ib-tag').value,
+    notes: document.getElementById('ib-notes').value.trim(),
+    category: 'inbox',
+    done: false,
+    created_by: CU?.id
+  };
+  if(_inboxEditId){
+    await sb.from('tasks').update(obj).eq('id',_inboxEditId);
+  } else {
+    await sb.from('tasks').insert(obj);
+  }
+  closeModal('inbox-modal');
+  await loadInboxItems();
+  renderInboxList();
+  updateInboxBadge();
+}
+
+async function deleteInboxItem(id){
+  if(!confirm('Delete this saved item?')) return;
+  await sb.from('tasks').delete().eq('id',id);
+  _inboxItems = _inboxItems.filter(function(i){return i.id!==id;});
+  renderInboxList();
+  updateInboxBadge();
+}
+
+function updateInboxBadge(){
+  var badge = document.getElementById('sb-inbox-badge');
+  if(!badge) return;
+  var count = _inboxItems.filter(function(i){return i.category==='inbox'&&!i.done;}).length;
+  if(count>0){badge.textContent=count;badge.style.display='inline-block';}
+  else{badge.style.display='none';}
+}
+
+
 // ═══════════════════════════════════════════════════════
 //  AI ADVISOR — NetFiber Business Intelligence
 // ═══════════════════════════════════════════════════════
@@ -2288,7 +2499,7 @@ function deleteCustomGroup(idx){
 }
 
 
-var ALL_PAGES=['dashboard','bids','gc','retail','proposals','purchases','tasks','log','mgmt','pipeline'];
+var ALL_PAGES=['dashboard','bids','gc','retail','proposals','purchases','tasks','log','mgmt','pipeline','inbox'];
 var PAGE_LABELS=['Dashboard','Bid Opp.','GC Contacts','Retail','Proposals','Purchases','To-Do','Activity Log','Management','Pipeline'];
 
 function renderGroupPermsTable(){
