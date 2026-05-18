@@ -867,7 +867,6 @@ async function loadGroupsFromDB(){
           // Write the patched version back to DB silently
           try{sbA.from('profiles').update({group_permissions:JSON.stringify(parsed)}).eq('group_name','admin');}catch(e){}
         }
-        console.log('Groups loaded from DB:',Object.keys(parsed));
         return;
       }
     }
@@ -1247,7 +1246,6 @@ async function loadBids(){
     if(b.assigned_to && profMap[b.assigned_to]) b.assigned_name=profMap[b.assigned_to];
     return b;
   });
-  console.log('Bids loaded:', _bids.length);
   // KPI boxes
   var kEl=document.getElementById('bid-kpis');
   if(kEl){
