@@ -816,7 +816,8 @@ let CU=null,CP=null;
 // Initialize Supabase immediately
 try {
   sb = supabase.createClient(SB_URL, SB_KEY);
-  sbA = supabase.createClient(SB_URL, SB_SVC);
+  // Use a different storage key for sbA to avoid duplicate GoTrueClient warning
+  sbA = supabase.createClient(SB_URL, SB_SVC, {auth:{storageKey:'sb-admin-auth'}});
   sb.auth.getSession().then(function(r) {
     if(r.data && r.data.session) initApp(r.data.session.user);
   });
