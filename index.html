@@ -301,9 +301,8 @@ tr:hover td{background:#fafcff}
 @media print {
   body *{visibility:hidden}
   #print-area,#print-area *{visibility:visible}
-  #print-area{position:fixed;left:0;top:0;width:100%;background:#fff}
+  #print-area{position:absolute;left:0;top:0;width:100%;background:#fff}
   .no-print{display:none!important}
-  .print-doc>div{padding:56px;box-sizing:border-box;min-height:100vh;display:flex;flex-direction:column}
 }
 .print-doc{font-family:Arial,sans-serif;font-size:12px;color:#111}
 .print-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:0}
