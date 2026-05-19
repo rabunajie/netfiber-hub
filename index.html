@@ -2805,7 +2805,7 @@ function updateItem(id,field,val){
 
 function calcTotals(){
   var subtotal = Math.round(pedItems.reduce(function(s,i){return s+i.amount;},0)*100)/100;
-  var totalCost = Math.round(pedItems.reduce(function(s,i){return s+(parseFloat(i.cost)||0)*(parseFloat(i.qty)||0);},0)*100)/100;
+  var totalCost = Math.round(pedItems.reduce(function(s,i){return s+(parseFloat(i.cost)||0);},0)*100)/100;
   var trEl = document.getElementById('ped-taxrate');
   var taxRate = trEl ? (parseFloat(trEl.value)||8.25) : 8.25;
   var tax = Math.round(subtotal*taxRate/100*100)/100;
