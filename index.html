@@ -3097,14 +3097,14 @@ async function printEstimate(id){
   var pa=document.getElementById('print-area');
   pa.innerHTML=doc; pa.style.display='block';
 
-  // Set document title to control PDF filename: "Company. Data Cabling. Proposal. Project Name. Location"
-  var company = (primaryGC.company||'NetFiber').replace(/[\/\\:*?"<>|]/g,' ').trim();
-  var projName = (prop.project_name||'Proposal').replace(/[\/\\:*?"<>|]/g,' ').trim();
-  // Try to split project_name into project + location (e.g. "Aspen Dental - Willis, TX")
-  var projParts = projName.split(/[-–—]/);
-  var projTitle = projParts[0].trim();
-  var projLocation = projParts.length>1 ? projParts.slice(1).join('-').trim() : '';
-  var fileName = company + '. Data Cabling. Proposal. ' + projTitle + (projLocation ? '. ' + projLocation : '');
+  // PDF filename: NetFiber_ProjectName_City-State_SOW
+  function cleanPart(s){ return (s||'').replace(/[\/\\:*?"<>|]/g,'').replace(/\s+/g,' ').trim(); }
+  var fnProject = cleanPart(prop.project_name||'Proposal');
+  var fnCity    = cleanPart(prop.project_city||'');
+  var fnState   = cleanPart(prop.project_state||'');
+  var fnSow     = cleanPart(prop.project_sow||'');
+  var fnLoc     = fnCity && fnState ? fnCity+'-'+fnState : fnCity||fnState;
+  var fileName  = 'NetFiber_'+fnProject+(fnLoc?'_'+fnLoc:'')+(fnSow?'_'+fnSow:'');
   var origTitle = document.title;
   document.title = fileName;
 
