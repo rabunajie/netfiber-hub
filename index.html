@@ -687,7 +687,9 @@ tr:hover td{background:#fafcff}
         <div style="width:220px">
           <div style="display:flex;justify-content:space-between;padding:5px 0;font-size:12px;border-bottom:0.5px solid #eee"><span style="color:#888">Subtotal</span><span id="ped-subtotal" style="font-weight:600">$0</span></div>
           <div style="display:flex;justify-content:space-between;padding:5px 0;font-size:12px;border-bottom:0.5px solid #eee"><span style="color:#888">Tax (<span id="ped-taxrate-display">8.25</span>%)</span><span id="ped-tax" style="font-weight:600">$0</span></div>
-          <div style="display:flex;justify-content:space-between;padding:8px 0;font-size:14px;font-weight:700;color:#1B5E9B"><span>Total</span><span id="ped-total">$0</span></div>
+          <div style="display:flex;justify-content:space-between;padding:8px 0;font-size:14px;font-weight:700;color:#1B5E9B;border-bottom:0.5px solid #eee"><span>Total</span><span id="ped-total">$0</span></div>
+          <div style="display:flex;justify-content:space-between;padding:5px 0;font-size:12px;border-bottom:0.5px solid #eee;margin-top:2px"><span style="color:#888">Total Cost</span><span id="ped-totalcost" style="font-weight:600;color:#888">$0</span></div>
+          <div style="display:flex;justify-content:space-between;padding:7px 0;font-size:13px;font-weight:700;color:#1D9E75"><span>Profit</span><span id="ped-profit">$0</span></div>
         </div>
       </div>
     </div>
@@ -2803,16 +2805,20 @@ function updateItem(id,field,val){
 
 function calcTotals(){
   var subtotal = Math.round(pedItems.reduce(function(s,i){return s+i.amount;},0)*100)/100;
+  var totalCost = Math.round(pedItems.reduce(function(s,i){return s+(parseFloat(i.cost)||0)*(parseFloat(i.qty)||0);},0)*100)/100;
   var trEl = document.getElementById('ped-taxrate');
   var taxRate = trEl ? (parseFloat(trEl.value)||8.25) : 8.25;
   var tax = Math.round(subtotal*taxRate/100*100)/100;
   var total = Math.round((subtotal+tax)*100)/100;
+  var profit = Math.round((total-totalCost)*100)/100;
   var el = function(id){return document.getElementById(id);};
   if(el('ped-subtotal')) el('ped-subtotal').textContent = fmt$(subtotal);
   if(el('ped-tax')) el('ped-tax').textContent = fmt$(tax);
   if(el('ped-total')) el('ped-total').textContent = fmt$(total);
   if(el('ped-taxrate-display')) el('ped-taxrate-display').textContent = taxRate;
-  return {subtotal:subtotal,tax:tax,total:total,taxRate:taxRate};
+  if(el('ped-totalcost')) el('ped-totalcost').textContent = fmt$(totalCost);
+  if(el('ped-profit')){el('ped-profit').textContent = fmt$(profit); el('ped-profit').style.color = profit>=0?'#1D9E75':'#E24B4A';}
+  return {subtotal:subtotal,tax:tax,total:total,taxRate:taxRate,totalCost:totalCost,profit:profit};
 }
 
 // GC ROWS
