@@ -2959,25 +2959,42 @@ async function deleteProposal(id,name){
 }
 
 // ITEM LIBRARY (localStorage)
-var ITEM_LIB_KEY = 'nf_item_library';
+// ── ITEM LIBRARY — stored in Supabase (shared across all devices) ──
+var _itemLibCache = [];
 
-function getLibraryItems(){
-  try { return JSON.parse(localStorage.getItem(ITEM_LIB_KEY)||'[]'); } catch(e){ return []; }
+async function loadLibraryItems(){
+  var res = await sb.from('item_library').select('*').order('name',{ascending:true});
+  _itemLibCache = res.data || [];
+  // Migrate any old localStorage items on first load
+  try{
+    var old = JSON.parse(localStorage.getItem('nf_item_library')||'[]');
+    if(old.length && _itemLibCache.length===0){
+      for(var i=0;i<old.length;i++){
+        await sb.from('item_library').insert({
+          name:old[i].name,description:old[i].desc,rate:old[i].rate||0,
+          qty:old[i].qty||1,cost:old[i].cost||0,vendor:old[i].vendor||''
+        });
+      }
+      localStorage.removeItem('nf_item_library');
+      var res2 = await sb.from('item_library').select('*').order('name',{ascending:true});
+      _itemLibCache = res2.data || [];
+    }
+  }catch(e){}
+  return _itemLibCache;
 }
 
-function saveLibraryItems(items){
-  localStorage.setItem(ITEM_LIB_KEY, JSON.stringify(items));
-}
-
-function openItemLibrary(){
-  renderLibraryItems();
+async function openItemLibrary(){
   document.getElementById('item-library-modal').classList.add('open');
+  var wrap = document.getElementById('ilib-list');
+  if(wrap) wrap.innerHTML='<div style="padding:24px;text-align:center;color:#bbb"><span class="spinner"></span></div>';
+  await loadLibraryItems();
+  renderLibraryItems();
 }
 
 function renderLibraryItems(){
-  var items = getLibraryItems();
+  var items = _itemLibCache.slice();
   var search = (document.getElementById('ilib-search')?document.getElementById('ilib-search').value:'').toLowerCase();
-  if(search) items = items.filter(function(i){ return (i.name+' '+i.desc+' '+i.vendor).toLowerCase().includes(search); });
+  if(search) items = items.filter(function(i){ return ((i.name||'')+' '+(i.description||'')+' '+(i.vendor||'')).toLowerCase().includes(search); });
   var wrap = document.getElementById('ilib-list');
   if(!wrap) return;
   if(!items.length){
@@ -2990,22 +3007,21 @@ function renderLibraryItems(){
     html += '<div style="display:flex;align-items:center;gap:10px;padding:11px 16px;border-bottom:0.5px solid #f5f5f5">';
     html += '<div style="flex:1">';
     html += '<div style="font-size:13px;font-weight:600;color:#111">'+(it.name||'Unnamed')+'</div>';
-    html += '<div style="font-size:11px;color:#888;margin-top:2px">'+(it.desc||'')+(it.vendor?' <span style="color:#aaa">— Vendor: '+it.vendor+'</span>':'')+'</div>';
+    html += '<div style="font-size:11px;color:#888;margin-top:2px">'+(it.description||'')+(it.vendor?' <span style="color:#aaa">— Vendor: '+it.vendor+'</span>':'')+'</div>';
     html += '</div>';
     html += '<div style="font-size:13px;font-weight:700;color:#1B5E9B;white-space:nowrap">$'+Number(it.rate||0).toFixed(2)+' / ea</div>';
-    html += '<button class="btn btn-blue" onclick="addItemFromLibrary(\''+it.id+'\')" style="font-size:11px;padding:4px 10px">+ Add</button>';
-    html += '<button class="btn-sm" onclick="editLibraryItem(\''+it.id+'\')" style="font-size:11px">✏️</button>';
-    html += '<button class="btn-danger" onclick="deleteLibraryItem(\''+it.id+'\')" style="font-size:11px">🗑</button>';
+    html += '<button class="btn btn-blue" onclick="addItemFromLibrary(''+it.id+'')" style="font-size:11px;padding:4px 10px">+ Add</button>';
+    html += '<button class="btn-sm" onclick="editLibraryItem(''+it.id+'')" style="font-size:11px">✏️</button>';
+    html += '<button class="btn-danger" onclick="deleteLibraryItem(''+it.id+'')" style="font-size:11px">🗑</button>';
     html += '</div>';
   }
   wrap.innerHTML = html;
 }
 
 function addItemFromLibrary(id){
-  var items = getLibraryItems();
-  var it = items.find(function(i){ return i.id===id; });
+  var it = _itemLibCache.find(function(i){ return i.id===id; });
   if(!it) return;
-  addLineItem({product_service: it.name, description: it.desc, qty: it.qty||1, rate: it.rate||0, amount: (it.qty||1)*(it.rate||0), cost: it.cost||0, margin: 0});
+  addLineItem({product_service:it.name, description:it.description, qty:it.qty||1, rate:it.rate||0, amount:(it.qty||1)*(it.rate||0), cost:it.cost||0, margin:0});
   closeModal('item-library-modal');
 }
 
@@ -3022,11 +3038,10 @@ function openNewItemForm(){
 }
 
 function editLibraryItem(id){
-  var items = getLibraryItems();
-  var it = items.find(function(i){ return i.id===id; });
+  var it = _itemLibCache.find(function(i){ return i.id===id; });
   if(!it) return;
   document.getElementById('iform-title').textContent = 'Edit Item';
-  document.getElementById('iform-id').value = id;
+  document.getElementById('iform-id').value = it.id;
   document.getElementById('iform-name').value = it.name||'';
   document.getElementById('iform-desc').value = it.desc||'';
   document.getElementById('iform-rate').value = it.rate||0;
@@ -3036,34 +3051,35 @@ function editLibraryItem(id){
   document.getElementById('item-form-modal').classList.add('open');
 }
 
-function saveLibraryItem(){
+async function saveLibraryItem(){
   var id = document.getElementById('iform-id').value;
-  var newItem = {
-    id: id || 'lib_'+Date.now(),
+  var obj = {
     name: document.getElementById('iform-name').value.trim(),
-    desc: document.getElementById('iform-desc').value.trim(),
+    description: document.getElementById('iform-desc').value.trim(),
     rate: parseFloat(document.getElementById('iform-rate').value)||0,
-    qty: parseFloat(document.getElementById('iform-qty').value)||1,
+    qty:  parseFloat(document.getElementById('iform-qty').value)||1,
     cost: parseFloat(document.getElementById('iform-cost').value)||0,
     vendor: document.getElementById('iform-vendor').value.trim()
   };
-  if(!newItem.name){ alert('Item name is required.'); return; }
-  var items = getLibraryItems();
+  if(!obj.name){ alert('Item name is required.'); return; }
+  var err;
   if(id){
-    var idx = items.findIndex(function(i){ return i.id===id; });
-    if(idx>=0) items[idx]=newItem; else items.push(newItem);
+    var r = await sb.from('item_library').update(obj).eq('id',id);
+    err = r.error;
   } else {
-    items.push(newItem);
+    var r = await sb.from('item_library').insert(obj);
+    err = r.error;
   }
-  saveLibraryItems(items);
+  if(err){ alert('Error saving item: '+err.message); return; }
   closeModal('item-form-modal');
+  await loadLibraryItems();
   renderLibraryItems();
 }
 
-function deleteLibraryItem(id){
+async function deleteLibraryItem(id){
   if(!confirm('Remove this item from the library?')) return;
-  var items = getLibraryItems().filter(function(i){ return i.id!==id; });
-  saveLibraryItems(items);
+  await sb.from('item_library').delete().eq('id',id);
+  await loadLibraryItems();
   renderLibraryItems();
 }
 
