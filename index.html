@@ -3010,9 +3010,9 @@ function renderLibraryItems(){
     html += '<div style="font-size:11px;color:#888;margin-top:2px">'+(it.description||'')+(it.vendor?' <span style="color:#aaa">— Vendor: '+it.vendor+'</span>':'')+'</div>';
     html += '</div>';
     html += '<div style="font-size:13px;font-weight:700;color:#1B5E9B;white-space:nowrap">$'+Number(it.rate||0).toFixed(2)+' / ea</div>';
-    html += '<button class="btn btn-blue" onclick="addItemFromLibrary(''+it.id+'')" style="font-size:11px;padding:4px 10px">+ Add</button>';
-    html += '<button class="btn-sm" onclick="editLibraryItem(''+it.id+'')" style="font-size:11px">✏️</button>';
-    html += '<button class="btn-danger" onclick="deleteLibraryItem(''+it.id+'')" style="font-size:11px">🗑</button>';
+    html += '<button class="btn btn-blue" onclick="addItemFromLibrary(\''+it.id+'\')" style="font-size:11px;padding:4px 10px">+ Add</button>';
+    html += '<button class="btn-sm" onclick="editLibraryItem(\''+it.id+'\')" style="font-size:11px">✏️</button>';
+    html += '<button class="btn-danger" onclick="deleteLibraryItem(\''+it.id+'\')" style="font-size:11px">🗑</button>';
     html += '</div>';
   }
   wrap.innerHTML = html;
