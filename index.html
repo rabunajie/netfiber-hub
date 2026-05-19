@@ -2778,7 +2778,7 @@ function renderLineItems(){
     html += '<td><input type="number" value="'+item.rate+'" '+(rateReadonly?'readonly':'')+' onchange="updateItem(\''+item.id+'\',\'rate\',this.value)" min="0" step="0.01" style="'+rateStyle+'"></td>';
     html += '<td style="font-weight:600;color:#1B5E9B">'+fmt$(item.amount)+'</td>';
     html += '<td class="internal-col"><input type="number" value="'+item.cost+'" onchange="updateItem(\''+item.id+'\',\'cost\',this.value)" min="0" step="0.01" placeholder="0" style="width:100%;border:1px solid transparent;border-radius:5px;padding:4px 6px;font-size:12px;outline:none;background:#FFFDF5"></td>';
-    html += '<td class="internal-col"><input type="number" value="'+(item.margin||'')+' " onchange="updateItem(\''+item.id+'\',\'margin\',this.value)" min="0" step="0.1" placeholder="30" title="0 = manual rate" style="width:100%;border:1px solid transparent;border-radius:5px;padding:4px 6px;font-size:12px;outline:none;background:#FFFDF5"></td>';
+    html += '<td class="internal-col"><input type="number" value="'+(item.margin||0)+'" onchange="updateItem(\''+item.id+'\',\'margin\',this.value)" min="0" step="0.1" placeholder="30" title="0 = manual rate" style="width:100%;border:1px solid transparent;border-radius:5px;padding:4px 6px;font-size:12px;outline:none;background:#FFFDF5"></td>';
     html += '<td><button class="btn-danger" onclick="removeLineItem(\''+item.id+'\')" style="padding:3px 7px">×</button></td>';
     html += '</tr>';
   }
