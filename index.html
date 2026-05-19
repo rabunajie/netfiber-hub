@@ -2772,10 +2772,13 @@ function renderLineItems(){
     html += '<td><input value="'+item.product+'" onchange="updateItem(\''+item.id+'\',\'product\',this.value)" placeholder="Cat6 Cable Drops" style="width:100%;border:1px solid transparent;border-radius:5px;padding:4px 6px;font-size:12px;outline:none"></td>';
     html += '<td><input value="'+item.desc+'" onchange="updateItem(\''+item.id+'\',\'desc\',this.value)" placeholder="Description..." style="width:100%;border:1px solid transparent;border-radius:5px;padding:4px 6px;font-size:12px;outline:none"></td>';
     html += '<td><input type="number" value="'+item.qty+'" onchange="updateItem(\''+item.id+'\',\'qty\',this.value)" min="0" step="0.01" style="width:100%;border:1px solid transparent;border-radius:5px;padding:4px 6px;font-size:12px;outline:none"></td>';
-    html += '<td><input type="number" value="'+item.rate+'" onchange="updateItem(\''+item.id+'\',\'rate\',this.value)" min="0" step="0.01" style="width:100%;border:1px solid transparent;border-radius:5px;padding:4px 6px;font-size:12px;outline:none"></td>';
+    // Rate: calculated (locked) when margin>0, manual when margin=0
+    var rateReadonly = item.margin>0;
+    var rateStyle = 'width:100%;border:1px solid transparent;border-radius:5px;padding:4px 6px;font-size:12px;outline:none;'+(rateReadonly?'background:#f0f4fa;color:#1B5E9B;font-weight:600;cursor:not-allowed':'');
+    html += '<td><input type="number" value="'+item.rate+'" '+(rateReadonly?'readonly':'')+' onchange="updateItem(\''+item.id+'\',\'rate\',this.value)" min="0" step="0.01" style="'+rateStyle+'"></td>';
     html += '<td style="font-weight:600;color:#1B5E9B">'+fmt$(item.amount)+'</td>';
-    html += '<td class="internal-col"><input type="number" value="'+item.cost+'" onchange="updateItem(\''+item.id+'\',\'cost\',this.value)" min="0" step="0.01" style="width:100%;border:1px solid transparent;border-radius:5px;padding:4px 6px;font-size:12px;outline:none;background:#FFFDF5"></td>';
-    html += '<td class="internal-col"><input type="number" value="'+item.margin+'" onchange="updateItem(\''+item.id+'\',\'margin\',this.value)" min="0" step="0.1" placeholder="30" style="width:100%;border:1px solid transparent;border-radius:5px;padding:4px 6px;font-size:12px;outline:none;background:#FFFDF5"></td>';
+    html += '<td class="internal-col"><input type="number" value="'+item.cost+'" onchange="updateItem(\''+item.id+'\',\'cost\',this.value)" min="0" step="0.01" placeholder="0" style="width:100%;border:1px solid transparent;border-radius:5px;padding:4px 6px;font-size:12px;outline:none;background:#FFFDF5"></td>';
+    html += '<td class="internal-col"><input type="number" value="'+(item.margin||'')+' " onchange="updateItem(\''+item.id+'\',\'margin\',this.value)" min="0" step="0.1" placeholder="30" title="0 = manual rate" style="width:100%;border:1px solid transparent;border-radius:5px;padding:4px 6px;font-size:12px;outline:none;background:#FFFDF5"></td>';
     html += '<td><button class="btn-danger" onclick="removeLineItem(\''+item.id+'\')" style="padding:3px 7px">×</button></td>';
     html += '</tr>';
   }
@@ -2787,7 +2790,14 @@ function updateItem(id,field,val){
   var item = pedItems.find(function(i){return i.id===id;});
   if(!item) return;
   item[field] = (field==='product'||field==='desc') ? val : (parseFloat(val)||0);
-  if(field==='qty'||field==='rate') item.amount = Math.round(item.qty*item.rate*100)/100;
+
+  // Calculation logic:
+  // margin > 0: Rate = Cost × (1 + margin/100), Amount = Qty × Rate (rate is locked)
+  // margin = 0: Rate is manual, Amount = Qty × Rate
+  if(item.margin>0){
+    item.rate = Math.round(item.cost*(1+item.margin/100)*100)/100;
+  }
+  item.amount = Math.round(item.qty*item.rate*100)/100;
   renderLineItems();
 }
 
