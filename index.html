@@ -297,7 +297,7 @@ tr:hover td{background:#fafcff}
 .gc-card.primary{border-color:#1B5E9B;background:#F0F7FF}
 
 /* PDF PRINT */
-@page{size:letter;margin:72px 56px 56px 56px}
+@page{size:letter;margin:90px 56px 56px 56px}
 @media print {
   body *{visibility:hidden}
   #print-area,#print-area *{visibility:visible}
@@ -308,6 +308,7 @@ tr:hover td{background:#fafcff}
   .print-table{page-break-inside:auto;width:100%}
   .print-table tr{page-break-inside:avoid;page-break-after:auto}
   .print-doc>div{min-height:unset!important}
+  .print-doc>div:first-child{min-height:100vh}
 }
 .print-doc{font-family:Arial,sans-serif;font-size:12px;color:#111}
 .print-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:0}
@@ -3193,7 +3194,7 @@ async function printEstimate(id){
     sg.items.forEach(function(it,i){
       secSub+=parseFloat(it.amount)||0;
       if(it.taxable!==false)secTaxable+=parseFloat(it.amount)||0;
-      secRows+='<tr><td style="color:#888">'+(i+1)+'</td><td><strong>'+(it.product_service||'')+'</strong>'+(it.description?'<br><span style="font-size:11px;color:#555">'+it.description+'</span>':'')+'</td><td style="color:#555;font-size:11px"></td><td style="text-align:right">'+it.qty+'</td><td style="text-align:right">$'+Number(it.rate).toFixed(2)+'</td><td style="text-align:right;font-weight:600">$'+Number(it.amount).toFixed(2)+'</td></tr>';
+      secRows+='<tr><td style="color:#888">'+(i+1)+'</td><td><strong>'+(it.product_service||'')+'</strong></td><td style="color:#555;font-size:11px">'+(it.description||'')+'</td><td style="text-align:right">'+it.qty+'</td><td style="text-align:right">$'+Number(it.rate).toFixed(2)+'</td><td style="text-align:right;font-weight:600">$'+Number(it.amount).toFixed(2)+'</td></tr>';
     });
     grandSubTotal+=secSub;grandTaxable+=secTaxable;
     var secTax=Math.round(secTaxable*taxRate2/100*100)/100;
@@ -3224,7 +3225,7 @@ async function printEstimate(id){
     +sectionsHtml
     +(hasMultiple?'<div class="print-totals" style="border-top:2px solid #1B5E9B;padding-top:8px"><div class="print-totals-box"><div class="print-total-row"><span>Grand Subtotal</span><span>$'+grandSubTotal.toFixed(2)+'</span></div><div class="print-total-row"><span>Sales tax ('+taxRate2+'%)</span><span>$'+grandTax.toFixed(2)+'</span></div><div class="print-total-row bold"><span>Grand Total</span><span>$'+grandTotal.toFixed(2)+'</span></div></div></div>':'')
     +'<div style="flex:1"></div>'
-    +'<div class="print-sign" style="margin-top:auto;padding-top:30px"><div><div class="print-sign-line">Accepted date</div></div><div><div class="print-sign-line">Accepted by</div></div></div>'
+    +'<div class="print-sign" style="margin-top:auto;padding-top:60px"><div><div class="print-sign-line">Accepted date</div></div><div><div class="print-sign-line">Accepted by</div></div></div>'
     +'</div>'
     +'<div style="page-break-before:always;padding:56px;box-sizing:border-box;min-height:100vh;display:flex;flex-direction:column">'
     +'<div style="font-size:16px;font-weight:700;color:#1B5E9B;margin-bottom:16px;text-align:center">NetFiber Network Cabling Solutions</div>'
