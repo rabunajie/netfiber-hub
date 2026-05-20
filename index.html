@@ -661,27 +661,9 @@ tr:hover td{background:#fafcff}
         </div>
       </div>
       <div class="lit-wrap">
-        <table class="lit">
-          <thead>
-            <tr>
-              <th style="width:30px">#</th>
-              <th>Product / Service</th>
-              <th style="min-width:200px">Description</th>
-              <th style="width:60px">Qty</th>
-              <th style="width:80px">Rate ($)</th>
-              <th style="width:90px">Amount ($)</th>
-              <th class="internal-col" style="width:80px" title="Internal only — hidden on print">Cost ($) 🔒</th>
-              <th class="internal-col" style="width:70px" title="Internal only — hidden on print">Margin% 🔒</th>
-              <th style="width:36px"></th>
-            </tr>
-          </thead>
-          <tbody id="ped-items"></tbody>
-        </table>
-        <div class="lit-add-row">
-          <button class="btn-sm" onclick="addLineItem()">+ Add Blank Line</button>
-          <button class="btn-sm" onclick="openItemLibrary()" style="background:#E6F1FB;border-color:#B5D4F4;color:#1B5E9B">📚 Add from Library</button>
-          <span style="font-size:11px;color:#aaa;margin-left:auto">🔒 = internal columns, hidden on printed estimate</span>
-        </div>
+        <div id="ped-sections-wrap"></div>
+        <button onclick="addSection()" style="padding:9px 16px;background:#fff;border:2px dashed #1B5E9B;border-radius:8px;color:#1B5E9B;font-size:13px;font-weight:600;cursor:pointer;width:100%;margin-bottom:8px">+ Add New Section (Suite / Floor / Room)</button>
+        <div style="font-size:11px;color:#aaa;text-align:right">🔒 Cost & Margin are internal — hidden on printed estimate</div>
       </div>
       <div style="display:flex;justify-content:flex-end;margin-top:12px">
         <div style="width:220px">
@@ -2696,6 +2678,7 @@ var DEFAULT_EXCL = '• Conduit pathways, core drilling, or grounding\n• Block
 
 var currentProposalId = null;
 var pedItems = [];
+var pedSections = [{id:'sec_default',header:'',items:[]}];
 var pedGCs = [];
 var invProposal = null;
 var invWorkItems = [];
@@ -2751,16 +2734,31 @@ function filterProposals(){
 }
 
 // LINE ITEMS
-function addLineItem(item){
-  item = item||{};
-  var id = 'li_'+Date.now()+'_'+Math.random().toString(36).slice(2,6);
-  pedItems.push({id:id,product:item.product_service||'',desc:item.description||'',qty:item.qty||1,rate:item.rate||0,amount:item.amount||0,cost:item.cost||0,margin:item.margin||0});
-  renderLineItems();
+function addLineItem(item,sectionId){
+  item=item||{};
+  var id='li_'+Date.now()+'_'+Math.random().toString(36).slice(2,6);
+  var newItem={id:id,product:item.product_service||'',desc:item.description||'',qty:item.qty||1,rate:item.rate||0,amount:item.amount||0,cost:item.cost||0,margin:item.margin||0,taxable:item.taxable!==false};
+  var sid=sectionId||(_currentLibrarySectionId)||null;
+  var sec=sid?pedSections.find(function(s){return s.id===sid;}):null;
+  if(!sec) sec=pedSections[pedSections.length-1];
+  sec.items.push(newItem);
+  renderAllSections();
+}
+function addSection(){
+  pedSections.push({id:'sec_'+Date.now(),header:'',items:[]});
+  renderAllSections();
+  setTimeout(function(){var ins=document.querySelectorAll('.section-header-input');if(ins.length)ins[ins.length-1].focus();},100);
+}
+function removeSection(sid){
+  if(pedSections.length<=1){alert('At least one section is required.');return;}
+  if(!confirm('Remove this section and all its items?'))return;
+  pedSections=pedSections.filter(function(s){return s.id!==sid;});
+  renderAllSections();
 }
 
 function removeLineItem(id){
-  pedItems = pedItems.filter(function(i){return i.id!==id;});
-  renderLineItems();
+  pedSections.forEach(function(s){s.items=s.items.filter(function(i){return i.id!==id;});});
+  renderAllSections();
 }
 
 function renderLineItems(){
@@ -2789,36 +2787,26 @@ function renderLineItems(){
 }
 
 function updateItem(id,field,val){
-  var item = pedItems.find(function(i){return i.id===id;});
+  var item=null;
+  pedSections.forEach(function(s){if(!item)item=s.items.find(function(i){return i.id===id;});});
   if(!item) return;
-  item[field] = (field==='product'||field==='desc') ? val : (parseFloat(val)||0);
-
-  // Calculation logic:
-  // margin > 0: Rate = Cost × (1 + margin/100), Amount = Qty × Rate (rate is locked)
-  // margin = 0: Rate is manual, Amount = Qty × Rate
-  if(item.margin>0){
-    item.rate = Math.round(item.cost*(1+item.margin/100)*100)/100;
-  }
-  item.amount = Math.round(item.qty*item.rate*100)/100;
-  renderLineItems();
+  if(field==='product'||field==='desc') item[field]=val;
+  else if(field==='taxable') item[field]=val;
+  else item[field]=parseFloat(val)||0;
+  if(item.margin>0) item.rate=Math.round(item.cost*(1+item.margin/100)*100)/100;
+  item.amount=Math.round(item.qty*item.rate*100)/100;
+  renderAllSections();
 }
 
 function calcTotals(){
-  var subtotal = Math.round(pedItems.reduce(function(s,i){return s+i.amount;},0)*100)/100;
-  var totalCost = Math.round(pedItems.reduce(function(s,i){return s+(parseFloat(i.cost)||0);},0)*100)/100;
-  var trEl = document.getElementById('ped-taxrate');
-  var taxRate = trEl ? (parseFloat(trEl.value)||8.25) : 8.25;
-  var tax = Math.round(subtotal*taxRate/100*100)/100;
-  var total = Math.round((subtotal+tax)*100)/100;
-  var profit = Math.round((total-totalCost)*100)/100;
-  var el = function(id){return document.getElementById(id);};
-  if(el('ped-subtotal')) el('ped-subtotal').textContent = fmt$(subtotal);
-  if(el('ped-tax')) el('ped-tax').textContent = fmt$(tax);
-  if(el('ped-total')) el('ped-total').textContent = fmt$(total);
-  if(el('ped-taxrate-display')) el('ped-taxrate-display').textContent = taxRate;
-  if(el('ped-totalcost')) el('ped-totalcost').textContent = fmt$(totalCost);
-  if(el('ped-profit')){el('ped-profit').textContent = fmt$(profit); el('ped-profit').style.color = profit>=0?'#1D9E75':'#E24B4A';}
-  return {subtotal:subtotal,tax:tax,total:total,taxRate:taxRate,totalCost:totalCost,profit:profit};
+  var taxRate=parseFloat(document.getElementById('ped-taxrate')?.value||8.25);
+  var subtotal=0,taxable=0,cost=0;
+  pedSections.forEach(function(s){s.items.forEach(function(i){subtotal+=i.amount||0;if(i.taxable!==false)taxable+=i.amount||0;cost+=parseFloat(i.cost)||0;});});
+  subtotal=Math.round(subtotal*100)/100;
+  var tax=Math.round(taxable*taxRate/100*100)/100;
+  var total=Math.round((subtotal+tax)*100)/100;
+  var profit=Math.round((total-cost)*100)/100;
+  return {subtotal:subtotal,tax:tax,total:total,taxRate:taxRate,totalCost:cost,profit:profit};
 }
 
 // GC ROWS
@@ -2861,7 +2849,7 @@ function removeGCRow(id){pedGCs=pedGCs.filter(function(g){return g.id!==id;});re
 
 // OPEN / SAVE
 async function openNewProposal(){
-  currentProposalId=null; pedItems=[]; pedGCs=[];
+  currentProposalId=null; pedItems=[]; pedSections=[{id:'sec_'+Date.now(),header:'',items:[]}]; pedGCs=[];
   document.getElementById('ped-title').textContent='New Proposal';
   document.getElementById('ped-estno').value='';
   document.getElementById('ped-date').value=new Date().toISOString().split('T')[0];
@@ -2873,7 +2861,7 @@ async function openNewProposal(){
   document.getElementById('ped-notes').value='';
   document.getElementById('ped-taxrate').value='8.25';
   addGCRow();
-  renderLineItems();
+  renderAllSections();
   document.getElementById('proposal-editor-modal').classList.add('open');
   pedLogoInit();
   document.getElementById('ped-logo-size').oninput = function(){document.getElementById('ped-logo-size-val').textContent=this.value+'px'; pedLogoSyncSize();};
@@ -2904,8 +2892,16 @@ async function openEditProposal(id){
   document.getElementById('ped-taxrate').value=prop.tax_rate||8.25;
   pedGCs=gcs.map(function(g){return {id:'gc_'+g.id,dbId:g.id,company:g.company||'',contact:g.contact_name||'',address:g.address||'',email:g.email||'',phone:g.phone||'',primary:g.is_primary};});
   if(!pedGCs.length) addGCRow(); else renderGCRows();
-  pedItems=items.map(function(i){return {id:'li_'+i.id,dbId:i.id,product:i.product_service||'',desc:i.description||'',qty:i.qty||0,rate:i.rate||0,amount:i.amount||0,cost:i.cost||0,margin:i.margin||0};});
-  renderLineItems();
+  // Group items by section_id, fall back to single section if no section_id
+  var secMap={};
+  items.forEach(function(i){
+    var sid=i.section_id||'default';
+    if(!secMap[sid]) secMap[sid]={id:'sec_'+sid,header:i.section_header||'',items:[]};
+    secMap[sid].items.push({id:'li_'+i.id,dbId:i.id,product:i.product_service||'',desc:i.description||'',qty:i.qty||0,rate:i.rate||0,amount:i.amount||0,cost:i.cost||0,margin:i.margin||0,taxable:i.taxable!==false});
+  });
+  pedSections=Object.values(secMap);
+  if(!pedSections.length) pedSections=[{id:'sec_'+Date.now(),header:'',items:[]}];
+  renderAllSections();
   document.getElementById('proposal-editor-modal').classList.add('open');
 }
 
@@ -2941,8 +2937,14 @@ async function saveProposal(){
     var np=await sb.from('proposals').insert(propData).select().single();
     propId=np.data.id;
   }
-  if(pedItems.length){
-    await sb.from('proposal_items').insert(pedItems.map(function(item,idx){return {proposal_id:propId,sort_order:idx,product_service:item.product,description:item.desc,qty:item.qty,rate:item.rate,amount:item.amount,cost:item.cost,margin:item.margin};}));
+  var allItems=[];
+  pedSections.forEach(function(sec,si){
+    sec.items.forEach(function(item,idx){
+      allItems.push({proposal_id:propId,section_id:sec.id,section_header:sec.header,sort_order:si*1000+idx,product_service:item.product,description:item.desc,qty:item.qty,rate:item.rate,amount:item.amount,cost:item.cost,margin:item.margin,taxable:item.taxable!==false});
+    });
+  });
+  if(allItems.length){
+    await sb.from('proposal_items').insert(allItems);
   }
   if(pedGCs.length){
     await sb.from('proposal_gcs').insert(pedGCs.map(function(gc){return {proposal_id:propId,company:gc.company,contact_name:gc.contact,address:gc.address,email:gc.email,phone:gc.phone,is_primary:gc.primary};}));
@@ -3021,8 +3023,9 @@ function renderLibraryItems(){
 function addItemFromLibrary(id){
   var it = _itemLibCache.find(function(i){ return i.id===id; });
   if(!it) return;
-  addLineItem({product_service:it.name, description:it.description, qty:it.qty||1, rate:it.rate||0, amount:(it.qty||1)*(it.rate||0), cost:it.cost||0, margin:0});
+  addLineItem({product_service:it.name, description:it.description, qty:it.qty||1, rate:it.rate||0, amount:(it.qty||1)*(it.rate||0), cost:it.cost||0, margin:0, taxable:true}, _currentLibrarySectionId);
   closeModal('item-library-modal');
+  _currentLibrarySectionId=null;
 }
 
 function openNewItemForm(){
@@ -3097,11 +3100,19 @@ async function printEstimate(id){
   var propDate=prop.date?new Date(prop.date+'T00:00:00').toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'}):'';
   var propDateShort=prop.date?new Date(prop.date+'T00:00:00').toLocaleDateString('en-US',{month:'2-digit',day:'2-digit',year:'numeric'}):'';
 
-  var rows='';
-  for(var i=0;i<items.length;i++){
-    var it=items[i];
-    rows+='<tr><td style="color:#888">'+(i+1)+'</td><td><strong>'+(it.product_service||'')+'</strong></td><td style="color:#555;font-size:11px">'+(it.description||'')+'</td><td style="text-align:right">'+it.qty+'</td><td style="text-align:right">$'+Number(it.rate).toFixed(2)+'</td><td style="text-align:right;font-weight:600">$'+Number(it.amount).toFixed(2)+'</td></tr>';
-  }
+  var secGroups={},secOrder=[];
+  for(var pi=0;pi<items.length;pi++){var sid2=items[pi].section_id||'default';if(!secGroups[sid2]){secGroups[sid2]={header:items[pi].section_header||'',items:[]};secOrder.push(sid2);}secGroups[sid2].items.push(items[pi]);}
+  var taxRate2=parseFloat(prop.tax_rate||8.25),hasMultiple=secOrder.length>1,rows='';
+  secOrder.forEach(function(sid2){
+    var sg=secGroups[sid2],secSub=0,secTaxable=0;
+    if(hasMultiple&&sg.header)rows+='<tr><td colspan="6" style="padding:10px 10px 4px;font-weight:700;color:#1B5E9B;font-size:12px;border-top:1px solid #d0dcea;background:#f5f8fc">'+sg.header+'</td></tr>';
+    sg.items.forEach(function(it,i){
+      secSub+=parseFloat(it.amount)||0;
+      if(it.taxable!==false)secTaxable+=parseFloat(it.amount)||0;
+      rows+='<tr><td style="color:#888">'+(i+1)+'</td><td><strong>'+(it.product_service||'')+'</strong></td><td style="color:#555;font-size:11px">'+(it.description||'')+'</td><td style="text-align:right">'+it.qty+'</td><td style="text-align:right">$'+Number(it.rate).toFixed(2)+'</td><td style="text-align:right;font-weight:600">$'+Number(it.amount).toFixed(2)+'</td></tr>';
+    });
+    if(hasMultiple){var secTax2=Math.round(secTaxable*taxRate2/100*100)/100,secTot=Math.round((secSub+secTax2)*100)/100;rows+='<tr style="background:#f9fafb;border-top:1px solid #e0e0e0"><td colspan="3" style="padding:6px 10px;text-align:right;font-size:11px;color:#888">'+sg.header+' Subtotal</td><td style="padding:6px 10px;text-align:right;font-size:11px;color:#888">Tax: $'+secTax2.toFixed(2)+'</td><td colspan="2" style="padding:6px 10px;text-align:right;font-weight:700;color:#1B5E9B">Total: $'+secTot.toFixed(2)+'</td></tr>';}
+  });
   var scopeLines=(prop.scope_of_work||DEFAULT_SCOPE).split('\n').filter(function(l){return l.trim();}).map(function(l){return '<li>'+l.replace(/^[•\-]\s*/,'')+'</li>';}).join('');
   var exclLines=(prop.exclusions||DEFAULT_EXCL).split('\n').filter(function(l){return l.trim();}).map(function(l){return '<li>'+l.replace(/^[•\-]\s*/,'')+'</li>';}).join('');
 
