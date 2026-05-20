@@ -3254,9 +3254,9 @@ async function printEstimate(id){
   var fnLoc     = fnCity && fnState ? fnCity+'-'+fnState : fnCity||fnState;
   var fileName  = 'NetFiber_'+fnProject+(fnLoc?'_'+fnLoc:'')+(fnSow?'_'+fnSow:'');
   var origTitle = document.title;
-  // Set title to a single space so the browser header shows blank instead of the filename/URL
-  // The PDF filename is controlled separately via the Save dialog
-  document.title = ' ';
+  // Set title to filename so PDF saves with correct name
+  // @page CSS suppresses it from showing in the printed header
+  document.title = fileName;
 
   window.print();
   setTimeout(function(){
