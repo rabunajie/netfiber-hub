@@ -2744,6 +2744,84 @@ function addLineItem(item,sectionId){
   sec.items.push(newItem);
   renderAllSections();
 }
+
+function renderAllSections(){
+  var wrap=document.getElementById('ped-sections-wrap');
+  if(!wrap)return;
+  var taxRate=parseFloat(document.getElementById('ped-taxrate')?.value||8.25);
+  var grandSubtotal=0,grandTaxable=0,grandCost=0,grandTotal=0,html='';
+  pedSections.forEach(function(sec,si){
+    var secSub=0,secTaxable=0,secCost=0;
+    html+='<div style="border:1px solid #d0dcea;border-radius:10px;margin-bottom:14px;overflow:hidden">';
+    html+='<div style="display:flex;align-items:center;gap:8px;padding:9px 12px;background:#f5f8fc;border-bottom:1px solid #d0dcea;flex-wrap:wrap">';
+    html+='<span style="font-size:11px;font-weight:700;color:#1B5E9B;white-space:nowrap">SECTION '+(si+1)+'</span>';
+    html+='<input class="section-header-input" type="text" value="'+(sec.header||'').replace(/"/g,"&quot;")+'" onchange="pedSections.find(function(s){return s.id===\''+sec.id+'\';}).header=this.value" placeholder="Suite #, Floor, Room..." style="flex:1;min-width:120px;border:1px solid #d0dcea;border-radius:6px;padding:5px 10px;font-size:13px;font-weight:600;outline:none">';
+    html+='<button onclick="addLineItem({},\''+sec.id+'\')" style="padding:5px 12px;background:#1B5E9B;color:#fff;border:none;border-radius:6px;font-size:12px;cursor:pointer;white-space:nowrap">+ Add Item</button>';
+    html+='<button onclick="openItemLibraryForSection(\''+sec.id+'\')" style="padding:5px 10px;background:#fff;border:1px solid #d0dcea;border-radius:6px;font-size:12px;cursor:pointer;white-space:nowrap">📚 Library</button>';
+    if(pedSections.length>1)html+='<button onclick="removeSection(\''+sec.id+'\')" style="padding:5px 10px;background:#fff;border:1px solid #fcc;border-radius:6px;font-size:12px;cursor:pointer;color:#E24B4A;white-space:nowrap">🗑</button>';
+    html+='</div>';
+    html+='<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:#f9fafb">';
+    html+='<th style="padding:5px 8px;text-align:left;font-size:10px;color:#888;width:24px">#</th>';
+    html+='<th style="padding:5px 8px;text-align:left;font-size:10px;color:#888">Product/Service</th>';
+    html+='<th style="padding:5px 8px;text-align:left;font-size:10px;color:#888">Description</th>';
+    html+='<th style="padding:5px 8px;text-align:center;font-size:10px;color:#888;width:36px" title="Taxable">Tax</th>';
+    html+='<th style="padding:5px 8px;text-align:right;font-size:10px;color:#888;width:55px">Qty</th>';
+    html+='<th style="padding:5px 8px;text-align:right;font-size:10px;color:#888;width:75px">Rate</th>';
+    html+='<th style="padding:5px 8px;text-align:right;font-size:10px;color:#1B5E9B;width:85px">Amount</th>';
+    html+='<th class="internal-col" style="padding:5px 8px;text-align:right;font-size:10px;color:#BA7517;width:65px">Cost🔒</th>';
+    html+='<th class="internal-col" style="padding:5px 8px;text-align:right;font-size:10px;color:#BA7517;width:55px">Mgn%🔒</th>';
+    html+='<th style="width:28px"></th></tr></thead><tbody>';
+    sec.items.forEach(function(item,idx){
+      var rateRo=item.margin>0;
+      var rateStyle='width:100%;border:none;border-radius:4px;padding:3px 5px;font-size:12px;outline:none;text-align:right;background:'+(rateRo?'#f0f4fa':'transparent')+';color:'+(rateRo?'#1B5E9B':'inherit')+(rateRo?';cursor:not-allowed':'');
+      html+='<tr style="border-bottom:0.5px solid #f0f0f0">';
+      html+='<td style="padding:3px 8px;color:#aaa;font-size:11px">'+(idx+1)+'</td>';
+      html+='<td style="padding:2px 4px"><input type="text" value="'+item.product.replace(/"/g,'&quot;')+'" onchange="updateItem(\''+item.id+'\',\'product\',this.value)" style="width:100%;border:none;border-radius:4px;padding:3px 5px;font-size:12px;outline:none" placeholder="Product/Service"></td>';
+      html+='<td style="padding:2px 4px"><input type="text" value="'+item.desc.replace(/"/g,'&quot;')+'" onchange="updateItem(\''+item.id+'\',\'desc\',this.value)" style="width:100%;border:none;border-radius:4px;padding:3px 5px;font-size:12px;outline:none" placeholder="Description"></td>';
+      html+='<td style="padding:2px 4px;text-align:center"><input type="checkbox" '+(item.taxable!==false?'checked':'')+' onchange="updateItem(\''+item.id+'\',\'taxable\',this.checked)" style="width:15px;height:15px;cursor:pointer" title="Taxable"></td>';
+      html+='<td style="padding:2px 4px"><input type="number" value="'+item.qty+'" onchange="updateItem(\''+item.id+'\',\'qty\',this.value)" min="0" step="0.5" style="width:100%;border:none;border-radius:4px;padding:3px 5px;font-size:12px;outline:none;text-align:right"></td>';
+      html+='<td style="padding:2px 4px"><input type="number" value="'+item.rate+'" '+(rateRo?'readonly':'')+' onchange="updateItem(\''+item.id+'\',\'rate\',this.value)" min="0" step="0.01" style="'+rateStyle+'"></td>';
+      html+='<td style="padding:5px 8px;font-weight:600;color:#1B5E9B;text-align:right">'+fmt$(item.amount)+'</td>';
+      html+='<td class="internal-col" style="padding:2px 4px"><input type="number" value="'+(item.cost||0)+'" onchange="updateItem(\''+item.id+'\',\'cost\',this.value)" min="0" step="0.01" style="width:100%;border:none;border-radius:4px;padding:3px 5px;font-size:12px;outline:none;text-align:right;background:#FFFDF5"></td>';
+      html+='<td class="internal-col" style="padding:2px 4px"><input type="number" value="'+(item.margin||0)+'" onchange="updateItem(\''+item.id+'\',\'margin\',this.value)" min="0" step="0.1" title="0=manual" style="width:100%;border:none;border-radius:4px;padding:3px 5px;font-size:12px;outline:none;text-align:right;background:#FFFDF5"></td>';
+      html+='<td style="padding:2px 4px;text-align:center"><button onclick="removeLineItem(\''+item.id+'\')" style="background:none;border:none;cursor:pointer;color:#E24B4A;font-size:13px;padding:2px">✕</button></td>';
+      html+='</tr>';
+      secSub+=item.amount||0;
+      if(item.taxable!==false)secTaxable+=item.amount||0;
+      secCost+=parseFloat(item.cost)||0;
+    });
+    html+='</tbody></table>';
+    var secTax=Math.round(secTaxable*taxRate/100*100)/100;
+    var secTotal=Math.round((secSub+secTax)*100)/100;
+    grandSubtotal+=secSub;grandTaxable+=secTaxable;grandCost+=secCost;grandTotal+=secTotal;
+    html+='<div style="display:flex;justify-content:flex-end;gap:20px;padding:8px 12px;background:#f9fafb;border-top:1px solid #eee;flex-wrap:wrap;font-size:12px">';
+    html+='<span style="color:#888">Subtotal: <strong>'+fmt$(secSub)+'</strong></span>';
+    html+='<span style="color:#888">Tax ('+taxRate+'%): <strong>'+fmt$(secTax)+'</strong></span>';
+    html+='<span style="font-weight:700;color:#1B5E9B">Section Total: '+fmt$(secTotal)+'</span>';
+    html+='</div></div>';
+  });
+  wrap.innerHTML=html;
+  var grandTax=Math.round(grandTaxable*taxRate/100*100)/100;
+  var grandProfit=Math.round((grandTotal-grandCost)*100)/100;
+  var el=function(id){return document.getElementById(id);};
+  if(el('ped-subtotal'))el('ped-subtotal').textContent=fmt$(grandSubtotal);
+  if(el('ped-tax'))el('ped-tax').textContent=fmt$(grandTax);
+  if(el('ped-total'))el('ped-total').textContent=fmt$(grandTotal);
+  if(el('ped-taxrate-display'))el('ped-taxrate-display').textContent=taxRate;
+  if(el('ped-totalcost'))el('ped-totalcost').textContent=fmt$(grandCost);
+  if(el('ped-profit')){el('ped-profit').textContent=fmt$(grandProfit);el('ped-profit').style.color=grandProfit>=0?'#1D9E75':'#E24B4A';}
+}
+
+function updateSectionHeader(sid,val){
+  var sec=pedSections.find(function(s){return s.id===sid;});
+  if(sec) sec.header=val;
+}
+function openItemLibraryForSection(sid){
+  _currentLibrarySectionId=sid;
+  openItemLibrary();
+}
+var _currentLibrarySectionId=null;
+
 function addSection(){
   pedSections.push({id:'sec_'+Date.now(),header:'',items:[]});
   renderAllSections();
