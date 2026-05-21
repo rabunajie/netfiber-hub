@@ -688,8 +688,12 @@ tr:hover td{background:#fafcff}
       <div class="ifield" style="margin-bottom:10px"><textarea id="ped-scope" style="height:120px;font-size:12px;line-height:1.7"></textarea></div>
       <div class="ped-section-title" style="margin-top:14px">Exclusions</div>
       <div class="ifield" style="margin-bottom:10px"><textarea id="ped-excl" style="height:100px;font-size:12px;line-height:1.7"></textarea></div>
+      <div class="ped-section-title" style="margin-top:14px">General Terms</div>
+      <div class="ifield" style="margin-bottom:10px"><textarea id="ped-terms" style="height:100px;font-size:12px;line-height:1.7"></textarea></div>
       <div class="ped-section-title" style="margin-top:14px">Notes</div>
-      <div class="ifield"><textarea id="ped-notes" style="height:60px;font-size:12px"></textarea></div>
+      <div class="ifield" style="margin-bottom:10px"><textarea id="ped-notes" style="height:60px;font-size:12px"></textarea></div>
+      <div class="ped-section-title" style="margin-top:14px">Acknowledgment</div>
+      <div class="ifield"><textarea id="ped-ack" style="height:60px;font-size:12px"></textarea></div>
     </div>
 
     <div style="padding:14px 16px;border-top:0.5px solid #eee;background:#f9fafb">
@@ -2681,6 +2685,9 @@ function pedLogoInit() {
 
 var DEFAULT_SCOPE = '• Installation and termination of data cable drops\n• Provide and install wall-mounted network rack\n• Provide and install CAT6 patch panel, 1U RMS\n• Provide and install flush-mounted faceplates\n• Supply and install J-hooks, ceiling wire, and Velcro for cable support';
 var DEFAULT_EXCL = '• Conduit pathways, core drilling, or grounding\n• Blocking, power, or digital content installation\n• Demolition/removal of existing data cabling\n• UPS/PDU units\n• Lift equipment (to be provided by customer unless otherwise agreed)';
+var DEFAULT_TERMS = 'Work Start: Work will begin upon written notice to proceed and scheduling confirmation.\nMaterials: Certain materials or special-order items may require pre-payment before ordering.\nBilling: Invoices will be submitted in progress, based on work completed or materials delivered.\nFinal Payment: Due upon project completion unless otherwise agreed in writing.\nPayment Expectations: NetFiber kindly requests timely payments to keep the project moving without delay.';
+var DEFAULT_PROJ_NOTES = 'Project pricing is valid for 30 days from the date of proposal.\nAny scope changes will require a written change order before proceeding.';
+var DEFAULT_ACK = 'By accepting this estimate or issuing a purchase order, the client agrees to the terms outlined above.';
 
 var currentProposalId = null;
 var pedItems = [];
@@ -2942,7 +2949,9 @@ async function openNewProposal(){
   document.getElementById('ped-projaddr').value='';
   document.getElementById('ped-scope').value=DEFAULT_SCOPE;
   document.getElementById('ped-excl').value=DEFAULT_EXCL;
-  document.getElementById('ped-notes').value='';
+  document.getElementById('ped-terms').value=DEFAULT_TERMS;
+  document.getElementById('ped-notes').value=DEFAULT_PROJ_NOTES;
+  document.getElementById('ped-ack').value=DEFAULT_ACK;
   document.getElementById('ped-taxrate').value='8.25';
   addGCRow();
   renderAllSections();
@@ -2972,7 +2981,9 @@ async function openEditProposal(id){
   document.getElementById('ped-projaddr').value=prop.ship_to_address||'';
   document.getElementById('ped-scope').value=prop.scope_of_work||DEFAULT_SCOPE;
   document.getElementById('ped-excl').value=prop.exclusions||DEFAULT_EXCL;
-  document.getElementById('ped-notes').value=prop.notes||'';
+  document.getElementById('ped-terms').value=prop.general_terms||DEFAULT_TERMS;
+  document.getElementById('ped-notes').value=prop.notes||DEFAULT_PROJ_NOTES;
+  document.getElementById('ped-ack').value=prop.acknowledgment||DEFAULT_ACK;
   document.getElementById('ped-taxrate').value=prop.tax_rate||8.25;
   pedGCs=gcs.map(function(g){return {id:'gc_'+g.id,dbId:g.id,company:g.company||'',contact:g.contact_name||'',address:g.address||'',email:g.email||'',phone:g.phone||'',primary:g.is_primary};});
   if(!pedGCs.length) addGCRow(); else renderGCRows();
@@ -3007,7 +3018,9 @@ async function saveProposal(){
     bill_to_address:primaryGC.address||'',
     scope_of_work:document.getElementById('ped-scope').value,
     exclusions:document.getElementById('ped-excl').value,
+    general_terms:document.getElementById('ped-terms').value,
     notes:document.getElementById('ped-notes').value,
+    acknowledgment:document.getElementById('ped-ack').value,
     tax_rate:totals.taxRate,subtotal:totals.subtotal,tax_amount:totals.tax,total:totals.total,
     updated_by:CU.id,updated_at:new Date().toISOString()
   };
@@ -3234,7 +3247,8 @@ async function printEstimate(id){
     +'<div class="print-scope"><h3>Exclusions:</h3><ul>'+exclLines+'</ul></div>'
     +'<div class="print-scope"><h3>General Terms:</h3><ul><li>Work Start: Work will begin upon written notice to proceed and scheduling confirmation.</li><li>Materials: Certain materials or special-order items may require pre-payment before ordering.</li><li>Billing: Invoices will be submitted in progress, based on work completed or materials delivered.</li><li>Final Payment: Due upon project completion unless otherwise agreed in writing.</li></ul></div>'
     +'<div class="print-scope"><h3>Payment Expectations:</h3><p style="font-size:12px;color:#333;line-height:1.7">NetFiber kindly requests timely payments to keep the project moving without delay.</p></div>'
-    +'<div class="print-scope"><h3>Notes:</h3><ul><li>Project pricing is valid for 30 days from the date of proposal.</li><li>Any scope changes will require a written change order before proceeding.</li>'+(prop.notes?'<li>'+prop.notes+'</li>':'')+'</ul></div>'
+    +(prop.general_terms?'<div class="print-scope"><h3>General Terms:</h3><ul>'+prop.general_terms.split('\n').filter(function(l){return l.trim();}).map(function(l){return '<li>'+l.replace(/^[•\-]\s*/,'')+'</li>';}).join('')+'</ul></div>':'')
+    +(prop.notes?'<div class="print-scope"><h3>Notes:</h3><ul>'+prop.notes.split('\n').filter(function(l){return l.trim();}).map(function(l){return '<li>'+l.replace(/^[•\-]\s*/,'')+'</li>';}).join('')+'</ul></div>':'')
     +'<div class="print-scope"><h3>Acknowledgment:</h3><p style="font-size:12px;color:#333;line-height:1.7">By accepting this estimate or issuing a purchase order, the client agrees to the terms outlined above.</p></div>'
     
     +'<div style="margin-top:40px"></div>'
