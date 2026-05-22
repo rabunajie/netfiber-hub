@@ -3303,9 +3303,9 @@ async function printEstimate(id){
     +'<div class="print-scope"><h3>Exclusions:</h3><ul>'+exclLines+'</ul></div>'
 
 
-    +(prop.general_terms?'<div class="print-scope"><h3>General Terms:</h3><ul>'+prop.general_terms.split('\n').filter(function(l){return l.trim();}).map(function(l){return '<li>'+l.replace(/^[•\-]\s*/,'')+'</li>';}).join('')+'</ul></div>':'')
-    +(prop.notes?'<div class="print-scope"><h3>Notes:</h3><ul>'+prop.notes.split('\n').filter(function(l){return l.trim();}).map(function(l){return '<li>'+l.replace(/^[•\-]\s*/,'')+'</li>';}).join('')+'</ul></div>':'')
-    +(prop.acknowledgment?'<div class="print-scope"><h3>Acknowledgment:</h3><p style="font-size:12px;color:#333;line-height:1.7">'+prop.acknowledgment+'</p></div>':'<div class="print-scope"><h3>Acknowledgment:</h3><p style="font-size:12px;color:#333;line-height:1.7">By accepting this estimate or issuing a purchase order, the client agrees to the terms outlined above.</p></div>')
+    +(function(){var t=prop.general_terms||DEFAULT_TERMS;return t?'<div class="print-scope"><h3>General Terms:</h3><ul>'+t.split('\n').filter(function(l){return l.trim();}).map(function(l){return '<li>'+l.replace(/^[•\-]\s*/,'')+'</li>';}).join('')+'</ul></div>':'';})()
+    +(function(){var n=prop.notes||DEFAULT_PROJ_NOTES;return n?'<div class="print-scope"><h3>Notes:</h3><ul>'+n.split('\n').filter(function(l){return l.trim();}).map(function(l){return '<li>'+l.replace(/^[•\-]\s*/,'')+'</li>';}).join('')+'</ul></div>':'';})()
+    +(function(){var a=prop.acknowledgment||DEFAULT_ACK;return a?'<div class="print-scope"><h3>Acknowledgment:</h3><p style="font-size:12px;color:#333;line-height:1.7">'+a+'</p></div>':'';})()
     
     +'<div style="margin-top:40px"></div>'
     +'<div class="print-thank">THANK YOU FOR THE OPPORTUNITY TO WORK WITH YOU!<br><span style="font-weight:400;font-size:11px">We look forward to delivering professional, on-time results for your project.</span></div>'
