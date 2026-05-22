@@ -689,11 +689,15 @@ tr:hover td{background:#fafcff}
       <div class="ped-section-title" style="margin-top:14px">Exclusions</div>
       <div class="ifield" style="margin-bottom:10px"><textarea id="ped-excl" style="height:100px;font-size:12px;line-height:1.7"></textarea></div>
       <div class="ped-section-title" style="margin-top:14px">General Terms</div>
-      <div class="ifield" style="margin-bottom:10px"><textarea id="ped-terms" style="height:160px;font-size:12px;line-height:1.7"></textarea></div>
+      <div class="ifield" style="margin-bottom:10px"><textarea id="ped-terms" style="height:120px;font-size:12px;line-height:1.7"></textarea></div>
+      <div class="ped-section-title" style="margin-top:14px">Payment Expectations</div>
+      <div class="ifield" style="margin-bottom:10px"><textarea id="ped-payment" style="height:60px;font-size:12px;line-height:1.7"></textarea></div>
       <div class="ped-section-title" style="margin-top:14px">Notes</div>
       <div class="ifield" style="margin-bottom:10px"><textarea id="ped-notes" style="height:60px;font-size:12px"></textarea></div>
       <div class="ped-section-title" style="margin-top:14px">Acknowledgment</div>
-      <div class="ifield"><textarea id="ped-ack" style="height:60px;font-size:12px"></textarea></div>
+      <div class="ifield" style="margin-bottom:10px"><textarea id="ped-ack" style="height:60px;font-size:12px"></textarea></div>
+      <div id="ped-custom-sections"></div>
+      <button onclick="addCustomSection()" style="margin-top:14px;padding:7px 14px;background:#fff;border:1.5px dashed #1B5E9B;border-radius:8px;color:#1B5E9B;font-size:12px;font-weight:600;cursor:pointer;width:100%">+ Add Custom Section</button>
     </div>
 
     <div style="padding:14px 16px;border-top:0.5px solid #eee;background:#f9fafb">
@@ -2685,7 +2689,8 @@ function pedLogoInit() {
 
 var DEFAULT_SCOPE = '• Installation and termination of data cable drops\n• Provide and install wall-mounted network rack\n• Provide and install CAT6 patch panel, 1U RMS\n• Provide and install flush-mounted faceplates\n• Supply and install J-hooks, ceiling wire, and Velcro for cable support';
 var DEFAULT_EXCL = '• Conduit pathways, core drilling, or grounding\n• Blocking, power, or digital content installation\n• Demolition/removal of existing data cabling\n• UPS/PDU units\n• Lift equipment (to be provided by customer unless otherwise agreed)';
-var DEFAULT_TERMS = 'Work Start: Work will begin upon written notice to proceed and scheduling confirmation.\nMaterials: Certain materials or special-order items may require pre-payment before ordering.\nBilling: Invoices will be submitted in progress, based on work completed or materials delivered.\nFinal Payment: Due upon project completion unless otherwise agreed in writing.\nPayment Expectations: NetFiber kindly requests timely payments to keep the project moving without delay.';
+var DEFAULT_TERMS = 'Work Start: Work will begin upon written notice to proceed and scheduling confirmation.\nMaterials: Certain materials or special-order items may require pre-payment before ordering.\nBilling: Invoices will be submitted in progress, based on work completed or materials delivered.\nFinal Payment: Due upon project completion unless otherwise agreed in writing.';
+var DEFAULT_PAYMENT = 'NetFiber kindly requests timely payments to keep the project moving without delay.';
 var DEFAULT_PROJ_NOTES = 'Project pricing is valid for 30 days from the date of proposal.\nAny scope changes will require a written change order before proceeding.';
 var DEFAULT_ACK = 'By accepting this estimate or issuing a purchase order, the client agrees to the terms outlined above.';
 
@@ -2834,6 +2839,33 @@ function openItemLibraryForSection(sid){
   openItemLibrary();
 }
 var _currentLibrarySectionId=null;
+var _customSections=[];
+function addCustomSection(){
+  var id='cs_'+Date.now();
+  _customSections.push({id:id,title:'',text:''});
+  renderCustomSections();
+}
+function removeCustomSection(id){
+  _customSections=_customSections.filter(function(s){return s.id!==id;});
+  renderCustomSections();
+}
+function renderCustomSections(){
+  var wrap=document.getElementById('ped-custom-sections');
+  if(!wrap)return;
+  wrap.innerHTML=_customSections.map(function(s){
+    return '<div style="margin-top:14px" data-cs-id="'+s.id+'">'
+      +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">'
+      +'<input value="'+s.title.replace(/"/g,'&quot;')+'" onchange="updateCustomSection(\''+s.id+'\',\'title\',this.value)" placeholder="Section Title..." style="flex:1;padding:5px 8px;border:1px solid #d0dcea;border-radius:6px;font-size:12px;font-weight:700;outline:none;background:#fff;text-transform:uppercase">'
+      +'<button onclick="removeCustomSection(\''+s.id+'\')" style="background:none;border:none;cursor:pointer;color:#E24B4A;font-size:14px;padding:2px 6px">✕</button>'
+      +'</div>'
+      +'<div class="ifield"><textarea onchange="updateCustomSection(\''+s.id+'\',\'text\',this.value)" style="height:80px;font-size:12px;line-height:1.7" placeholder="Section content...">'+s.text+'</textarea></div>'
+      +'</div>';
+  }).join('');
+}
+function updateCustomSection(id,field,val){
+  var s=_customSections.find(function(s){return s.id===id;});
+  if(s)s[field]=val;
+}
 
 function addSection(){
   pedSections.push({id:'sec_'+Date.now(),header:'',items:[]});
@@ -3006,8 +3038,10 @@ async function openNewProposal(){
   document.getElementById('ped-scope').value=DEFAULT_SCOPE;
   document.getElementById('ped-excl').value=DEFAULT_EXCL;
   document.getElementById('ped-terms').value=DEFAULT_TERMS;
+  document.getElementById('ped-payment').value=DEFAULT_PAYMENT;
   document.getElementById('ped-notes').value=DEFAULT_PROJ_NOTES;
   document.getElementById('ped-ack').value=DEFAULT_ACK;
+  _customSections=[];renderCustomSections();
   document.getElementById('ped-taxrate').value='8.25';
   addGCRow();
   renderAllSections();
@@ -3038,8 +3072,10 @@ async function openEditProposal(id){
   document.getElementById('ped-scope').value=prop.scope_of_work||DEFAULT_SCOPE;
   document.getElementById('ped-excl').value=prop.exclusions||DEFAULT_EXCL;
   document.getElementById('ped-terms').value=prop.general_terms||DEFAULT_TERMS;
+  document.getElementById('ped-payment').value=prop.payment_expectations||DEFAULT_PAYMENT;
   document.getElementById('ped-notes').value=prop.notes||DEFAULT_PROJ_NOTES;
   document.getElementById('ped-ack').value=prop.acknowledgment||DEFAULT_ACK;
+  _customSections=prop.custom_sections?JSON.parse(prop.custom_sections):[];renderCustomSections();
   document.getElementById('ped-taxrate').value=prop.tax_rate||8.25;
   pedGCs=gcs.map(function(g){return {id:'gc_'+g.id,dbId:g.id,company:g.company||'',contact:g.contact_name||'',address:g.address||'',city:g.city||'',email:g.email||'',phone:g.phone||'',primary:g.is_primary};});
   if(!pedGCs.length) addGCRow(); else renderGCRows();
@@ -3075,8 +3111,10 @@ async function saveProposal(){
     scope_of_work:document.getElementById('ped-scope').value,
     exclusions:document.getElementById('ped-excl').value,
     general_terms:document.getElementById('ped-terms').value,
+    payment_expectations:document.getElementById('ped-payment').value,
     notes:document.getElementById('ped-notes').value,
     acknowledgment:document.getElementById('ped-ack').value,
+    custom_sections:JSON.stringify(_customSections),
     tax_rate:totals.taxRate,subtotal:totals.subtotal,tax_amount:totals.tax,total:totals.total,
     updated_by:CU.id,updated_at:new Date().toISOString()
   };
@@ -3304,6 +3342,8 @@ async function printEstimate(id){
 
 
     +(function(){var t=prop.general_terms||DEFAULT_TERMS;return t?'<div class="print-scope"><h3>General Terms:</h3><ul>'+t.split('\n').filter(function(l){return l.trim();}).map(function(l){return '<li>'+l.replace(/^[•\-]\s*/,'')+'</li>';}).join('')+'</ul></div>':'';})()
+    +(function(){var p=prop.payment_expectations||DEFAULT_PAYMENT;return p?'<div class="print-scope"><h3>Payment Expectations:</h3><p style="font-size:12px;color:#333;line-height:1.7">'+p+'</p></div>':'';})()
+    +(function(){var cs=prop.custom_sections?JSON.parse(prop.custom_sections):[];return cs.map(function(s){return s.title||s.text?'<div class="print-scope">'+(s.title?'<h3>'+s.title+':</h3>':'')+(s.text?'<p style="font-size:12px;color:#333;line-height:1.7">'+s.text+'</p>':'')+'</div>':'';}).join('');})()
     +(function(){var n=prop.notes||DEFAULT_PROJ_NOTES;return n?'<div class="print-scope"><h3>Notes:</h3><ul>'+n.split('\n').filter(function(l){return l.trim();}).map(function(l){return '<li>'+l.replace(/^[•\-]\s*/,'')+'</li>';}).join('')+'</ul></div>':'';})()
     +(function(){var a=prop.acknowledgment||DEFAULT_ACK;return a?'<div class="print-scope"><h3>Acknowledgment:</h3><p style="font-size:12px;color:#333;line-height:1.7">'+a+'</p></div>':'';})()
     
