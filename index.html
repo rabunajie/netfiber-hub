@@ -2787,7 +2787,7 @@ function renderAllSections(){
     sec.items.forEach(function(item,idx){
       var rateRo=item.margin>0;
       var rateStyle='width:100%;border:none;border-radius:4px;padding:3px 5px;font-size:12px;outline:none;text-align:right;background:'+(rateRo?'#f0f4fa':'transparent')+';color:'+(rateRo?'#1B5E9B':'inherit')+(rateRo?';cursor:not-allowed':'');
-      html+='<tr style="border-bottom:0.5px solid #f0f0f0">';
+      html+='<tr class="drag-row" data-item-id="'+item.id+'" style="border-bottom:0.5px solid #f0f0f0" draggable="true" ondragstart="onItemDragStart(event,\''+item.id+'\',\''+sec.id+'\')" ondragend="onItemDragEnd(event)" ondragover="onItemDragOver(event,\''+item.id+'\',\''+sec.id+'\')" ondrop="onItemDrop(event,\''+item.id+'\',\''+sec.id+'\')">';
       html+='<td style="padding:3px 8px;color:#aaa;font-size:11px">'+(idx+1)+'</td>';
       html+='<td style="padding:2px 4px"><input type="text" value="'+item.product.replace(/"/g,'&quot;')+'" onchange="updateItem(\''+item.id+'\',\'product\',this.value)" style="width:100%;border:none;border-radius:4px;padding:3px 5px;font-size:12px;outline:none" placeholder="Product/Service"></td>';
       html+='<td style="padding:2px 4px"><input type="text" value="'+item.desc.replace(/"/g,'&quot;')+'" onchange="updateItem(\''+item.id+'\',\'desc\',this.value)" style="width:100%;border:none;border-radius:4px;padding:3px 5px;font-size:12px;outline:none" placeholder="Description"></td>';
@@ -2797,7 +2797,7 @@ function renderAllSections(){
       html+='<td style="padding:5px 8px;font-weight:600;color:#1B5E9B;text-align:right">'+fmt$(item.amount)+'</td>';
       html+='<td class="internal-col" style="padding:2px 4px"><input type="number" value="'+(item.cost||0)+'" onchange="updateItem(\''+item.id+'\',\'cost\',this.value)" min="0" step="0.01" style="width:100%;border:none;border-radius:4px;padding:3px 5px;font-size:12px;outline:none;text-align:right;background:#FFFDF5"></td>';
       html+='<td class="internal-col" style="padding:2px 4px"><input type="number" value="'+(item.margin||0)+'" onchange="updateItem(\''+item.id+'\',\'margin\',this.value)" min="0" step="0.1" title="0=manual" style="width:100%;border:none;border-radius:4px;padding:3px 5px;font-size:12px;outline:none;text-align:right;background:#FFFDF5"></td>';
-      html+='<td style="padding:2px 4px;text-align:center"><button onclick="removeLineItem(\''+item.id+'\')" style="background:none;border:none;cursor:pointer;color:#E24B4A;font-size:13px;padding:2px">✕</button></td>';
+      html+='<td style="padding:2px 6px;text-align:right;white-space:nowrap;user-select:none">'+'<button onclick="removeLineItem(\''+item.id+'\')" title="Remove" style="background:none;border:none;cursor:pointer;color:#E24B4A;font-size:13px;padding:1px 4px;vertical-align:middle">✕</button>'+'<span title="Drag to reorder" style="cursor:grab;color:#bbb;font-size:16px;padding:1px 4px;vertical-align:middle;line-height:1">⠿</span>'+'</td>';
       html+='</tr>';
       secSub+=item.amount||0;
       if(item.taxable!==false)secTaxable+=item.amount||0;
@@ -2849,6 +2849,61 @@ function removeSection(sid){
 
 function removeLineItem(id){
   pedSections.forEach(function(s){s.items=s.items.filter(function(i){return i.id!==id;});});
+  renderAllSections();
+}
+var _dragId=null,_dragSid=null;
+function onItemDragStart(e,id,sid){
+  _dragId=id;_dragSid=sid;
+  e.dataTransfer.effectAllowed='move';
+  e.currentTarget.style.opacity='0.4';
+}
+function onItemDragEnd(e){
+  e.currentTarget.style.opacity='1';
+  document.querySelectorAll('.drag-row').forEach(function(r){r.style.borderTop='';r.style.borderBottom='';});
+}
+function onItemDragOver(e,id,sid){
+  e.preventDefault();
+  e.dataTransfer.dropEffect='move';
+  document.querySelectorAll('.drag-row').forEach(function(r){r.style.borderTop='';r.style.borderBottom='';});
+  var row=document.querySelector('[data-item-id="'+id+'"]');
+  if(row){
+    var rect=row.getBoundingClientRect();
+    var mid=rect.top+rect.height/2;
+    if(e.clientY<mid) row.style.borderTop='2px solid #1B5E9B';
+    else row.style.borderBottom='2px solid #1B5E9B';
+  }
+}
+function onItemDrop(e,targetId,targetSid){
+  e.preventDefault();
+  document.querySelectorAll('.drag-row').forEach(function(r){r.style.borderTop='';r.style.borderBottom='';});
+  if(!_dragId||_dragId===targetId) return;
+  // Find source
+  var srcSec=null,srcIdx=-1,srcItem=null;
+  pedSections.forEach(function(s){
+    var i=s.items.findIndex(function(it){return it.id===_dragId;});
+    if(i>-1){srcSec=s;srcIdx=i;srcItem=s.items[i];}
+  });
+  var tgtSec=null,tgtIdx=-1;
+  pedSections.forEach(function(s){
+    var i=s.items.findIndex(function(it){return it.id===targetId;});
+    if(i>-1){tgtSec=s;tgtIdx=i;}
+  });
+  if(!srcSec||!tgtSec||srcIdx===-1||tgtIdx===-1) return;
+  // Remove from source
+  srcSec.items.splice(srcIdx,1);
+  // Determine insert position based on mouse y
+  var row=document.querySelector('[data-item-id="'+targetId+'"]');
+  var insertAfter=false;
+  if(row){
+    var rect=row.getBoundingClientRect();
+    insertAfter=e.clientY>rect.top+rect.height/2;
+  }
+  // Re-find target index after removal
+  var newTgtIdx=tgtSec.items.findIndex(function(it){return it.id===targetId;});
+  if(newTgtIdx===-1) newTgtIdx=tgtSec.items.length;
+  else if(insertAfter) newTgtIdx++;
+  tgtSec.items.splice(newTgtIdx,0,srcItem);
+  _dragId=null;_dragSid=null;
   renderAllSections();
 }
 
