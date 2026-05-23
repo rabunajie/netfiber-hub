@@ -972,21 +972,33 @@ async function initApp(user){
   if(window._VIEW_ONLY){
     document.body.classList.add('view-only');
     document.getElementById('view-only-banner').style.display='flex';
-    // Intercept ALL button clicks globally
-    document.addEventListener('click', function(e){
-      if(!window._VIEW_ONLY) return;
-      var btn=e.target.closest('button,a[onclick]');
-      if(!btn) return;
-      var action=btn.getAttribute('onclick')||btn.textContent||'';
-      var blocked=['save','Save','delete','Delete','create','Create','remove','Remove',
-        'insert','update','submit','Submit','add','Add','send','Send'];
-      var isBlocked=blocked.some(function(k){return action.includes(k);});
-      if(isBlocked){
-        e.preventDefault();e.stopImmediatePropagation();
-        voNotify('You are in View Only mode — changes are not allowed');
-        return false;
+    // Override all write functions at the JS level so they can never execute
+    window.addEventListener('load',function(){
+      var writeFns=['saveBid','saveProposal','saveUser','deleteUser','createUser',
+        'saveLibraryItem','deleteLibraryItem','saveInboxItem','deleteInboxItem',
+        'toggleUserDisabled','toggleViewOnly','adminChangePassword','removeLineItem',
+        'addGCRow','saveProposalGC','logFollowUp','addSection','removeSection',
+        'changeGroup','updateItem','savePurchase','deletePurchase'];
+      writeFns.forEach(function(fn){
+        if(typeof window[fn]==='function'){
+          window[fn]=(function(orig){
+            return function(){voNotify('View Only mode — you cannot make changes.');};
+          })(window[fn]);
+        }
+      });
+    });
+    // Also intercept all button clicks as backup
+    document.addEventListener('click',function(e){
+      if(!window._VIEW_ONLY)return;
+      var btn=e.target.closest('button');
+      if(!btn)return;
+      var txt=(btn.getAttribute('onclick')||'')+(btn.textContent||'');
+      var blocked=/save|Save|delete|Delete|create|Create|remove|Remove|update|submit|add|send|toggle|change|log/i;
+      if(blocked.test(txt)){
+        e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();
+        voNotify('View Only mode — you cannot make changes.');
       }
-    }, true);
+    },true);
   }
   // Load group permissions from DB (cross-device sync)
   await loadGroupsFromDB();
@@ -1920,11 +1932,10 @@ async function deleteUser(){
   const id=document.getElementById('eu-id').value;
   const name=document.getElementById('eu-name').value;
   if(!confirm('Permanently delete '+name+'? This cannot be undone.'))return;
-  // Delete from auth
-  var r=await sbA.auth.admin.deleteUser(id);
-  if(r.error){alert('Error deleting user: '+r.error.message);return;}
-  // Delete profile
+  // Delete profile first (removes FK dependencies), then auth user
   await sbA.from('profiles').delete().eq('id',id);
+  var r=await sbA.auth.admin.deleteUser(id);
+  if(r.error){alert('Error deleting auth user: '+r.error.message+'. Profile was removed.');}
   await logAct('Deleted user','profiles',id,'Deleted '+name);
   closeModal('edit-user-modal');
   await loadUsers();
