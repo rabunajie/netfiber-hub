@@ -972,21 +972,17 @@ async function initApp(user){
   if(window._VIEW_ONLY){
     document.body.classList.add('view-only');
     document.getElementById('view-only-banner').style.display='flex';
-    // Override all write functions at the JS level so they can never execute
-    window.addEventListener('load',function(){
+    // Override write functions — run after a short delay to ensure all fns are defined
+    setTimeout(function(){
       var writeFns=['saveBid','saveProposal','saveUser','deleteUser','createUser',
         'saveLibraryItem','deleteLibraryItem','saveInboxItem','deleteInboxItem',
         'toggleUserDisabled','toggleViewOnly','adminChangePassword','removeLineItem',
         'logFollowUp','addSection','removeSection',
-        'changeGroup','savePurchase','deletePurchase'];
+        'changeGroup','savePurchase','deletePurchase','openNewItemForm'];
       writeFns.forEach(function(fn){
-        if(typeof window[fn]==='function'){
-          window[fn]=(function(orig){
-            return function(){voNotify('View Only mode — you cannot make changes.');};
-          })(window[fn]);
-        }
+        window[fn]=function(){voNotify('View Only mode — you cannot make changes.');};
       });
-    });
+    },500);
     // Intercept write button clicks as backup — only exact write function names
     document.addEventListener('click',function(e){
       if(!window._VIEW_ONLY)return;
@@ -994,7 +990,7 @@ async function initApp(user){
       if(!btn)return;
       var onclick=btn.getAttribute('onclick')||'';
       // Only block known write functions — not navigation or filter buttons
-      var writePattern=/(saveBid|saveProposal|saveUser|deleteUser|createUser|saveLibraryItem|deleteLibraryItem|saveInboxItem|deleteInboxItem|toggleUserDisabled|toggleViewOnly|adminChangePassword|removeLineItem|addSection|removeSection|changeGroup|logFollowUp|savePurchase|deletePurchase|addLineItem|openNewProposal|openBidModal)/;
+      var writePattern=/\b(saveBid|saveProposal|saveUser|deleteUser|createUser|saveLibraryItem|deleteLibraryItem|saveInboxItem|deleteInboxItem|toggleUserDisabled|toggleViewOnly|adminChangePassword|removeLineItem|addSection|removeSection|changeGroup|logFollowUp|savePurchase|deletePurchase|addLineItem|openNewProposal|openBidModal|openEditUser|openNewItemForm)\b/;
       if(writePattern.test(onclick)){
         e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();
         voNotify('View Only mode — you cannot make changes.');
@@ -1855,6 +1851,7 @@ async function loadUsers(){
   var rows='';
   users.forEach(function(u){
     var isMe=u.id===CU.id;
+    var isSuperAdminUser=(u.email||'')==='mabunajie@netfibernetwork.com';
     var disabled=u.disabled===true;
     var custom=getCustomGroups().map(function(g){return '<option value="'+g+'"'+(u.group_name===g?' selected':'')+'>'+g+'</option>';}).join('');
     var groupSel='<select onchange="changeGroup(&quot;'+u.id+'&quot;,this.value)" style="padding:5px 8px;border:1px solid #ddd;border-radius:6px;font-size:12px">'
@@ -1876,7 +1873,7 @@ async function loadUsers(){
       +'<div class="user-email">'+(u.email||u.id)+'</div>'
       +'</div>'
       +'<div style="display:flex;gap:8px;align-items:center">'
-      +(!isMe?'<button onclick="openEditUser(&quot;'+u.id+'&quot;,&quot;'+(u.full_name||'')+'&quot;,&quot;'+(u.email||'')+'&quot;,&quot;'+(u.group_name||'staff')+'&quot;)" style="padding:5px 12px;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;background:#1B5E9B;color:#fff">✏️ Edit</button>'+pwBtn+disBtn+voBtn:'<span style="font-size:12px;color:#aaa">You</span>')
+      +(isMe?'<span style="font-size:12px;color:#aaa">You</span>':isSuperAdminUser?'<span style="font-size:12px;color:#888;font-style:italic">🔒 Owner — protected</span>':'<button onclick="openEditUser(&quot;'+u.id+'&quot;,&quot;'+(u.full_name||'')+'&quot;,&quot;'+(u.email||'')+'&quot;,&quot;'+(u.group_name||'staff')+'&quot;)" style="padding:5px 12px;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;background:#1B5E9B;color:#fff">✏️ Edit</button>'+pwBtn+disBtn+voBtn)
       +'</div></div>';
   });
   ul.innerHTML=rows||'<div style="padding:1rem;color:#aaa;font-size:13px">No users found</div>';
@@ -1893,15 +1890,33 @@ function getCustomGroups(){
 }
 
 async function toggleViewOnly(userId,currentlyViewOnly){
+  if(await isSuperAdmin(userId)){alert('This account is protected and cannot be set to view-only.');return;}
   var res=await sbA.from('profiles').update({view_only:!currentlyViewOnly}).eq('id',userId);
   if(res.error){alert('Error: '+res.error.message);return;}
   renderMgmt();
 }
 
+var SUPER_ADMIN_EMAIL='mabunajie@netfibernetwork.com';
+async function isSuperAdmin(userId){
+  // Check if this userId belongs to the super admin account
+  try{
+    var r=await sbA.auth.admin.getUserById(userId);
+    return r.data?.user?.email===SUPER_ADMIN_EMAIL;
+  }catch(e){return false;}
+}
 async function toggleUserDisabled(userId,currentlyDisabled){
+  if(await isSuperAdmin(userId)){alert('This account is protected and cannot be disabled.');return;}
   var res=await sbA.from('profiles').update({disabled:!currentlyDisabled}).eq('id',userId);
   if(res.error){alert('Error: '+res.error.message);return;}
   await loadUsers();
+  // Add custom groups to the create-user dropdown
+  var nuSel=document.getElementById('nu-group');
+  if(nuSel){
+    var customs=getCustomGroups();
+    customs.forEach(function(g){
+      var opt=document.createElement('option');opt.value=g;opt.textContent=g;nuSel.appendChild(opt);
+    });
+  }
 }
 
 async function changeGroup(userId,newGroup){
@@ -1912,7 +1927,18 @@ async function changeGroup(userId,newGroup){
 
 
 async function createUser(){const name=document.getElementById('nu-name').value.trim();const email=document.getElementById('nu-email').value.trim();const pass=document.getElementById('nu-pass').value;const group=document.getElementById('nu-group').value;const msg=document.getElementById('create-msg');if(!name||!email||!pass){msg.textContent='Please fill all fields.';msg.style.color='#a32d2d';msg.style.display='block';return;}const {data,error}=await sbA.auth.admin.createUser({email,password:pass,email_confirm:true,user_metadata:{full_name:name}});if(error){msg.textContent='Error: '+error.message;msg.style.color='#a32d2d';msg.style.display='block';return;}await sbA.from('profiles').update({full_name:name,group_name:group,role:group==='admin'?'admin':'user'}).eq('id',data.user.id);await logAct('Created user','profiles',data.user.id,`Created ${name} (${group})`);msg.textContent=`✓ ${name} created. They can sign in at hub.netfibernetwork.com`;msg.style.color='#27500A';msg.style.display='block';document.getElementById('nu-name').value='';document.getElementById('nu-email').value='';document.getElementById('nu-pass').value='';await loadUsers();}
-function openEditUser(id,name,email,group){document.getElementById('eu-id').value=id;document.getElementById('eu-name').value=name;document.getElementById('eu-email').value=email||'';document.getElementById('eu-group').value=group;document.getElementById('edit-user-modal').classList.add('open');}
+function openEditUser(id,name,email,group){
+  document.getElementById('eu-id').value=id;
+  document.getElementById('eu-name').value=name;
+  document.getElementById('eu-email').value=email||'';
+  // Rebuild group dropdown including custom groups
+  var sel=document.getElementById('eu-group');
+  var customs=getCustomGroups();
+  sel.innerHTML='<option value="admin">Admin</option><option value="sales">Sales</option><option value="staff">Staff</option><option value="field">Field</option>'
+    +customs.map(function(g){return '<option value="'+g+'">'+g+'</option>';}).join('');
+  sel.value=group;
+  document.getElementById('edit-user-modal').classList.add('open');
+}
 async function saveUser(){
   const id=document.getElementById('eu-id').value;
   const name=document.getElementById('eu-name').value.trim();
@@ -1932,6 +1958,7 @@ async function saveUser(){
 async function deleteUser(){
   const id=document.getElementById('eu-id').value;
   const name=document.getElementById('eu-name').value;
+  if(await isSuperAdmin(id)){alert('This account is protected and cannot be deleted.');return;}
   if(!confirm('Permanently delete '+name+'? This cannot be undone.'))return;
   // Delete profile first (removes FK dependencies), then auth user
   await sbA.from('profiles').delete().eq('id',id);
