@@ -1019,9 +1019,9 @@ async function initApp(user){
 
 function applyPermissions(){
   const allowed=GROUPS[CP?.group_name||'staff']||['dashboard','tasks'];
-  document.querySelectorAll('.sb-item[data-groups]').forEach(el=>{
-    const gs=el.dataset.groups.split(',');
-    el.style.display=gs.includes(CP?.group_name||'staff')?'flex':'none';
+  document.querySelectorAll('.sb-item[data-page]').forEach(el=>{
+    const page=el.dataset.page;
+    el.style.display=(page==='dashboard'||canAccess(page))?'flex':'none';
   });
 }
 
@@ -1352,7 +1352,7 @@ async function loadBids(){
       bidKpi('📞','Phone Follow-Up','Due today or overdue',fuCall,'#A32D2D','fu_overdue');
   }
   // Set initial scope: admins default to All Bids, others default to My Bids
-  var defaultScope=(CP&&CP.group_name==='admin')?'all':'mine';
+  var defaultScope=(CP&&(CP.group_name==='admin'||CP.view_only===true))?'all':'mine';
   setBidScope(defaultScope);
 }
 var _bidScope='mine';
