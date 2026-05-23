@@ -1870,7 +1870,6 @@ async function deleteUser(){
   closeModal('edit-user-modal');
   await loadUsers();
 }
-async function deleteUser(id,name){if(!confirm(`Remove "${name}"? They will lose access immediately.`))return;await sbA.auth.admin.deleteUser(id);await logAct('Deleted user','profiles',null,`Removed: ${name}`);await loadUsers();}
 
 // FOLLOW-UP
 async function openFU(e,bidId){e.stopPropagation();currentBidId=bidId;const {data:bid}=await sb.from('bids').select('*').eq('id',bidId).single();if(!bid)return;document.getElementById('fu-proj-name').textContent=bid.project||bid.ref||'Project';document.getElementById('fu-proj-gc').textContent=bid.gc||'';var fuK=bid.fu_status||'none';if(fuK==='new')fuK='none';var cfg=FU[fuK]||{l:'Follow Up',c:'fu-new'};document.getElementById('fu-cur-status').innerHTML='<span class="fu-badge '+cfg.c+'">'+cfg.l+'</span>';const nd=bid.fu_next_date;if(nd){const diff=ddiff(nd);document.getElementById('fu-next-action').innerHTML=diff<0?'<span style="color:#E24B4A">'+Math.abs(diff)+'d overdue — Act now!</span>':diff===0?'<span style="color:#BA7517">Due TODAY</span>':'In '+diff+' day'+(diff!==1?'s':'')+'  ('+fmtD(nd)+')';document.getElementById('fu-next-date').value=nd;}else{document.getElementById('fu-next-action').textContent='Not scheduled';const s=new Date();s.setDate(s.getDate()+4);document.getElementById('fu-next-date').value=s.toISOString().split('T')[0];}document.getElementById('fu-last-contact').textContent=bid.last_ping?fmtD(bid.last_ping):'Never';await loadFUHistory(bidId);document.getElementById('fu-modal').classList.add('open');}
