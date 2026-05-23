@@ -1769,6 +1769,14 @@ async function renderMgmt(){
 async function loadUsers(){
   var res=await sbA.from('profiles').select('*').order('created_at',{ascending:true});
   var users=res.data||[];
+  // Fetch emails from Auth admin API and merge into profiles
+  try{
+    var authRes=await sbA.auth.admin.listUsers();
+    var authUsers=authRes.data?.users||[];
+    var emailMap={};
+    authUsers.forEach(function(u){emailMap[u.id]=u.email;});
+    users=users.map(function(u){return Object.assign({},u,{email:u.email||emailMap[u.id]||''});});
+  }catch(e){console.warn('Could not load auth emails:',e);}
   var ul=document.getElementById('users-list');
   if(!ul)return;
   var gc={admin:'g-admin',sales:'g-sales',staff:'g-staff',field:'g-field'};
