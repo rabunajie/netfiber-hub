@@ -900,6 +900,10 @@ async function loadGroupsFromDB(){
           if(parsed[g]&&parsed[g].indexOf('ai')<0){parsed[g].push('ai');needsSave=true;}
           if(parsed[g]&&parsed[g].indexOf('inbox')<0){parsed[g].push('inbox');needsSave=true;}
         });
+        // Ensure bids is in sales and staff groups if they exist
+        ['sales','staff'].forEach(function(g){
+          if(parsed[g]&&parsed[g].indexOf('bids')<0){parsed[g].push('bids');needsSave=true;}
+        });
         localStorage.setItem('netfiber_groups',JSON.stringify(parsed));
         GROUPS=parsed;
         if(needsSave){
@@ -1347,9 +1351,8 @@ async function loadBids(){
       bidKpi('📧','Email Follow-Up','Due today or overdue',fuEmail,'#1B5E9B','fu_today')+
       bidKpi('📞','Phone Follow-Up','Due today or overdue',fuCall,'#A32D2D','fu_overdue');
   }
-  // Set initial scope: admins default to All Bids, others default to My Bids
-  var defaultScope=(CP&&(CP.group_name==='admin'||CP.view_only===true))?'all':'mine';
-  setBidScope(defaultScope);
+  // Default everyone to All Bids — My Bids is an optional filter
+  setBidScope('all');
 }
 var _bidScope='mine';
 function setBidScope(scope){
