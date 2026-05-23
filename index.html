@@ -935,6 +935,7 @@ async function initApp(user){
   CU=user;
   const {data:p}=await sb.from('profiles').select('*').eq('id',user.id).single();
   CP=p||{full_name:user.email,group_name:'staff'};
+  window._VIEW_ONLY=CP&&CP.view_only===true;
   // Load group permissions from DB (cross-device sync)
   await loadGroupsFromDB();
   const name=CP.full_name||user.email;
@@ -1022,6 +1023,15 @@ function fuBadge(bid){
   }
   return '<span class="fu-badge '+cls+'" onclick="openFU(event,&quot;'+bid.id+'&quot;)" title="Click to log follow-up">'+f.l+extra+'</span>';
 }
+// View Only guard — call before any save/edit/delete action
+function guardWrite(msg){
+  if(window._VIEW_ONLY){
+    alert('👁 View Only mode: '+(msg||'You do not have permission to make changes.'));
+    return false;
+  }
+  return true;
+}
+
 function rowCls(bid){if(!bid.fu_next_date)return'';if(bid.fu_status==='closed'||bid.status==='Win'||bid.status==='Lost')return'';const d=ddiff(bid.fu_next_date);if(d<0)return'ov-row';if(d===0)return'tod-row';return'';}
 
 // NAVIGATION
@@ -1356,7 +1366,7 @@ function filterBids(){
 async function openBidModal(){editBidId=null;document.getElementById('bid-modal-title').textContent='New Bid';['ref','project','gc','poc','email','phone','notes','scope'].forEach(f=>document.getElementById('bm-'+f).value='');['price','cost'].forEach(f=>document.getElementById('bm-'+f).value='0');['due','ping'].forEach(f=>document.getElementById('bm-'+f).value='');document.getElementById('bm-source').value='PlanHub';document.getElementById('bm-status').value='Under Review';await loadUsersDropdown('bm-assigned',null);document.getElementById('bid-modal').classList.add('open');}
 async function editBid(id){const {data:r}=await sb.from('bids').select('*').eq('id',id).single();if(!r)return;editBidId=id;document.getElementById('bid-modal-title').textContent='Edit Bid';var statusMap={'Submitted':'Bid Sent','Won':'Win','WON':'Win','LOST':'Lost','Replied':'Bid Sent','Did Not replay':'Under Review'};var cleanStatus=statusMap[r.status]||r.status||'Under Review';document.getElementById('bm-ref').value=r.ref||'';document.getElementById('bm-source').value=r.source||'PlanHub';document.getElementById('bm-project').value=r.project||'';document.getElementById('bm-status').value=cleanStatus;// Force the select to reflect value
 var statusEl=document.getElementById('bm-status');var statusValid=['Under Review','Bid Sent','Win','Lost'];if(!statusValid.includes(statusEl.value))statusEl.value='Under Review';document.getElementById('bm-gc').value=r.gc||'';document.getElementById('bm-poc').value=r.poc||'';document.getElementById('bm-email').value=r.email||'';document.getElementById('bm-phone').value=r.phone||'';document.getElementById('bm-price').value=r.price||0;document.getElementById('bm-cost').value=r.cost||0;document.getElementById('bm-due').value=r.due_date||'';document.getElementById('bm-ping').value=r.last_ping||'';document.getElementById('bm-notes').value=r.notes||'';document.getElementById('bm-scope').value=r.scope||'';await loadUsersDropdown('bm-assigned',r.assigned_to||null);document.getElementById('bid-modal').classList.add('open');}
-async function saveBid(){const price=parseFloat(document.getElementById('bm-price').value)||0;const cost=parseFloat(document.getElementById('bm-cost').value)||0;const statusVal=document.getElementById('bm-status').value;const obj={ref:document.getElementById('bm-ref').value,source:document.getElementById('bm-source').value,project:document.getElementById('bm-project').value,status:statusVal,gc:document.getElementById('bm-gc').value,poc:document.getElementById('bm-poc').value,email:document.getElementById('bm-email').value,phone:document.getElementById('bm-phone').value,price,cost,profit:price-cost,due_date:document.getElementById('bm-due').value||null,last_ping:document.getElementById('bm-ping').value||null,notes:document.getElementById('bm-notes').value,scope:document.getElementById('bm-scope').value,assigned_to:document.getElementById('bm-assigned').value||null,updated_by:CU.id,updated_at:new Date().toISOString()};if(editBidId){
+async function saveBid(){if(!guardWrite('You cannot save bids in view-only mode.'))return;const price=parseFloat(document.getElementById('bm-price').value)||0;const cost=parseFloat(document.getElementById('bm-cost').value)||0;const statusVal=document.getElementById('bm-status').value;const obj={ref:document.getElementById('bm-ref').value,source:document.getElementById('bm-source').value,project:document.getElementById('bm-project').value,status:statusVal,gc:document.getElementById('bm-gc').value,poc:document.getElementById('bm-poc').value,email:document.getElementById('bm-email').value,phone:document.getElementById('bm-phone').value,price,cost,profit:price-cost,due_date:document.getElementById('bm-due').value||null,last_ping:document.getElementById('bm-ping').value||null,notes:document.getElementById('bm-notes').value,scope:document.getElementById('bm-scope').value,assigned_to:document.getElementById('bm-assigned').value||null,updated_by:CU.id,updated_at:new Date().toISOString()};if(editBidId){
     const {data:updatedRow,error:upErr}=await sb.from('bids').update(obj).eq('id',editBidId).select().single();console.log('Updated row from DB:',updatedRow?.status,'error:',upErr);
     if(upErr){console.error('Save bid error:',upErr);alert('Error saving bid: '+upErr.message);return;}
     await logAct('Updated bid','bids',editBidId,`Updated ${obj.ref}`);
@@ -1770,16 +1780,18 @@ async function loadUsers(){
       +custom+'</select>';
     var pwBtn='<button onclick="adminChangePassword(&quot;'+u.id+'&quot;,&quot;'+(u.full_name||u.email)+'&quot;)" style="padding:5px 12px;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;background:#854F0B;color:#fff">Reset PW</button>';
     var disBtn='<button onclick="toggleUserDisabled(&quot;'+u.id+'&quot;,'+disabled+')" style="padding:5px 12px;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;background:'+(disabled?'#1D9E75':'#E24B4A')+';color:#fff">'+(disabled?'Enable':'Disable')+'</button>';
+    var viewOnly=u.view_only===true;
+    var voBtn='<button onclick="toggleViewOnly(&quot;'+u.id+'&quot;,'+viewOnly+')" title="View Only: user can see everything but cannot save, edit or delete anything" style="padding:5px 12px;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;background:'+(viewOnly?'#533AB7':'#e0e6f0')+';color:'+(viewOnly?'#fff':'#555')+'">'+(viewOnly?'👁 View Only':'👁 Set View Only')+'</button>';
     rows+='<div class="user-card" style="opacity:'+(disabled?0.6:1)+';">'
       +'<div class="user-av" style="background:'+(disabled?'#aaa':'#1B5E9B')+'">'+inits(u.full_name)+'</div>'
       +'<div style="flex:1;min-width:0">'
       +'<div class="user-name">'+(u.full_name||'—')
-      +(disabled?'<span style="background:#FCEBEB;color:#A32D2D;font-size:9px;font-weight:700;padding:2px 7px;border-radius:4px;margin-left:8px">DISABLED</span>':'')
+      +(disabled?'<span style="background:#FCEBEB;color:#A32D2D;font-size:9px;font-weight:700;padding:2px 7px;border-radius:4px;margin-left:8px">DISABLED</span>':'')+(viewOnly?'<span style="background:#EDE9F8;color:#533AB7;font-size:9px;font-weight:700;padding:2px 7px;border-radius:4px;margin-left:4px">VIEW ONLY</span>':'')
       +'<span class="gbadge '+(gc[u.group_name]||'g-staff')+'">'+(u.group_name||'staff')+'</span></div>'
       +'<div class="user-email">'+(u.email||u.id)+'</div>'
       +'</div>'
       +'<div style="display:flex;gap:8px;align-items:center">'
-      +(!isMe?groupSel+pwBtn+disBtn:'<span style="font-size:12px;color:#aaa">You</span>')
+      +(!isMe?groupSel+pwBtn+disBtn+voBtn:'<span style="font-size:12px;color:#aaa">You</span>')
       +'</div></div>';
   });
   ul.innerHTML=rows||'<div style="padding:1rem;color:#aaa;font-size:13px">No users found</div>';
@@ -1793,6 +1805,12 @@ function buildCustomGroups(current){
 
 function getCustomGroups(){
   try{return JSON.parse(localStorage.getItem('netfiber_custom_groups')||'[]');}catch(e){return[];}
+}
+
+async function toggleViewOnly(userId,currentlyViewOnly){
+  var res=await sbA.from('profiles').update({view_only:!currentlyViewOnly}).eq('id',userId);
+  if(res.error){alert('Error: '+res.error.message);return;}
+  renderMgmt();
 }
 
 async function toggleUserDisabled(userId,currentlyDisabled){
@@ -2081,7 +2099,7 @@ function openInboxModal(id){
 
 function editInboxItem(id){ openInboxModal(id); }
 
-async function saveInboxItem(){
+async function saveInboxItem(){if(!guardWrite('You cannot save items in view-only mode.'))return;
   var title = document.getElementById('ib-title').value.trim();
   if(!title){ alert('Please enter a title.'); return; }
   var obj = {
@@ -3092,7 +3110,7 @@ async function openEditProposal(id){
   document.getElementById('proposal-editor-modal').classList.add('open');
 }
 
-async function saveProposal(){
+async function saveProposal(){if(!guardWrite('You cannot save proposals in view-only mode.'))return;
   var totals=calcTotals();
   var primaryGC=pedGCs.find(function(g){return g.primary;})||pedGCs[0]||{};
   var propData={
@@ -3245,7 +3263,7 @@ function editLibraryItem(id){
   document.getElementById('item-form-modal').classList.add('open');
 }
 
-async function saveLibraryItem(){
+async function saveLibraryItem(){if(!guardWrite('You cannot edit the library in view-only mode.'))return;
   var id = document.getElementById('iform-id').value;
   var obj = {
     name: document.getElementById('iform-name').value.trim(),
