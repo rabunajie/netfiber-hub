@@ -977,8 +977,8 @@ async function initApp(user){
       var writeFns=['saveBid','saveProposal','saveUser','deleteUser','createUser',
         'saveLibraryItem','deleteLibraryItem','saveInboxItem','deleteInboxItem',
         'toggleUserDisabled','toggleViewOnly','adminChangePassword','removeLineItem',
-        'addGCRow','saveProposalGC','logFollowUp','addSection','removeSection',
-        'changeGroup','updateItem','savePurchase','deletePurchase'];
+        'logFollowUp','addSection','removeSection',
+        'changeGroup','savePurchase','deletePurchase'];
       writeFns.forEach(function(fn){
         if(typeof window[fn]==='function'){
           window[fn]=(function(orig){
@@ -987,14 +987,15 @@ async function initApp(user){
         }
       });
     });
-    // Also intercept all button clicks as backup
+    // Intercept write button clicks as backup — only exact write function names
     document.addEventListener('click',function(e){
       if(!window._VIEW_ONLY)return;
       var btn=e.target.closest('button');
       if(!btn)return;
-      var txt=(btn.getAttribute('onclick')||'')+(btn.textContent||'');
-      var blocked=/save|Save|delete|Delete|create|Create|remove|Remove|update|submit|add|send|toggle|change|log/i;
-      if(blocked.test(txt)){
+      var onclick=btn.getAttribute('onclick')||'';
+      // Only block known write functions — not navigation or filter buttons
+      var writePattern=/(saveBid|saveProposal|saveUser|deleteUser|createUser|saveLibraryItem|deleteLibraryItem|saveInboxItem|deleteInboxItem|toggleUserDisabled|toggleViewOnly|adminChangePassword|removeLineItem|addSection|removeSection|changeGroup|logFollowUp|savePurchase|deletePurchase|addLineItem|openNewProposal|openBidModal)/;
+      if(writePattern.test(onclick)){
         e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();
         voNotify('View Only mode — you cannot make changes.');
       }
