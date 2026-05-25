@@ -1289,8 +1289,8 @@ async function renderDashboard(){
 async function renderBids(){
   const mc=document.getElementById('main-content');
   mc.innerHTML=`
-    <div id="bid-kpis" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px"></div>
     <div class="page-hdr"><div><div class="page-title">Bid Opportunities</div><div class="page-sub">All bids and follow-ups</div></div><button class="btn btn-blue" onclick="openBidModal()">+ New Bid</button></div>
+    <div id="bid-kpis" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px"></div>
     <div class="toolbar">
       <input type="text" id="bid-search" placeholder="Search project, GC, ref..." oninput="filterBids()" style="flex:1;min-width:180px">
       <div id="bid-scope-toggle" style="display:flex;border:1px solid #e0e6f0;border-radius:8px;overflow:hidden;font-size:13px">
@@ -1463,8 +1463,8 @@ async function delBid(id,name){if(!confirm(`Delete bid "${name}"?`))return;await
 async function renderGC(){
   const mc=document.getElementById('main-content');
   mc.innerHTML=`
-    <div id="gc-kpis" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px"></div>
     <div class="page-hdr"><div><div class="page-title">GC Contacts</div><div class="page-sub">General contractor relationships</div></div><button class="btn btn-blue" onclick="openGCModal()">+ New GC</button></div>
+    <div id="gc-kpis" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px"></div>
     <div class="toolbar">
       <input type="text" id="gc-search" placeholder="Search company, contact..." oninput="filterGC()" style="flex:1;min-width:180px">
       <select id="gc-filter" onchange="filterGC()" style="padding:8px 12px;border:1px solid #e0e6f0;border-radius:8px;font-size:13px;background:#fff;cursor:pointer">
