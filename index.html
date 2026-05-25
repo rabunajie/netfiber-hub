@@ -1775,7 +1775,7 @@ async function recalcProjectTotals(projId){
   // Recalculate project totals from all materials
   var res=await sb.from('purchase_materials').select('*').eq('project_id',projId);
   var mats=res.data||[];
-  var totalCost=mats.reduce(function(s,m){return s+(parseFloat(m.total_incl_tax)||0);},0);
+  var totalCost=mats.reduce(function(s,m){return s+(parseFloat(m.total_ex_tax)||0);},0);
   var totalTaxUnpaid=mats.filter(function(m){return m.paid_status!=='Paid';}).reduce(function(s,m){return s+(parseFloat(m.tax)||0);},0);
   var totalTaxPaid=mats.filter(function(m){return m.paid_status==='Paid';}).reduce(function(s,m){return s+(parseFloat(m.tax)||0);},0);
   var proj=_projects.find(function(p){return p.id===projId;})||{};
