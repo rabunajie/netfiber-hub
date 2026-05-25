@@ -1742,7 +1742,7 @@ async function loadMaterials(projId){
     <td style="font-size:12px">${r.quantity||0}</td>
     <td style="font-size:12px">${fmt$(r.unit_cost)}</td>
     <td style="font-weight:600">${fmt$(r.total_ex_tax)}</td>
-    <td style="font-size:12px;color:${r.paid_status!=='Paid'&&r.tax>0?'#E24B4A':'#aaa'}">${fmt$(r.tax)}${r.paid_status!=='Paid'&&r.tax>0?'<span style="font-size:9px;color:#aaa;margin-left:3px">TX 8.25%</span>":''}</td>
+    <td style="font-size:12px;color:${r.paid_status!=='Paid'&&r.tax>0?'#E24B4A':'#aaa'}">${fmt$(r.tax)}${r.paid_status!=='Paid'&&r.tax>0?' <span style=\"font-size:9px;color:#aaa;margin-left:3px\">TX 8.25%</span>':''}</td>
     <td style="font-weight:600">${fmt$(r.total_incl_tax)}</td>
     <td><span class="badge ${r.paid_status==='Paid'?'b-paid':'b-unpaid'}">${r.paid_status||'Not Paid'}</span></td>
     <td style="font-size:11px;color:#aaa">${r.manufacturer||''}</td>
