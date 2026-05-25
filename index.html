@@ -1017,28 +1017,35 @@ async function initApp(user){
   document.getElementById('app').style.display='flex';
   applyPermissions();
   showPage('dashboard');
-  // Pre-load GC and Retail data in background so sidebar badges show immediately
+  // Pre-load GC and Retail data silently at startup — same logic as page renders
   setTimeout(async function(){
     try{
-      // GC badges
-      var gcRes=await sb.from('gc_contacts').select('gc_fu_status,gc_next_followup');
-      if(gcRes.data){
-        var today2=new Date().toISOString().split('T')[0];
-        var gcs=gcRes.data;
-        var gcEmailDue=gcs.filter(function(g){return g.gc_next_followup&&g.gc_next_followup<=today2&&(g.gc_fu_status==='intro'||g.gc_fu_status==='email_due');}).length;
-        var gcCallDue=gcs.filter(function(g){return g.gc_next_followup&&g.gc_next_followup<=today2&&(g.gc_fu_status==='call'||g.gc_fu_status==='active');}).length;
-        setSbBadge('sb-gc-email',gcEmailDue);
-        setSbBadge('sb-gc-phone',gcCallDue);
+      // Load full GC data into _gcs so badges use same ddiff logic as the page
+      if(!_gcs||!_gcs.length){
+        var gcRes=await sb.from('gc_contacts').select('*').order('created_at',{ascending:false});
+        if(gcRes.data){
+          _gcs=gcRes.data;
+          var gcEmailDue=_gcs.filter(function(g){return g.gc_next_followup&&ddiff(g.gc_next_followup)<=0&&(g.gc_fu_status==='intro'||g.gc_fu_status==='email_due');}).length;
+          var gcCallDue=_gcs.filter(function(g){return g.gc_next_followup&&ddiff(g.gc_next_followup)<=0&&(g.gc_fu_status==='call'||g.gc_fu_status==='active');}).length;
+          var gcReview=_gcs.filter(function(g){return g.gc_fu_status==='estimation';}).length;
+          var gcAccepted=_gcs.filter(function(g){return g.gc_fu_status==='est_yes';}).length;
+          setSbBadge('sb-gc-email',gcEmailDue);
+          setSbBadge('sb-gc-phone',gcCallDue);
+          setSbBadge('sb-gc-review',gcReview);
+          setSbBadge('sb-gc-accepted',gcAccepted);
+        }
       }
-      // Retail badges
-      var retRes=await sb.from('retail_contacts').select('ret_fu_status,ret_next_followup');
-      if(retRes.data){
-        var today3=new Date().toISOString().split('T')[0];
-        var retDue=retRes.data.filter(function(r){return r.ret_next_followup&&r.ret_next_followup<=today3&&r.ret_fu_status!=='closed'&&r.ret_fu_status!=='nointerest';}).length;
-        setSbBadge('sb-ret-due',retDue);
+      // Load Retail data into _retail
+      if(!_retail||!_retail.length){
+        var retRes=await sb.from('retail_contacts').select('*').order('created_at',{ascending:false});
+        if(retRes.data){
+          _retail=retRes.data;
+          var retDue=_retail.filter(function(r){return r.ret_next_followup&&ddiff(r.ret_next_followup)<=0&&r.ret_fu_status!=='closed'&&r.ret_fu_status!=='nointerest';}).length;
+          setSbBadge('sb-ret-due',retDue);
+        }
       }
     }catch(e){}
-  },800);
+  },300);
 }
 /* getSession called in initSupabase */
 
