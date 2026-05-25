@@ -1542,7 +1542,8 @@ async function renderRetail(){
   const mc=document.getElementById('main-content');
   mc.innerHTML=`
     <div class="page-hdr"><div><div class="page-title">Retail & Projects</div><div class="page-sub">Direct retail accounts</div></div><button class="btn btn-blue" onclick="openRetailModal()">+ New Contact</button></div>
-    <div class="toolbar"><input type="text" id="ret-search" placeholder="Search..." oninput="filterRetail()" style="flex:1"></div>
+    <div id="ret-kpis" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px"></div>
+    <div class="toolbar"><input type="text" id="ret-search" placeholder="Search company, contact, project..." oninput="filterRetail()" style="flex:1"></div>
     <div class="tbl-wrap" style="overflow-x:auto">
       <table><thead><tr><th>Company</th><th>Contact</th><th>Project</th><th>Role</th><th>Email</th><th>Phone</th><th>Replied</th><th>Follow-Up</th><th>Notes</th><th></th></tr></thead>
       <tbody id="ret-body"><tr><td colspan="10" class="loading"><span class="spinner"></span></td></tr></tbody></table>
@@ -1550,7 +1551,32 @@ async function renderRetail(){
   await loadRetail();
 }
 var _retail=[];
-async function loadRetail(){const {data:rows,error}=await sb.from('retail_contacts').select('*').order('created_at',{ascending:false});if(error){console.error('Retail error:',error);}_retail=rows||[];filterRetail();}
+function retKpi(icon,label,sub,val,color,filter){
+  return '<div onclick="setRetFilter(\''+filter+'\')" style="cursor:pointer;background:#fff;border:0.5px solid #eaedf2;border-top:3px solid '+color+';border-radius:10px;padding:14px 16px">'    +'<div style="font-size:11px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px">'+icon+' '+label+'</div>'    +'<div style="font-size:26px;font-weight:800;color:'+color+'">'+val+'</div>'    +'<div style="font-size:11px;color:#bbb;margin-top:3px">'+sub+'</div>'    +'</div>';
+}
+var _retFilter='';
+function setRetFilter(f){
+  _retFilter=(_retFilter===f)?'':f;
+  filterRetail();
+}
+async function loadRetail(){
+  const {data:rows,error}=await sb.from('retail_contacts').select('*').order('created_at',{ascending:false});
+  if(error){console.error('Retail error:',error);}
+  _retail=rows||[];
+  // Build KPIs
+  var kEl=document.getElementById('ret-kpis');
+  if(kEl){
+    var today=new Date().toISOString().split('T')[0];
+    var overdue=_retail.filter(function(r){return r.ret_next_followup&&r.ret_next_followup<=today&&r.ret_fu_status!=='closed'&&r.ret_fu_status!=='nointerest';});
+    var dueToday=overdue.filter(function(r){return r.ret_next_followup===today;});
+    var notContacted=_retail.filter(function(r){return !r.ret_fu_status||r.ret_fu_status==='none';});
+    kEl.innerHTML=
+      retKpi('📅','Follow-Up Due','Today or overdue',overdue.length,'#854F0B','overdue')+
+      retKpi('📋','Not Contacted','No follow-up yet',notContacted.length,'#533AB7','not_contacted')+
+      retKpi('📊','Total Contacts','All retail accounts',_retail.length,'#1B5E9B','all');
+  }
+  filterRetail();
+}
 function retailFuBadge(r){
   var key=r.ret_fu_status||'none';
   var nd=r.ret_next_followup;
@@ -1567,6 +1593,9 @@ function filterRetail(){
   const search=(document.getElementById('ret-search')?.value||'').toLowerCase();
   let rows=[..._retail];
   if(search)rows=rows.filter(r=>((r.company||'')+(r.contact||'')+(r.email||'')+(r.project_name||'')).toLowerCase().includes(search));
+  var today=new Date().toISOString().split('T')[0];
+  if(_retFilter==='overdue') rows=rows.filter(function(r){return r.ret_next_followup&&r.ret_next_followup<=today&&r.ret_fu_status!=='closed'&&r.ret_fu_status!=='nointerest';});
+  else if(_retFilter==='not_contacted') rows=rows.filter(function(r){return !r.ret_fu_status||r.ret_fu_status==='none';});
   const tbody=document.getElementById('ret-body');
   if(!tbody)return;
   tbody.innerHTML=rows.map(r=>`<tr>
