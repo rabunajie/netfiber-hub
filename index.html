@@ -1544,8 +1544,8 @@ async function renderRetail(){
     <div class="page-hdr"><div><div class="page-title">Retail & Projects</div><div class="page-sub">Direct retail accounts</div></div><button class="btn btn-blue" onclick="openRetailModal()">+ New Contact</button></div>
     <div class="toolbar"><input type="text" id="ret-search" placeholder="Search..." oninput="filterRetail()" style="flex:1"></div>
     <div class="tbl-wrap" style="overflow-x:auto">
-      <table><thead><tr><th>Company</th><th>Contact</th><th>Role</th><th>Email</th><th>Phone</th><th>Replied</th><th>Notes</th><th>By</th><th></th></tr></thead>
-      <tbody id="ret-body"><tr><td colspan="9" class="loading"><span class="spinner"></span></td></tr></tbody></table>
+      <table><thead><tr><th>Company</th><th>Contact</th><th>Project</th><th>Role</th><th>Email</th><th>Phone</th><th>Replied</th><th>Follow-Up</th><th>Notes</th><th></th></tr></thead>
+      <tbody id="ret-body"><tr><td colspan="10" class="loading"><span class="spinner"></span></td></tr></tbody></table>
     </div>`;
   await loadRetail();
 }
