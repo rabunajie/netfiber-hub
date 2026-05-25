@@ -1034,7 +1034,7 @@ function fmtD(d){if(!d)return'—';return new Date(d+'T00:00:00').toLocaleDateSt
 function ddiff(d){if(!d)return 999;return Math.round((new Date(d+'T00:00:00')-today)/86400000);}
 function inits(n){if(!n)return'?';return n.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);}
 function closeModal(id){document.getElementById(id).classList.remove('open');}
-document.querySelectorAll('.modal-bg').forEach(m=>m.addEventListener('click',function(e){if(e.target===this)this.classList.remove('open');}));
+// Modal close on outside click disabled — caused issues when selecting/copying text inside modals
 async function logAct(action,table,rid,details){await sb.from('activity_log').insert({user_id:CU.id,user_name:CP.full_name||CU.email,action,table_name:table,record_id:rid,details});}
 
 function statusBadge(s){
@@ -1618,7 +1618,7 @@ function filterRetail(){
     <td><span class="badge ${r.replied==='Yes'?'b-yes':'b-no'}">${r.replied||'No'}</span></td>
     <td onclick="openRetailFU(event,'${r.id}')" style="cursor:pointer">${retailFuBadge(r)}</td>
     <td class="note-cell">${r.note||''}</td>
-    <td style="display:flex;gap:4px"><button class="btn-sm" onclick="editRetail('${r.id}')">Edit</button><button class="btn-danger" onclick="delRetail('${r.id}','${(r.company||'').replace(/'/g,'`')}')">×</button></td>
+    <td style="white-space:nowrap"><div style="display:flex;gap:4px"><button class="btn-sm" onclick="editRetail('${r.id}')">Edit</button><button class="btn-danger" onclick="delRetail('${r.id}','${(r.company||'').replace(/'/g,'`')}')">×</button></div></td>
   </tr>`).join('')||'<tr><td colspan="10" style="text-align:center;padding:2rem;color:#bbb">No contacts.</td></tr>';
 }
 function openRetailModal(){editRetailId=null;document.getElementById('retail-modal-title').textContent='New Retail Contact';['company','contact','project','email','phone','role','notes'].forEach(f=>{var el=document.getElementById('rm-'+f);if(el)el.value='';});document.getElementById('rm-replied').value='No';document.getElementById('rm-fu-date').value='';document.getElementById('rm-fu-type').value='';document.getElementById('retail-modal').classList.add('open');}
