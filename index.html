@@ -1552,13 +1552,16 @@ async function renderRetail(){
 var _retail=[];
 async function loadRetail(){const {data:rows,error}=await sb.from('retail_contacts').select('*').order('created_at',{ascending:false});if(error){console.error('Retail error:',error);}_retail=rows||[];filterRetail();}
 function retailFuBadge(r){
-  if(!r.fu_date) return '<span style="font-size:11px;color:#bbb">—</span>';
-  var d=ddiff(r.fu_date);
-  var label=fmtD(r.fu_date);
-  var method=r.fu_type?(' · '+(r.fu_type==='email'?'📧':r.fu_type==='call'?'📞':'🏢')+' '+r.fu_type):'';
-  var color=d<0?'#E24B4A':d===0?'#BA7517':'#555';
-  var suffix=d<0?' <span style="color:#E24B4A;font-size:10px">'+Math.abs(d)+'d overdue</span>':d===0?' <span style="color:#BA7517;font-size:10px">Today</span>':'';
-  return '<span style="font-size:12px;color:'+color+'">'+label+method+'</span>'+suffix;
+  var key=r.ret_fu_status||'none';
+  var nd=r.ret_next_followup;
+  var f=RET_FU&&RET_FU[key]?RET_FU[key]:{l:'No Follow-Up',c:'ftp-note'};
+  var pill='<span class="fu-type-pill '+f.c+'">'+f.l+'</span>';
+  if(nd){
+    var d=ddiff(nd);
+    var when=d<0?'<span style="color:#E24B4A;font-size:10px;margin-left:4px">'+Math.abs(d)+'d overdue</span>':d===0?'<span style="color:#BA7517;font-size:10px;margin-left:4px">Today</span>':'<span style="font-size:10px;color:#aaa;margin-left:4px">in '+d+'d</span>';
+    return pill+when;
+  }
+  return pill;
 }
 function filterRetail(){
   const search=(document.getElementById('ret-search')?.value||'').toLowerCase();
@@ -1574,7 +1577,7 @@ function filterRetail(){
     <td style="font-size:12px"><a href="mailto:${r.email||''}" style="color:#1B5E9B">${r.email||''}</a></td>
     <td style="font-size:12px">${r.phone||''}</td>
     <td><span class="badge ${r.replied==='Yes'?'b-yes':'b-no'}">${r.replied||'No'}</span></td>
-    <td>${retailFuBadge(r)}</td>
+    <td onclick="openRetailFU(event,'${r.id}')" style="cursor:pointer">${retailFuBadge(r)}</td>
     <td class="note-cell">${r.note||''}</td>
     <td style="display:flex;gap:4px"><button class="btn-sm" onclick="editRetail('${r.id}')">Edit</button><button class="btn-danger" onclick="delRetail('${r.id}','${(r.company||'').replace(/'/g,'`')}')">×</button></td>
   </tr>`).join('')||'<tr><td colspan="10" style="text-align:center;padding:2rem;color:#bbb">No contacts.</td></tr>';
@@ -2026,6 +2029,59 @@ async function loadUsersDropdown(selId,selectedId){const {data:users=[]}=await s
 
 
 var currentGCId=null;
+
+var currentRetailId=null;
+var RET_FU={
+  intro:{l:'Intro Sent',c:'ftp-email'},
+  email_due:{l:'Email Due',c:'ftp-email'},
+  call:{l:'Called',c:'ftp-call'},
+  quoted:{l:'Quote Sent',c:'ftp-meeting'},
+  interested:{l:'Interested',c:'ftp-email'},
+  nointerest:{l:'Not Interested',c:'ftp-note'},
+  closed:{l:'Closed',c:'ftp-note'},
+  none:{l:'Not Contacted',c:'ftp-note'}
+};
+async function openRetailFU(e,retId){
+  e.stopPropagation();currentRetailId=retId;
+  var res=await sb.from('retail_contacts').select('*').eq('id',retId).single();
+  var r=res.data;if(!r)return;
+  document.getElementById('ret-fu-company').textContent=r.company||'Retail Contact';
+  document.getElementById('ret-fu-project').textContent=r.project_name||r.contact||'';
+  var key=r.ret_fu_status||'none';
+  var f=RET_FU[key]||{l:'Not Contacted',c:'ftp-note'};
+  document.getElementById('ret-fu-cur-status').innerHTML='<span class="fu-type-pill '+f.c+'">'+f.l+'</span>';
+  var nd=r.ret_next_followup;
+  if(nd){var diff=ddiff(nd);document.getElementById('ret-fu-next-action').innerHTML=diff<0?'<span style="color:#E24B4A;font-weight:700">'+Math.abs(diff)+'d overdue!</span>':diff===0?'<span style="color:#BA7517;font-weight:700">Due TODAY</span>':'In '+diff+' day'+(diff!==1?'s':'')+'  ('+fmtD(nd)+')';document.getElementById('ret-fu-next-date').value=nd;}
+  else{document.getElementById('ret-fu-next-action').textContent='Not scheduled';var def=new Date();def.setDate(def.getDate()+3);document.getElementById('ret-fu-next-date').value=def.toISOString().split('T')[0];}
+  document.getElementById('ret-fu-last-contact').textContent=r.ret_last_contact?fmtD(r.ret_last_contact):'Never';
+  await loadRetailFUHistory(retId);
+  document.getElementById('retail-fu-modal').classList.add('open');
+}
+async function loadRetailFUHistory(retId){
+  var res=await sb.from('activity_log').select('*').eq('table_name','retail_followup').eq('record_id',retId).order('created_at',{ascending:false});
+  var logs=res.data||[];
+  var tl={email:'Email',call:'Phone Call',visit:'In Person',note:'Note'};
+  var tc={email:'ftp-email',call:'ftp-call',visit:'ftp-meeting',note:'ftp-note'};
+  document.getElementById('ret-fu-history').innerHTML=logs.length?logs.map(function(l){var p={};try{p=JSON.parse(l.details);}catch(ex){p={note:l.details};}return'<div class="fu-log-item"><span class="fu-type-pill '+(tc[p.type]||'ftp-note')+'">'+(tl[p.type]||'Note')+'</span><div style="flex:1"><div style="font-size:13px">'+(p.note||'')+'</div><div style="font-size:11px;color:#bbb;margin-top:3px">'+l.user_name+' · '+new Date(l.created_at).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})+'</div></div></div>';}).join(''):'<div style="color:#bbb;font-size:13px;padding:1rem 0">No activity yet.</div>';
+}
+async function logRetailFU(){
+  var type=document.getElementById('ret-fu-type').value;
+  var note=document.getElementById('ret-fu-note').value.trim();
+  var sa=document.getElementById('ret-fu-status').value;
+  var autoDays={intro:3,email_due:4,call:7,quoted:7,interested:14,nointerest:0,closed:0};
+  var days=autoDays[sa]||7;
+  var ndEl=document.getElementById('ret-fu-next-date');
+  var nextDate=ndEl&&ndEl.value?ndEl.value:null;
+  if(!nextDate&&days>0){var nd2=new Date();nd2.setDate(nd2.getDate()+days);nextDate=nd2.toISOString().split('T')[0];}
+  if(!note){alert('Please write a note.');return;}
+  await sb.from('retail_contacts').update({ret_fu_status:sa,ret_next_followup:nextDate,ret_last_contact:new Date().toISOString().split('T')[0],updated_by:CU.id,updated_at:new Date().toISOString()}).eq('id',currentRetailId);
+  await logAct('Retail follow-up','retail_followup',currentRetailId,JSON.stringify({type:type,note:note,status:sa,next:nextDate}));
+  document.getElementById('ret-fu-note').value='';
+  var f2=RET_FU[sa]||{l:'Follow Up',c:'ftp-email'};
+  document.getElementById('ret-fu-cur-status').innerHTML='<span class="fu-type-pill '+f2.c+'">'+f2.l+'</span>';
+  await loadRetailFUHistory(currentRetailId);
+  await loadRetail();
+}
 async function openGCFU(e,gcId){
   e.stopPropagation();currentGCId=gcId;
   var res=await sb.from('gc_contacts').select('*').eq('id',gcId).single();
@@ -3672,6 +3728,46 @@ async function printInvoice(){
 
 document.addEventListener('input',function(e){if(e.target&&e.target.id==='ped-taxrate')calcTotals();});
 </script>
+
+<div class="modal-bg" id="retail-fu-modal">
+  <div class="fu-panel">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+      <div><div id="ret-fu-company" style="font-size:16px;font-weight:700;color:#1B5E9B"></div><div id="ret-fu-project" style="font-size:12px;color:#aaa;margin-top:2px"></div></div>
+      <button class="btn btn-sm" onclick="closeModal('retail-fu-modal')">Close</button>
+    </div>
+    <div style="display:flex;gap:10px;padding:12px 14px;background:#f9fafb;border-radius:10px;border:0.5px solid #eee;margin-bottom:1rem">
+      <div style="flex:1"><div style="font-size:10px;font-weight:700;color:#aaa;text-transform:uppercase;margin-bottom:4px">Status</div><div id="ret-fu-cur-status"></div></div>
+      <div style="flex:1"><div style="font-size:10px;font-weight:700;color:#aaa;text-transform:uppercase;margin-bottom:4px">Next Follow-Up</div><div id="ret-fu-next-action" style="font-size:13px;font-weight:600;color:#1a1a1a"></div></div>
+      <div style="flex:1"><div style="font-size:10px;font-weight:700;color:#aaa;text-transform:uppercase;margin-bottom:4px">Last Contact</div><div id="ret-fu-last-contact" style="font-size:13px;color:#555"></div></div>
+    </div>
+    <div style="background:#F0F7FF;border:1px solid #B5D4F4;border-radius:10px;padding:14px;margin-bottom:1rem">
+      <div style="font-size:12px;font-weight:700;color:#1B5E9B;margin-bottom:10px">Log Follow-Up</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+        <div style="flex:0 0 110px"><div style="font-size:10px;font-weight:700;color:#555;margin-bottom:4px;text-transform:uppercase">Type</div>
+          <select id="ret-fu-type" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:8px;font-size:12px;outline:none">
+            <option value="email">Email</option><option value="call">Phone Call</option><option value="visit">In Person</option><option value="note">Note</option>
+          </select></div>
+        <div style="flex:0 0 170px"><div style="font-size:10px;font-weight:700;color:#555;margin-bottom:4px;text-transform:uppercase">Update Status</div>
+          <select id="ret-fu-status" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:8px;font-size:12px;outline:none">
+            <option value="intro">📧 Intro Email Sent (3d)</option>
+            <option value="email_due">📧 Email Follow-Up Due</option>
+            <option value="call">📞 Called (7d)</option>
+            <option value="quoted">💲 Quote Sent (7d)</option>
+            <option value="interested">✅ Interested — Follow Up (14d)</option>
+            <option value="nointerest">🚫 Not Interested</option>
+            <option value="closed">✔ Closed / Won</option>
+          </select></div>
+        <div style="flex:0 0 130px"><div style="font-size:10px;font-weight:700;color:#555;margin-bottom:4px;text-transform:uppercase">Next Follow-Up</div>
+          <input type="date" id="ret-fu-next-date" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:8px;font-size:12px;outline:none"></div>
+        <div style="flex:1;min-width:160px"><div style="font-size:10px;font-weight:700;color:#555;margin-bottom:4px;text-transform:uppercase">Note</div>
+          <input type="text" id="ret-fu-note" placeholder="What happened? Next steps?" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:8px;font-size:12px;outline:none" onkeydown="if(event.key==='Enter')logRetailFU()"></div>
+        <button class="btn btn-blue" onclick="logRetailFU()" style="padding:7px 14px;font-size:12px">Log it</button>
+      </div>
+    </div>
+    <div style="font-size:12px;font-weight:700;color:#555;margin-bottom:10px">History</div>
+    <div id="ret-fu-history" style="border-left:2px solid #eee;padding-left:14px;margin-left:6px"></div>
+  </div>
+</div>
 
 <div class="modal-bg" id="gc-fu-modal">
   <div class="fu-panel">
