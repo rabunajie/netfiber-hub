@@ -479,7 +479,7 @@ body.view-only button[onclick*="Remove"]{
         <span class="sb-badge" id="sb-gc-phone" style="background:#A32D2D;display:none" title="Phone call due"></span>
         <span class="sb-badge" id="sb-gc-review" style="background:#5B3FCC;display:none" title="Bid review pending"></span>
         <span class="sb-badge" id="sb-gc-accepted" style="background:#1D9E75;display:none" title="Bid accepted"></span></div>
-      <div class="sb-item" data-page="retail" data-groups="admin,sales,staff" onclick="showPage('retail')"><span class="sb-dot"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg></span>Retail Contacts</div>
+      <div class="sb-item" data-page="retail" data-groups="admin,sales,staff" onclick="showPage('retail')"><span class="sb-dot"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg></span>Retail & Projects</div>
       <div class="sb-sec">Operations</div>
       <div class="sb-item" data-page="proposals" data-groups="admin,sales" onclick="showPage('proposals')"><span class="sb-dot"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></span>Proposals</div>
       <div class="sb-item" data-page="purchases" data-groups="admin,sales" onclick="showPage('purchases')"><span class="sb-dot"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 001.99-1.85l1.38-9.14H6"/></svg></span>Purchases</div>
@@ -551,14 +551,17 @@ body.view-only button[onclick*="Remove"]{
 
 <div class="modal-bg" id="retail-modal">
   <div class="modal">
-    <h3 id="retail-modal-title">Retail Contact</h3>
+    <h3 id="retail-modal-title">Retail Contact & Project</h3>
     <div class="fgrid">
       <div class="frow"><label>Company</label><input id="rm-company"></div>
       <div class="frow"><label>Contact Name</label><input id="rm-contact"></div>
+      <div class="frow"><label>Project Name</label><input id="rm-project" placeholder="e.g. Office Network Upgrade"></div>
       <div class="frow"><label>Email</label><input id="rm-email"></div>
       <div class="frow"><label>Phone</label><input id="rm-phone"></div>
       <div class="frow"><label>Role</label><input id="rm-role"></div>
       <div class="frow"><label>Replied</label><select id="rm-replied"><option>No</option><option>Yes</option></select></div>
+      <div class="frow"><label>Follow-Up Date</label><input type="date" id="rm-fu-date"></div>
+      <div class="frow"><label>Follow-Up Method</label><select id="rm-fu-type"><option value="">— None —</option><option value="email">Email</option><option value="call">Phone Call</option><option value="visit">Site Visit</option></select></div>
     </div>
     <div class="frow"><label>Notes</label><textarea id="rm-notes"></textarea></div>
     <div class="mfooter"><button class="btn btn-sm" onclick="closeModal('retail-modal')">Cancel</button><button class="btn btn-blue" onclick="saveRetail()">Save</button></div>
@@ -1195,7 +1198,7 @@ async function renderDashboard(){
           <span class="mod-btn-name">GC Contacts</span>
         </div>`:''}
         ${canAccess('retail')?`<div class="mod-btn" onclick="showPage('retail')" style="border-top:3px solid #534AB7">
-          <span class="mod-btn-name">Retail Contacts</span>
+          <span class="mod-btn-name">Retail & Projects</span>
         </div>`:''}
         ${canAccess('proposals')?`<div class="mod-btn" onclick="showPage('proposals')" style="border-top:3px solid #0F6E56">
           <span class="mod-btn-name">Proposals</span>
@@ -1538,7 +1541,7 @@ async function delGC(id,name){if(!confirm(`Delete "${name}"?`))return;await sb.f
 async function renderRetail(){
   const mc=document.getElementById('main-content');
   mc.innerHTML=`
-    <div class="page-hdr"><div><div class="page-title">Retail Contacts</div><div class="page-sub">Direct retail accounts</div></div><button class="btn btn-blue" onclick="openRetailModal()">+ New Contact</button></div>
+    <div class="page-hdr"><div><div class="page-title">Retail & Projects</div><div class="page-sub">Direct retail accounts</div></div><button class="btn btn-blue" onclick="openRetailModal()">+ New Contact</button></div>
     <div class="toolbar"><input type="text" id="ret-search" placeholder="Search..." oninput="filterRetail()" style="flex:1"></div>
     <div class="tbl-wrap" style="overflow-x:auto">
       <table><thead><tr><th>Company</th><th>Contact</th><th>Role</th><th>Email</th><th>Phone</th><th>Replied</th><th>Notes</th><th>By</th><th></th></tr></thead>
@@ -1548,10 +1551,37 @@ async function renderRetail(){
 }
 var _retail=[];
 async function loadRetail(){const {data:rows,error}=await sb.from('retail_contacts').select('*').order('created_at',{ascending:false});if(error){console.error('Retail error:',error);}_retail=rows||[];filterRetail();}
-function filterRetail(){const search=(document.getElementById('ret-search')?.value||'').toLowerCase();let rows=[..._retail];if(search)rows=rows.filter(r=>(r.company+r.contact+r.email).toLowerCase().includes(search));const tbody=document.getElementById('ret-body');if(!tbody)return;tbody.innerHTML=rows.map(r=>`<tr><td style="font-weight:600">${r.company||''}</td><td>${r.contact||''}</td><td style="font-size:11px;color:#aaa">${r.role||''}</td><td style="font-size:12px"><a href="mailto:${r.email||''}" style="color:#1B5E9B">${r.email||''}</a></td><td style="font-size:12px">${r.phone||''}</td><td><span class="badge ${r.replied==='Yes'?'b-yes':'b-no'}">${r.replied||'No'}</span></td><td class="note-cell">${r.note||''}</td><td class="by-cell">${r.updater?.full_name||r.creator?.full_name||'—'}</td><td style="display:flex;gap:4px"><button class="btn-sm" onclick="editRetail('${r.id}')">Edit</button><button class="btn-danger" onclick="delRetail('${r.id}','${(r.company||'').replace(/'/g,'`')}')">×</button></td></tr>`).join('')||'<tr><td colspan="9" style="text-align:center;padding:2rem;color:#bbb">No contacts.</td></tr>';}
-function openRetailModal(){editRetailId=null;document.getElementById('retail-modal-title').textContent='New Retail Contact';['company','contact','email','phone','role','notes'].forEach(f=>document.getElementById('rm-'+f).value='');document.getElementById('rm-replied').value='No';document.getElementById('retail-modal').classList.add('open');}
-async function editRetail(id){const {data:r}=await sb.from('retail_contacts').select('*').eq('id',id).single();if(!r)return;editRetailId=id;document.getElementById('retail-modal-title').textContent='Edit Retail Contact';['company','contact','email','phone','role'].forEach(f=>document.getElementById('rm-'+f).value=r[f]||'');document.getElementById('rm-replied').value=r.replied||'No';document.getElementById('rm-notes').value=r.note||'';document.getElementById('retail-modal').classList.add('open');}
-async function saveRetail(){const obj={company:document.getElementById('rm-company').value,contact:document.getElementById('rm-contact').value,email:document.getElementById('rm-email').value,phone:document.getElementById('rm-phone').value,role:document.getElementById('rm-role').value,replied:document.getElementById('rm-replied').value,note:document.getElementById('rm-notes').value,updated_by:CU.id,updated_at:new Date().toISOString()};if(editRetailId){await sb.from('retail_contacts').update(obj).eq('id',editRetailId);await logAct('Updated retail','retail_contacts',editRetailId,`Updated ${obj.company}`);}else{obj.created_by=CU.id;const {data}=await sb.from('retail_contacts').insert(obj).select().single();await logAct('Added retail','retail_contacts',data?.id,`Added ${obj.company}`);}closeModal('retail-modal');await loadRetail();}
+function retailFuBadge(r){
+  if(!r.fu_date) return '<span style="font-size:11px;color:#bbb">—</span>';
+  var d=ddiff(r.fu_date);
+  var label=fmtD(r.fu_date);
+  var method=r.fu_type?(' · '+(r.fu_type==='email'?'📧':r.fu_type==='call'?'📞':'🏢')+' '+r.fu_type):'';
+  var color=d<0?'#E24B4A':d===0?'#BA7517':'#555';
+  var suffix=d<0?' <span style="color:#E24B4A;font-size:10px">'+Math.abs(d)+'d overdue</span>':d===0?' <span style="color:#BA7517;font-size:10px">Today</span>':'';
+  return '<span style="font-size:12px;color:'+color+'">'+label+method+'</span>'+suffix;
+}
+function filterRetail(){
+  const search=(document.getElementById('ret-search')?.value||'').toLowerCase();
+  let rows=[..._retail];
+  if(search)rows=rows.filter(r=>((r.company||'')+(r.contact||'')+(r.email||'')+(r.project_name||'')).toLowerCase().includes(search));
+  const tbody=document.getElementById('ret-body');
+  if(!tbody)return;
+  tbody.innerHTML=rows.map(r=>`<tr>
+    <td style="font-weight:600">${r.company||''}</td>
+    <td>${r.contact||''}</td>
+    <td style="font-size:12px;color:#555">${r.project_name||'—'}</td>
+    <td style="font-size:11px;color:#aaa">${r.role||''}</td>
+    <td style="font-size:12px"><a href="mailto:${r.email||''}" style="color:#1B5E9B">${r.email||''}</a></td>
+    <td style="font-size:12px">${r.phone||''}</td>
+    <td><span class="badge ${r.replied==='Yes'?'b-yes':'b-no'}">${r.replied||'No'}</span></td>
+    <td>${retailFuBadge(r)}</td>
+    <td class="note-cell">${r.note||''}</td>
+    <td style="display:flex;gap:4px"><button class="btn-sm" onclick="editRetail('${r.id}')">Edit</button><button class="btn-danger" onclick="delRetail('${r.id}','${(r.company||'').replace(/'/g,'`')}')">×</button></td>
+  </tr>`).join('')||'<tr><td colspan="10" style="text-align:center;padding:2rem;color:#bbb">No contacts.</td></tr>';
+}
+function openRetailModal(){editRetailId=null;document.getElementById('retail-modal-title').textContent='New Retail Contact';['company','contact','project','email','phone','role','notes'].forEach(f=>{var el=document.getElementById('rm-'+f);if(el)el.value='';});document.getElementById('rm-replied').value='No';document.getElementById('rm-fu-date').value='';document.getElementById('rm-fu-type').value='';document.getElementById('retail-modal').classList.add('open');}
+async function editRetail(id){const {data:r}=await sb.from('retail_contacts').select('*').eq('id',id).single();if(!r)return;editRetailId=id;document.getElementById('retail-modal-title').textContent='Edit Retail Contact';['company','contact','email','phone','role'].forEach(f=>document.getElementById('rm-'+f).value=r[f]||'');document.getElementById('rm-project').value=r.project_name||'';document.getElementById('rm-replied').value=r.replied||'No';document.getElementById('rm-fu-date').value=r.fu_date||'';document.getElementById('rm-fu-type').value=r.fu_type||'';document.getElementById('rm-notes').value=r.note||'';document.getElementById('retail-modal').classList.add('open');}
+async function saveRetail(){const obj={company:document.getElementById('rm-company').value,contact:document.getElementById('rm-contact').value,project_name:document.getElementById('rm-project').value,email:document.getElementById('rm-email').value,phone:document.getElementById('rm-phone').value,role:document.getElementById('rm-role').value,replied:document.getElementById('rm-replied').value,fu_date:document.getElementById('rm-fu-date').value||null,fu_type:document.getElementById('rm-fu-type').value||null,note:document.getElementById('rm-notes').value,updated_by:CU.id,updated_at:new Date().toISOString()};if(editRetailId){await sb.from('retail_contacts').update(obj).eq('id',editRetailId);await logAct('Updated retail','retail_contacts',editRetailId,`Updated ${obj.company}`);}else{obj.created_by=CU.id;const {data}=await sb.from('retail_contacts').insert(obj).select().single();await logAct('Added retail','retail_contacts',data?.id,`Added ${obj.company}`);}closeModal('retail-modal');await loadRetail();}
 async function delRetail(id,name){if(!confirm(`Delete "${name}"?`))return;await sb.from('retail_contacts').delete().eq('id',id);await logAct('Deleted retail','retail_contacts',null,`Deleted: ${name}`);await loadRetail();}
 
 // PURCHASES
