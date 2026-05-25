@@ -1673,12 +1673,16 @@ async function loadPurchases(){
   const totalCost=rows.reduce((s,r)=>s+(r.total_cost||0),0);
   const totalProfit=rows.reduce((s,r)=>s+(r.profit||0),0);
   const totalPaid=rows.reduce((s,r)=>s+(r.paid_to_date||0),0);
+  const totalTaxUnpaid=rows.reduce((s,r)=>s+(r.tax_unpaid||0),0);
+  const totalTaxPaid=rows.reduce((s,r)=>s+(r.tax_paid||0),0);
   body.innerHTML=`
     <div class="summary-row">
       <div class="kpi"><div class="kpi-lbl">Total sold</div><div class="kpi-v">${fmt$(totalSold)}</div></div>
       <div class="kpi"><div class="kpi-lbl">Total cost</div><div class="kpi-v" style="color:#E24B4A">${fmt$(totalCost)}</div></div>
       <div class="kpi"><div class="kpi-lbl">Total profit</div><div class="kpi-v" style="color:#1D9E75">${fmt$(totalProfit)}</div></div>
       <div class="kpi"><div class="kpi-lbl">Collected</div><div class="kpi-v" style="color:#1D9E75">${fmt$(totalPaid)}</div></div>
+      <div class="kpi"><div class="kpi-lbl">Tax unpaid (all)</div><div class="kpi-v" style="color:#E24B4A">${fmt$(totalTaxUnpaid)}</div></div>
+      <div class="kpi"><div class="kpi-lbl">Tax paid (all)</div><div class="kpi-v" style="color:#1D9E75">${fmt$(totalTaxPaid)}</div></div>
     </div>
     <div class="proj-grid">${rows.map(r=>`
       <div class="proj-card" onclick="openProject('${r.id}')">
@@ -1718,6 +1722,8 @@ async function openProject(id){
       <div class="kpi"><div class="kpi-lbl">Total cost</div><div class="kpi-v" style="color:#E24B4A">${fmt$(proj?.total_cost)}</div></div>
       <div class="kpi"><div class="kpi-lbl">Profit</div><div class="kpi-v" style="color:#1D9E75">${fmt$(proj?.profit)}</div></div>
       <div class="kpi"><div class="kpi-lbl">Balance remaining</div><div class="kpi-v">${fmt$(proj?.balance_remaining)}</div></div>
+      <div class="kpi"><div class="kpi-lbl">Tax unpaid</div><div class="kpi-v" style="color:#E24B4A">${fmt$(proj?.tax_unpaid||0)}</div></div>
+      <div class="kpi"><div class="kpi-lbl">Tax paid</div><div class="kpi-v" style="color:#1D9E75">${fmt$(proj?.tax_paid||0)}</div></div>
     </div>
     <div class="tbl-wrap" style="overflow-x:auto">
       <table><thead><tr><th>#</th><th>Item</th><th>Description</th><th>Qty</th><th>Unit Cost</th><th>Total (ex tax)</th><th>Tax</th><th>Total (incl tax)</th><th>Paid</th><th>Manufacturer</th><th>Vendor</th><th>Notes</th><th></th></tr></thead>
@@ -1742,7 +1748,7 @@ async function loadMaterials(projId){
     <td style="font-size:11px;color:#aaa">${r.manufacturer||''}</td>
     <td style="font-size:11px;color:#aaa">${r.vendor||''}</td>
     <td class="note-cell" style="max-width:120px">${r.notes||''}</td>
-    <td style="display:flex;gap:4px"><button class="btn-sm" onclick="editMat('${r.id}')">Edit</button><button class="btn-danger" onclick="delMat('${r.id}')">×</button></td>
+    <td style="white-space:nowrap"><div style="display:flex;gap:4px"><button class="btn-sm" onclick="editMat('${r.id}')">Edit</button><button class="btn-danger" onclick="delMat('${r.id}')">×</button></div></td>
   </tr>`).join('')||'<tr><td colspan="13" style="text-align:center;padding:2rem;color:#bbb">No materials yet.</td></tr>';
 }
 
@@ -1752,8 +1758,42 @@ async function savePurchaseProject(){const sold=parseFloat(document.getElementBy
 
 function openMatModal(){editMatId=null;document.getElementById('mat-modal-title').textContent='New Material Item';['item','desc','mfr','vendor','notes'].forEach(f=>document.getElementById('mm-'+f).value='');['qty'].forEach(f=>document.getElementById('mm-'+f).value='1');['unit','tax'].forEach(f=>document.getElementById('mm-'+f).value='0');document.getElementById('mm-paid').value='Not Paid';document.getElementById('material-modal').classList.add('open');}
 async function editMat(id){const {data:r}=await sb.from('purchase_materials').select('*').eq('id',id).single();if(!r)return;editMatId=id;document.getElementById('mat-modal-title').textContent='Edit Item';document.getElementById('mm-item').value=r.item||'';document.getElementById('mm-desc').value=r.description||'';document.getElementById('mm-qty').value=r.quantity||1;document.getElementById('mm-unit').value=r.unit_cost||0;document.getElementById('mm-tax').value=r.tax||0;document.getElementById('mm-mfr').value=r.manufacturer||'';document.getElementById('mm-vendor').value=r.vendor||'';document.getElementById('mm-notes').value=r.notes||'';document.getElementById('mm-paid').value=r.paid_status||'Not Paid';document.getElementById('material-modal').classList.add('open');}
-async function saveMaterial(){const qty=parseFloat(document.getElementById('mm-qty').value)||0;const unit=parseFloat(document.getElementById('mm-unit').value)||0;const tax=parseFloat(document.getElementById('mm-tax').value)||0;const totalEx=qty*unit;const totalIncl=totalEx+tax;const obj={project_id:currentProjId,item:document.getElementById('mm-item').value,description:document.getElementById('mm-desc').value,quantity:qty,unit_cost:unit,total_ex_tax:totalEx,tax,total_incl_tax:totalIncl,manufacturer:document.getElementById('mm-mfr').value,vendor:document.getElementById('mm-vendor').value,notes:document.getElementById('mm-notes').value,paid_status:document.getElementById('mm-paid').value,updated_by:CU.id};if(editMatId){await sb.from('purchase_materials').update(obj).eq('id',editMatId);}else{obj.created_by=CU.id;await sb.from('purchase_materials').insert(obj);}closeModal('material-modal');await loadMaterials(currentProjId);}
-async function delMat(id){if(!confirm('Remove this item?'))return;await sb.from('purchase_materials').delete().eq('id',id);await loadMaterials(currentProjId);}
+async function saveMaterial(){
+  const qty=parseFloat(document.getElementById('mm-qty').value)||0;
+  const unit=parseFloat(document.getElementById('mm-unit').value)||0;
+  const tax=parseFloat(document.getElementById('mm-tax').value)||0;
+  const totalEx=qty*unit;
+  const totalIncl=totalEx+tax;
+  const obj={project_id:currentProjId,item:document.getElementById('mm-item').value,description:document.getElementById('mm-desc').value,quantity:qty,unit_cost:unit,total_ex_tax:totalEx,tax,total_incl_tax:totalIncl,manufacturer:document.getElementById('mm-mfr').value,vendor:document.getElementById('mm-vendor').value,notes:document.getElementById('mm-notes').value,paid_status:document.getElementById('mm-paid').value,updated_by:CU.id};
+  if(editMatId){await sb.from('purchase_materials').update(obj).eq('id',editMatId);}
+  else{obj.created_by=CU.id;await sb.from('purchase_materials').insert(obj);}
+  closeModal('material-modal');
+  await recalcProjectTotals(currentProjId);
+  await loadMaterials(currentProjId);
+}
+async function recalcProjectTotals(projId){
+  // Recalculate project totals from all materials
+  var res=await sb.from('purchase_materials').select('*').eq('project_id',projId);
+  var mats=res.data||[];
+  var totalCost=mats.reduce(function(s,m){return s+(parseFloat(m.total_incl_tax)||0);},0);
+  var totalTaxUnpaid=mats.filter(function(m){return m.paid_status!=='Paid';}).reduce(function(s,m){return s+(parseFloat(m.tax)||0);},0);
+  var totalTaxPaid=mats.filter(function(m){return m.paid_status==='Paid';}).reduce(function(s,m){return s+(parseFloat(m.tax)||0);},0);
+  var proj=_projects.find(function(p){return p.id===projId;})||{};
+  var sold=parseFloat(proj.sold_amount)||0;
+  var paid=parseFloat(proj.paid_to_date)||0;
+  await sb.from('purchase_projects').update({
+    total_cost:Math.round(totalCost*100)/100,
+    profit:Math.round((sold-totalCost)*100)/100,
+    balance_remaining:Math.round((sold-paid)*100)/100,
+    tax_unpaid:Math.round(totalTaxUnpaid*100)/100,
+    tax_paid:Math.round(totalTaxPaid*100)/100,
+    updated_by:CU.id
+  }).eq('id',projId);
+  // Refresh local project data
+  var pRes=await sb.from('purchase_projects').select('*').eq('id',projId).single();
+  if(pRes.data){var idx=_projects.findIndex(function(p){return p.id===projId;});if(idx>=0)_projects[idx]=pRes.data;}
+}
+async function delMat(id){if(!confirm('Remove this item?'))return;await sb.from('purchase_materials').delete().eq('id',id);await recalcProjectTotals(currentProjId);await loadMaterials(currentProjId);}
 
 // TASKS
 async function renderTasks(){
