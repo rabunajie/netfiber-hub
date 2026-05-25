@@ -591,7 +591,7 @@ body.view-only button[onclick*="Remove"]{
       <div class="frow"><label>Item Name</label><input id="mm-item" placeholder="Cat6 Cable"></div>
       <div class="frow"><label>Quantity</label><input id="mm-qty" type="number" step="0.01" value="1"></div>
       <div class="frow"><label>Unit Cost ($)</label><input id="mm-unit" type="number" step="0.01" value="0"></div>
-      <div class="frow"><label>Tax ($)</label><input id="mm-tax" type="number" step="0.01" value="0"></div>
+      <div class="frow"><label>Tax ($) <span style="font-size:10px;color:#aaa;font-weight:400">— leave 0 to auto-calc 8.25%</span></label><input id="mm-tax" type="number" step="0.01" value="0" placeholder="0 = auto TX tax"></div>
       <div class="frow"><label>Manufacturer</label><input id="mm-mfr" placeholder="Superior Essex"></div>
       <div class="frow"><label>Vendor</label><input id="mm-vendor" placeholder="Accu-Tech"></div>
       <div class="frow"><label>Payment Status</label><select id="mm-paid"><option>Not Paid</option><option>Paid</option></select></div>
@@ -1742,7 +1742,7 @@ async function loadMaterials(projId){
     <td style="font-size:12px">${r.quantity||0}</td>
     <td style="font-size:12px">${fmt$(r.unit_cost)}</td>
     <td style="font-weight:600">${fmt$(r.total_ex_tax)}</td>
-    <td style="font-size:12px;color:#aaa">${fmt$(r.tax)}</td>
+    <td style="font-size:12px;color:${r.paid_status!=='Paid'&&r.tax>0?'#E24B4A':'#aaa'}">${fmt$(r.tax)}${r.paid_status!=='Paid'&&r.tax>0?'<span style="font-size:9px;color:#aaa;margin-left:3px">TX 8.25%</span>":''}</td>
     <td style="font-weight:600">${fmt$(r.total_incl_tax)}</td>
     <td><span class="badge ${r.paid_status==='Paid'?'b-paid':'b-unpaid'}">${r.paid_status||'Not Paid'}</span></td>
     <td style="font-size:11px;color:#aaa">${r.manufacturer||''}</td>
@@ -1761,8 +1761,15 @@ async function editMat(id){const {data:r}=await sb.from('purchase_materials').se
 async function saveMaterial(){
   const qty=parseFloat(document.getElementById('mm-qty').value)||0;
   const unit=parseFloat(document.getElementById('mm-unit').value)||0;
-  const tax=parseFloat(document.getElementById('mm-tax').value)||0;
+  const paidStatus=document.getElementById('mm-paid').value;
   const totalEx=qty*unit;
+  // Auto-calculate TX sales tax (8.25%) if tax field is 0 and item is not paid
+  var enteredTax=parseFloat(document.getElementById('mm-tax').value)||0;
+  var tax=enteredTax;
+  if(enteredTax===0 && paidStatus!=='Paid' && totalEx>0){
+    tax=Math.round(totalEx*0.0825*100)/100;
+    document.getElementById('mm-tax').value=tax;
+  }
   const totalIncl=totalEx+tax;
   const obj={project_id:currentProjId,item:document.getElementById('mm-item').value,description:document.getElementById('mm-desc').value,quantity:qty,unit_cost:unit,total_ex_tax:totalEx,tax,total_incl_tax:totalIncl,manufacturer:document.getElementById('mm-mfr').value,vendor:document.getElementById('mm-vendor').value,notes:document.getElementById('mm-notes').value,paid_status:document.getElementById('mm-paid').value,updated_by:CU.id};
   if(editMatId){await sb.from('purchase_materials').update(obj).eq('id',editMatId);}
