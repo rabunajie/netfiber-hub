@@ -147,8 +147,8 @@ tr:hover td{background:#fafcff}
 .btn-back:hover{opacity:0.75}
 
 /* TASKS */
-.task-hdr{display:grid;grid-template-columns:34px 1fr 88px 110px 110px 88px 50px;gap:8px;padding:8px 14px;background:#f9fafb;border-bottom:1px solid #eee;font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.4px}
-.task-row{display:grid;grid-template-columns:34px 1fr 88px 110px 110px 88px 50px;gap:8px;align-items:center;padding:10px 14px;border-bottom:0.5px solid #f5f5f5;transition:background 0.1s}
+.task-hdr{display:grid;grid-template-columns:34px 1fr 88px 110px 110px 88px 100px 50px;gap:8px;padding:8px 14px;background:#f9fafb;border-bottom:1px solid #eee;font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.4px}
+.task-row{display:grid;grid-template-columns:34px 1fr 88px 110px 110px 88px 100px 50px;gap:8px;align-items:center;padding:10px 14px;border-bottom:0.5px solid #f5f5f5;transition:background 0.1s}
 .task-row:hover{background:#fafcff}
 .task-row:last-child{border-bottom:none}
 .task-row.done-row{opacity:0.45}
@@ -1113,7 +1113,7 @@ function fuBadge(bid){
   var f=FU[fuKey]||{l:'Follow Up',c:'fu-new'};
   var diff=bid.fu_next_date?ddiff(bid.fu_next_date):null;
   var extra='';var cls=f.c;
-  if(diff!==null){
+  if(diff!==null && fuKey!=='closed' && bid.status!=='Win' && bid.status!=='Lost'){
     if(diff<0){extra=' <span style="font-size:10px;font-weight:700;color:#E24B4A">'+Math.abs(diff)+'d overdue</span>';cls='fu-call';}
     else if(diff===0) extra=' <span style="font-size:10px;font-weight:700;color:#BA7517">Today</span>';
     else if(diff<=3) extra=' <span style="font-size:10px;color:#888">in '+diff+'d</span>';
@@ -1824,7 +1824,7 @@ async function renderTasks(){
     </div>
     <div id="today-tasks-section"></div>
     <div class="tbl-wrap">
-      <div class="task-hdr"><span></span><span>Task</span><span>Priority</span><span>Deadline</span><span>Assigned To</span><span>Status</span><span></span></div>
+      <div class="task-hdr"><span></span><span>Task</span><span>Priority</span><span>Deadline</span><span>Assigned To</span><span>Status</span><span>Progress</span><span></span></div>
       <div id="task-list"></div>
     </div>`;
   await loadTasks();
@@ -1894,6 +1894,16 @@ function filterTasks(){
   tl.innerHTML=rows.map(t=>{
     const d=t.deadline;const diff=d?ddiff(d):999;
     const dlHtml=!d?'<span class="dl-ok">—</span>':t.done?`<span class="dl-ok">${fmtD(d)}</span>`:diff<0?`<span class="dl-ov">${Math.abs(diff)}d overdue</span>`:diff===0?`<span class="dl-tod">Today</span>`:diff===1?`<span class="dl-ok">Tomorrow</span>`:`<span class="dl-ok">${fmtD(d)}</span>`;
+    var pct=t.done?100:(t.progress||0);
+    var pctColor=pct>=100?'#1D9E75':pct>=60?'#1B5E9B':pct>=30?'#BA7517':'#e0e6f0';
+    var progressHtml=t.done?'':`<div style="display:flex;align-items:center;gap:6px">
+      <div style="flex:1;height:6px;background:#f0f0f0;border-radius:3px;overflow:hidden">
+        <div style="width:${pct}%;height:100%;background:${pctColor};border-radius:3px;transition:width 0.3s"></div>
+      </div>
+      <select onchange="updateTaskProgress('${t.id}',this.value)" style="font-size:11px;border:none;background:transparent;color:#555;cursor:pointer;padding:0;outline:none">
+        ${[0,10,20,30,40,50,60,70,80,90,100].map(v=>`<option value="${v}" ${pct==v?'selected':''}>${v}%</option>`).join('')}
+      </select>
+    </div>`;
     return`<div class="task-row ${t.done?'done-row':''}">
       <div class="chk ${t.done?'on':''}" onclick="toggleTask('${t.id}',${t.done})"></div>
       <div class="tname" style="font-size:13px">${t.name}</div>
@@ -1901,10 +1911,19 @@ function filterTasks(){
       <div>${dlHtml}</div>
       <div class="by-cell">${t.assigned_name||t.creator?.full_name||'—'}</div>
       <div><span class="badge ${t.done?'b-win':'b-sent'}" style="cursor:pointer" onclick="toggleTask('${t.id}',${t.done})">${t.done?'Done':'Pending'}</span></div>
+      <div>${progressHtml}</div>
       <div style="display:flex;gap:4px"><button class="btn-sm" onclick="openEditTask('${t.id}')">Edit</button><button class="btn-danger" onclick="delTask('${t.id}','${t.name.replace(/'/g,'`')}')">×</button></div>
     </div>`;
   }).join('')||'<div style="text-align:center;padding:2rem;color:#bbb;font-size:13px">No tasks found.</div>';
 }
+async function updateTaskProgress(id,val){
+  var pct=parseInt(val)||0;
+  await sb.from('tasks').update({progress:pct,updated_at:new Date().toISOString()}).eq('id',id);
+  var t=_tasks.find(function(t){return t.id===id;});
+  if(t) t.progress=pct;
+  filterTasks();
+}
+
 async function addTask(){
   var name=document.getElementById('new-task')?document.getElementById('new-task').value.trim():'';
   if(!name){alert('Please enter a task description');return;}
