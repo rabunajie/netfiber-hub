@@ -147,12 +147,13 @@ tr:hover td{background:#fafcff}
 .btn-back:hover{opacity:0.75}
 
 /* TASKS */
-.task-hdr{display:grid;grid-template-columns:34px 1fr 88px 110px 110px 88px 100px 50px;gap:8px;padding:8px 14px;background:#f9fafb;border-bottom:1px solid #eee;font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.4px}
-.task-row{display:grid;grid-template-columns:34px 1fr 88px 110px 110px 88px 100px 50px;gap:8px;align-items:center;padding:10px 14px;border-bottom:0.5px solid #f5f5f5;transition:background 0.1s}
+.task-hdr{display:grid;grid-template-columns:34px minmax(0,1fr) 88px 110px 110px 88px 100px 80px;gap:8px;padding:8px 14px;background:#f9fafb;border-bottom:1px solid #eee;font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.4px}
+.task-row{display:grid;grid-template-columns:34px minmax(0,1fr) 88px 110px 110px 88px 100px 80px;gap:8px;align-items:center;padding:10px 14px;border-bottom:0.5px solid #f5f5f5;transition:background 0.1s}
 .task-row:hover{background:#fafcff}
 .task-row:last-child{border-bottom:none}
 .task-row.done-row{opacity:0.45}
 .task-row.done-row .tname{text-decoration:line-through}
+.tname{word-break:break-word;overflow-wrap:anywhere;min-width:0}
 .chk{width:20px;height:20px;border-radius:5px;border:1.5px solid #ccc;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s;flex-shrink:0}
 .chk:hover{border-color:#1B5E9B}
 .chk.on{background:#1D9E75;border-color:#1D9E75}
@@ -1912,7 +1913,7 @@ function filterTasks(){
       <div class="by-cell">${t.assigned_name||t.creator?.full_name||'—'}</div>
       <div><span class="badge ${t.done?'b-win':'b-sent'}" style="cursor:pointer" onclick="toggleTask('${t.id}',${t.done})">${t.done?'Done':'Pending'}</span></div>
       <div>${progressHtml}</div>
-      <div style="display:flex;gap:4px"><button class="btn-sm" onclick="openEditTask('${t.id}')">Edit</button><button class="btn-danger" onclick="delTask('${t.id}','${t.name.replace(/'/g,'`')}')">×</button></div>
+      <div style="display:flex;gap:4px;flex-shrink:0;white-space:nowrap"><button class="btn-sm" onclick="openEditTask('${t.id}')">Edit</button><button class="btn-danger" onclick="delTask('${t.id}','${t.name.replace(/'/g,'`')}')">×</button></div>
     </div>`;
   }).join('')||'<div style="text-align:center;padding:2rem;color:#bbb;font-size:13px">No tasks found.</div>';
 }
