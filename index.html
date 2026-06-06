@@ -1325,8 +1325,13 @@ async function renderDashboard(){
 async function renderBids(){
   const mc=document.getElementById('main-content');
   mc.innerHTML=`
-    <div class="page-hdr"><div><div class="page-title">Bid Opportunities</div><div class="page-sub">All bids and follow-ups</div></div><button class="btn btn-blue" onclick="openBidModal()">+ New Bid</button></div>
-    <div id="bid-year-tabs" style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px">
+      <div><div class="page-title">Bid Opportunities</div><div class="page-sub">All bids and follow-ups</div></div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <div id="bid-year-tabs" style="display:flex;gap:5px;flex-wrap:wrap"></div>
+        <button class="btn btn-blue" onclick="openBidModal()">+ New Bid</button>
+      </div>
+    </div>
     <div id="bid-kpis" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px"></div>
     <div class="toolbar">
       <input type="text" id="bid-search" placeholder="Search project, GC, ref..." oninput="filterBids()" style="flex:1;min-width:180px">
@@ -1370,13 +1375,22 @@ function getBidYear(bid){
 }
 function setBidYear(year){
   _bidYear=year;
-  // Update tab styles
+  var YC2={'2024':{bg:'#EEF4FB',color:'#0C447C',border:'#B5D4F4',abg:'#1B5E9B',ac:'#fff'},'2025':{bg:'#E1F5EE',color:'#085041',border:'#9FE1CB',abg:'#1D9E75',ac:'#fff'},'2026':{bg:'#EEF4FB',color:'#0C447C',border:'#B5D4F4',abg:'#1B5E9B',ac:'#fff'},'2027':{bg:'#FAEEDA',color:'#633806',border:'#FAC775',abg:'#BA7517',ac:'#fff'},'2028':{bg:'#FBEAF0',color:'#72243E',border:'#ED93B1',abg:'#993556',ac:'#fff'}};
   document.querySelectorAll('.bid-year-tab').forEach(function(t){
-    var active=t.dataset.year===year;
-    t.style.background=active?'#1B5E9B':'#fff';
-    t.style.color=active?'#fff':'#555';
-    t.style.fontWeight=active?'700':'400';
-    t.style.borderColor=active?'#1B5E9B':'#e0e6f0';
+    var y=t.dataset.year;
+    var active=y===year;
+    if(y==='all'){
+      t.style.background=active?'#1B5E9B':'var(--color-background-secondary)';
+      t.style.color=active?'#fff':'var(--color-text-secondary)';
+      t.style.borderColor=active?'#1B5E9B':'var(--color-border-tertiary)';
+      t.style.fontWeight=active?'600':'400';
+    } else {
+      var c=YC2[y]||{bg:'#EEF4FB',color:'#0C447C',border:'#B5D4F4',abg:'#1B5E9B',ac:'#fff'};
+      t.style.background=active?c.abg:c.bg;
+      t.style.color=active?c.ac:c.color;
+      t.style.borderColor=active?c.abg:c.border;
+      t.style.fontWeight=active?'600':'500';
+    }
   });
   filterBids();
 }
@@ -1419,9 +1433,11 @@ async function loadBids(){
   var curYear=new Date().getFullYear().toString();
   var tabsEl=document.getElementById('bid-year-tabs');
   if(tabsEl){
-    var tabHtml='<button class="bid-year-tab" data-year="all" onclick="setBidYear(\'all\')" style="padding:7px 16px;border:1px solid #e0e6f0;border-radius:20px;font-size:13px;cursor:pointer;background:#fff;color:#555;transition:all 0.15s">All Years</button>';
+    var YC={'2024':{bg:'#EEF4FB',color:'#0C447C',border:'#B5D4F4',abg:'#1B5E9B',ac:'#fff'},'2025':{bg:'#E1F5EE',color:'#085041',border:'#9FE1CB',abg:'#1D9E75',ac:'#fff'},'2026':{bg:'#EEF4FB',color:'#0C447C',border:'#B5D4F4',abg:'#1B5E9B',ac:'#fff'},'2027':{bg:'#FAEEDA',color:'#633806',border:'#FAC775',abg:'#BA7517',ac:'#fff'},'2028':{bg:'#FBEAF0',color:'#72243E',border:'#ED93B1',abg:'#993556',ac:'#fff'}};
+    var tabHtml='<button class="bid-year-tab" data-year="all" onclick="setBidYear(\'all\')" style="padding:5px 14px;border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;border:1.5px solid var(--color-border-tertiary);background:var(--color-background-secondary);color:var(--color-text-secondary);transition:all 0.15s">All</button>';
     years.forEach(function(y){
-      tabHtml+='<button class="bid-year-tab" data-year="'+y+'" onclick="setBidYear(\''+y+'\')" style="padding:7px 16px;border:1px solid #e0e6f0;border-radius:20px;font-size:13px;cursor:pointer;background:#fff;color:#555;transition:all 0.15s">'+y+' <span style="font-size:11px;opacity:0.7">('+yearSet[y]+')</span></button>';
+      var c=YC[y]||{bg:'#EEF4FB',color:'#0C447C',border:'#B5D4F4',abg:'#1B5E9B',ac:'#fff'};
+      tabHtml+='<button class="bid-year-tab" data-year="'+y+'" onclick="setBidYear(\''+y+'\')" style="padding:5px 14px;border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;border:1.5px solid '+c.border+';background:'+c.bg+';color:'+c.color+';transition:all 0.15s">'+y+' <span style="font-size:10px;opacity:0.7">('+yearSet[y]+')</span></button>';
     });
     tabsEl.innerHTML=tabHtml;
   }
