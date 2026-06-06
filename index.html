@@ -1326,6 +1326,7 @@ async function renderBids(){
   const mc=document.getElementById('main-content');
   mc.innerHTML=`
     <div class="page-hdr"><div><div class="page-title">Bid Opportunities</div><div class="page-sub">All bids and follow-ups</div></div><button class="btn btn-blue" onclick="openBidModal()">+ New Bid</button></div>
+    <div id="bid-year-tabs" style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap"></div>
     <div id="bid-kpis" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px"></div>
     <div class="toolbar">
       <input type="text" id="bid-search" placeholder="Search project, GC, ref..." oninput="filterBids()" style="flex:1;min-width:180px">
@@ -1359,6 +1360,26 @@ async function renderBids(){
   await loadBids();
 }
 var _bids=[];
+var _bidYear='all';
+function getBidYear(bid){
+  // Extract year from ref like GC26-22-153 → 2026, or GC25 → 2025
+  var m=bid.ref?bid.ref.match(/GC(\d{2})/):null;
+  if(m) return '20'+m[1];
+  // Fall back to created_at year
+  return bid.created_at?bid.created_at.slice(0,4):new Date().getFullYear().toString();
+}
+function setBidYear(year){
+  _bidYear=year;
+  // Update tab styles
+  document.querySelectorAll('.bid-year-tab').forEach(function(t){
+    var active=t.dataset.year===year;
+    t.style.background=active?'#1B5E9B':'#fff';
+    t.style.color=active?'#fff':'#555';
+    t.style.fontWeight=active?'700':'400';
+    t.style.borderColor=active?'#1B5E9B':'#e0e6f0';
+  });
+  filterBids();
+}
 
 function bidKpi(icon,label,sub,val,color,filter){
   return '<div onclick="document.getElementById(\'bid-filter\').value=\''+filter+'\';filterBids()" style="cursor:pointer;background:#fff;border:0.5px solid #eaedf2;border-top:3px solid '+color+';border-radius:10px;padding:14px 16px">'
@@ -1391,6 +1412,21 @@ async function loadBids(){
       bidKpi('📞','Phone Follow-Up','Due today or overdue',fuCall,'#A32D2D','fu_overdue');
   }
   // Default everyone to All Bids — My Bids is an optional filter
+  // Build year tabs from ref numbers
+  var yearSet={};
+  _bids.forEach(function(b){var y=getBidYear(b);yearSet[y]=(yearSet[y]||0)+1;});
+  var years=Object.keys(yearSet).sort().reverse();
+  var curYear=new Date().getFullYear().toString();
+  var tabsEl=document.getElementById('bid-year-tabs');
+  if(tabsEl){
+    var tabHtml='<button class="bid-year-tab" data-year="all" onclick="setBidYear(\'all\')" style="padding:7px 16px;border:1px solid #e0e6f0;border-radius:20px;font-size:13px;cursor:pointer;background:#fff;color:#555;transition:all 0.15s">All Years</button>';
+    years.forEach(function(y){
+      tabHtml+='<button class="bid-year-tab" data-year="'+y+'" onclick="setBidYear(\''+y+'\')" style="padding:7px 16px;border:1px solid #e0e6f0;border-radius:20px;font-size:13px;cursor:pointer;background:#fff;color:#555;transition:all 0.15s">'+y+' <span style="font-size:11px;opacity:0.7">('+yearSet[y]+')</span></button>';
+    });
+    tabsEl.innerHTML=tabHtml;
+  }
+  // Default to current year
+  _bidYear=years.includes(curYear)?curYear:'all';
   setBidScope('all');
 }
 var _bidScope='mine';
@@ -1407,6 +1443,10 @@ function filterBids(){
     const search=(document.getElementById('bid-search')?.value||'').toLowerCase();
     const filter=document.getElementById('bid-filter')?.value||'';
     let rows=[..._bids];
+    // Year filter
+    if(_bidYear&&_bidYear!=='all'){
+      rows=rows.filter(function(r){return getBidYear(r)===_bidYear;});
+    }
     // Scope filter: My Bids shows only bids assigned to current user
     if(_bidScope==='mine'){
       rows=rows.filter(function(r){return r.assigned_to===CU.id;});
