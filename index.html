@@ -1651,7 +1651,15 @@ async function renderRetail(){
       <div><div class="page-title">⭐ GC Watchlist</div><div class="page-sub">Starred GCs — priority relationship building targets</div></div>
     </div>
     <div id="wl-kpis" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px"></div>
-    <div class="toolbar"><input type="text" id="ret-search" placeholder="Search company, contact, city..." oninput="filterRetail()" style="flex:1"></div>
+    <div class="toolbar">
+      <input type="text" id="ret-search" placeholder="Search company, contact, city..." oninput="filterRetail()" style="flex:1;min-width:180px">
+      <select id="wl-filter" onchange="filterRetail()" style="padding:8px 12px;border:1px solid #e0e6f0;border-radius:8px;font-size:13px;background:#fff;cursor:pointer">
+        <option value="">All Starred GCs</option>
+        <option value="email_due">📧 Follow-Up Email Due</option>
+        <option value="phone_due">📞 Follow-Up Phone Due</option>
+        <option value="no_reply">💬 Did Not Reply</option>
+      </select>
+    </div>
     <div class="tbl-wrap" style="overflow-x:auto">
       <table><thead><tr><th>Company</th><th>Contact</th><th>Email</th><th>Phone</th><th>City</th><th>Priority</th><th>Follow-Up Status</th><th>Next Call</th><th></th></tr></thead>
       <tbody id="ret-body"><tr><td colspan="9" class="loading"><span class="spinner"></span></td></tr></tbody></table>
@@ -1701,6 +1709,13 @@ function retailFuBadge(r){
   }
   return pill;
 }
+function wlKpi(icon,label,sub,val,color,filter){
+  return '<div onclick="var s=document.getElementById(\'wl-filter\');if(s){s.value=\''+filter+'\';filterRetail();}" style="cursor:pointer;background:#fff;border:0.5px solid #eaedf2;border-top:3px solid '+color+';border-radius:10px;padding:14px 16px">'
+    +'<div style="font-size:10px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px">'+icon+' '+label+'</div>'
+    +'<div style="font-size:26px;font-weight:800;color:'+color+'">'+val+'</div>'
+    +'<div style="font-size:11px;color:#bbb;margin-top:3px">'+sub+'</div>'
+    +'</div>';
+}
 function filterRetail(){
   // GC Watchlist — shows starred GCs from _gcs
   var tbody=document.getElementById('ret-body');
@@ -1712,17 +1727,21 @@ function filterRetail(){
     var fuDue=starred.filter(function(g){return g.gc_next_followup&&ddiff(g.gc_next_followup)<=0&&(g.gc_fu_status==='intro'||g.gc_fu_status==='email_due');}).length;
     var phoneDue=starred.filter(function(g){return g.gc_next_followup&&ddiff(g.gc_next_followup)<=0&&(g.gc_fu_status==='call'||g.gc_fu_status==='active');}).length;
     kEl.innerHTML=
-      '<div style="cursor:pointer;background:#fff;border:0.5px solid #eaedf2;border-top:3px solid #854F0B;border-radius:10px;padding:14px 16px"><div style="font-size:10px;font-weight:700;color:#aaa;text-transform:uppercase;margin-bottom:6px">📧 Follow-Up Email Due</div><div style="font-size:26px;font-weight:800;color:#854F0B">'+fuDue+'</div><div style="font-size:11px;color:#bbb;margin-top:3px">From replied = No</div></div>'+
-      '<div style="cursor:pointer;background:#fff;border:0.5px solid #eaedf2;border-top:3px solid #A32D2D;border-radius:10px;padding:14px 16px"><div style="font-size:10px;font-weight:700;color:#aaa;text-transform:uppercase;margin-bottom:6px">📞 Follow-Up Phone Due</div><div style="font-size:26px;font-weight:800;color:#A32D2D">'+phoneDue+'</div><div style="font-size:11px;color:#bbb;margin-top:3px">From replied = No</div></div>'+
-      '<div style="background:#fff;border:0.5px solid #eaedf2;border-top:3px solid #1B5E9B;border-radius:10px;padding:14px 16px"><div style="font-size:10px;font-weight:700;color:#aaa;text-transform:uppercase;margin-bottom:6px">⭐ Total Watchlist</div><div style="font-size:26px;font-weight:800;color:#1B5E9B">'+starred.length+'</div><div style="font-size:11px;color:#bbb;margin-top:3px">Starred GCs</div></div>';
+      wlKpi('📧','Follow-Up Email Due','Overdue or today',fuDue,'#854F0B','email_due')+
+      wlKpi('📞','Follow-Up Phone Due','Overdue or today',phoneDue,'#A32D2D','phone_due')+
+      wlKpi('⭐','Total Watchlist','All starred GCs',starred.length,'#1B5E9B','');
   }
   if(!starred.length){
     tbody.innerHTML='<tr><td colspan="9" style="text-align:center;padding:2rem;color:#bbb">No starred GCs yet — go to GC Contacts and click ⭐ to add to watchlist.</td></tr>';
     return;
   }
   var search=(document.getElementById('ret-search')?.value||'').toLowerCase();
+  var wlF=(document.getElementById('wl-filter')?.value||'');
   var rows=starred.slice();
   if(search) rows=rows.filter(function(r){return ((r.company||'')+(r.contact||'')+(r.email||'')+(r.city||'')).toLowerCase().includes(search);});
+  if(wlF==='email_due') rows=rows.filter(function(r){return r.gc_next_followup&&ddiff(r.gc_next_followup)<=0&&(r.gc_fu_status==='intro'||r.gc_fu_status==='email_due');});
+  else if(wlF==='phone_due') rows=rows.filter(function(r){return r.gc_next_followup&&ddiff(r.gc_next_followup)<=0&&(r.gc_fu_status==='call'||r.gc_fu_status==='active');});
+  else if(wlF==='no_reply') rows=rows.filter(function(r){return r.replied==='No'||!r.replied;});
   if(!rows.length){
     tbody.innerHTML='<tr><td colspan="9" style="text-align:center;padding:2rem;color:#bbb">No starred GCs yet — go to GC Contacts and click ⭐ to add to watchlist.</td></tr>';
     return;
