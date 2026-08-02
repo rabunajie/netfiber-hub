@@ -1555,10 +1555,8 @@ async function renderGC(){
       <input type="text" id="gc-search" placeholder="Search company, contact..." oninput="filterGC()" style="flex:1;min-width:180px">
       <select id="gc-filter" onchange="filterGC()" style="padding:8px 12px;border:1px solid #e0e6f0;border-radius:8px;font-size:13px;background:#fff;cursor:pointer">
   <option value="">All Contacts</option>
-  <option value="email_today">📧 Email Follow-Up Due Today</option>
-  <option value="email_overdue">📧 Email Follow-Up Overdue</option>
-  <option value="call_today">📞 Phone Follow-Up Due Today</option>
-  <option value="call_overdue">📞 Phone Follow-Up Overdue</option>
+  <option value="email_due">📧 Email Follow-Up Due</option>
+  <option value="call_due">📞 Phone Follow-Up Due</option>
   <option value="uncontacted">📭 Uncontacted</option>
   <option value="no_reply">💬 Did Not Reply</option>
 </select>
@@ -1591,8 +1589,8 @@ async function loadGC(){
   var bidAccepted=_gcs.filter(function(r){return r.replied==='No'||!r.replied;}).length;
   var kEl=document.getElementById('gc-kpis');
   if(kEl){kEl.innerHTML=
-    gcKpi('📧','Email Follow-Up Due','Due Today',emailDue,'#854F0B','email_today')+
-    gcKpi('📞','Phone Follow-Up Due','Due Today',callDue,'#A32D2D','call_today')+
+    gcKpi('📧','Email Follow-Up Due','Due today or overdue',emailDue,'#854F0B','email_due')+
+    gcKpi('📞','Phone Follow-Up Due','Due today or overdue',callDue,'#A32D2D','call_due')+
     gcKpi('📭','Uncontacted','No outreach yet',bidReview,'#5B3FCC','uncontacted')+
     gcKpi('💬','Did Not Reply','Replied = No',bidAccepted,'#888','no_reply');
   }
@@ -1613,17 +1611,11 @@ function gcKpi(icon,label,sub,val,color,filter){
     +'<div style="font-size:11px;color:#bbb;margin-top:3px">'+sub+'</div>'
     +'</div>';
 }
-function filterGC(){const search=(document.getElementById('gc-search')?.value||'').toLowerCase();const filter=document.getElementById('gc-filter')?.value||'';let rows=[..._gcs];if(filter==='email_today') rows=rows.filter(function(r){
+function filterGC(){const search=(document.getElementById('gc-search')?.value||'').toLowerCase();const filter=document.getElementById('gc-filter')?.value||'';let rows=[..._gcs];if(filter==='email_due'||filter==='email_today'||filter==='email_overdue') rows=rows.filter(function(r){
       return r.gc_next_followup && ddiff(r.gc_next_followup)<=0 && (r.gc_fu_status==='intro'||r.gc_fu_status==='email_due');
     });
-    else if(filter==='email_overdue') rows=rows.filter(function(r){
-      return r.gc_next_followup && ddiff(r.gc_next_followup)<0 && (r.gc_fu_status==='intro'||r.gc_fu_status==='email_due');
-    });
-    else if(filter==='call_today') rows=rows.filter(function(r){
+    else if(filter==='call_due'||filter==='call_today'||filter==='call_overdue') rows=rows.filter(function(r){
       return r.gc_next_followup && ddiff(r.gc_next_followup)<=0 && (r.gc_fu_status==='call'||r.gc_fu_status==='active');
-    });
-    else if(filter==='call_overdue') rows=rows.filter(function(r){
-      return r.gc_next_followup && ddiff(r.gc_next_followup)<0 && (r.gc_fu_status==='call'||r.gc_fu_status==='active');
     });
     else if(filter==='uncontacted') rows=rows.filter(function(r){return !r.gc_next_followup;});
     else if(filter==='no_reply') rows=rows.filter(function(r){return r.replied==='No'||!r.replied;});if(search)rows=rows.filter(r=>(r.company+r.contact+r.email).toLowerCase().includes(search));const tbody=document.getElementById('gc-body');if(!tbody)return;(function(){var gcRows='';for(var gi=0;gi<rows.length;gi++){var r=rows[gi];var nextC=r.gc_next_followup?fmtD(r.gc_next_followup):'—';var nextCCls=r.gc_next_followup&&ddiff(r.gc_next_followup)<0?'color:#E24B4A;font-weight:700':r.gc_next_followup&&ddiff(r.gc_next_followup)===0?'color:#BA7517;font-weight:700':'color:#888';gcRows+='<tr ondblclick="openGCFU(event,&quot;'+r.id+'&quot;)">'
