@@ -480,7 +480,7 @@ body.view-only button[onclick*="Remove"]{
         <span class="sb-badge" id="sb-gc-phone" style="background:#A32D2D;display:none" title="Phone call due"></span>
         <span class="sb-badge" id="sb-gc-review" style="background:#5B3FCC;display:none" title="Bid review pending"></span>
         <span class="sb-badge" id="sb-gc-accepted" style="background:#1D9E75;display:none" title="Bid accepted"></span></div>
-      <div class="sb-item" data-page="retail" data-groups="admin,sales,staff" onclick="showPage('retail')"><span class="sb-dot"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg></span>Retail & Projects<span class="sb-badge" id="sb-ret-due" style="background:#854F0B;display:none" title="Retail follow-up due"></span></div>
+      <div class="sb-item" data-page="retail" data-groups="admin,sales,staff" onclick="showPage('retail')"><span class="sb-dot"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg></span>GC Watchlist<span class="sb-badge" id="sb-ret-due" style="background:#854F0B;display:none" title="Retail follow-up due"></span></div>
       <div class="sb-sec">Operations</div>
       <div class="sb-item" data-page="proposals" data-groups="admin,sales" onclick="showPage('proposals')"><span class="sb-dot"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></span>Proposals</div>
       <div class="sb-item" data-page="purchases" data-groups="admin,sales" onclick="showPage('purchases')"><span class="sb-dot"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 001.99-1.85l1.38-9.14H6"/></svg></span>Purchases</div>
@@ -552,7 +552,7 @@ body.view-only button[onclick*="Remove"]{
 
 <div class="modal-bg" id="retail-modal">
   <div class="modal">
-    <h3 id="retail-modal-title">Retail Contact & Project</h3>
+    <h3 id="retail-modal-title">GC Watchlist Entry</h3>
     <div class="fgrid">
       <div class="frow"><label>Company</label><input id="rm-company"></div>
       <div class="frow"><label>Contact Name</label><input id="rm-contact"></div>
@@ -1041,8 +1041,8 @@ async function initApp(user){
         var retRes=await sb.from('retail_contacts').select('*').order('created_at',{ascending:false});
         if(retRes.data){
           _retail=retRes.data;
-          var retDue=_retail.filter(function(r){return r.ret_next_followup&&ddiff(r.ret_next_followup)<=0&&r.ret_fu_status!=='closed'&&r.ret_fu_status!=='nointerest';}).length;
-          setSbBadge('sb-ret-due',retDue);
+          var starredCount=_gcs.filter(function(g){return g.starred;}).length;
+          setSbBadge('sb-ret-due',starredCount);
         }
       }
     }catch(e){}
@@ -1200,8 +1200,8 @@ async function renderDashboard(){
   // Retail sidebar badge
   if(typeof _retail!=='undefined'&&_retail.length){
     var today=new Date().toISOString().split('T')[0];
-    var retDue=_retail.filter(function(r){return r.ret_next_followup&&r.ret_next_followup<=today&&r.ret_fu_status!=='closed'&&r.ret_fu_status!=='nointerest';}).length;
-    setSbBadge('sb-ret-due',retDue);
+    var starredCount2=(_gcs||[]).filter(function(g){return g.starred;}).length;
+    setSbBadge('sb-ret-due',starredCount2);
   }
   // GC sidebar badges - load from _gcs if available
   if(typeof _gcs!=='undefined'&&_gcs.length){
@@ -1234,7 +1234,7 @@ async function renderDashboard(){
           <span class="mod-btn-name">GC Contacts</span>
         </div>`:''}
         ${canAccess('retail')?`<div class="mod-btn" onclick="showPage('retail')" style="border-top:3px solid #534AB7">
-          <span class="mod-btn-name">Retail & Projects</span>
+          <span class="mod-btn-name">GC Watchlist</span>
         </div>`:''}
         ${canAccess('proposals')?`<div class="mod-btn" onclick="showPage('proposals')" style="border-top:3px solid #0F6E56">
           <span class="mod-btn-name">Proposals</span>
@@ -1570,12 +1570,22 @@ async function renderGC(){
 </select>
     </div>
     <div class="tbl-wrap" style="overflow-x:auto">
-      <table><thead><tr><th>Company</th><th>Contact</th><th>Email</th><th>Phone</th><th>City</th><th>Priority</th><th>Replied</th><th>Follow-Up</th><th>Next Call</th><th></th></tr></thead>
+      <table><thead><tr><th style="width:36px">⭐</th><th>Company</th><th>Contact</th><th>Email</th><th>Phone</th><th>City</th><th>Priority</th><th>Replied</th><th>Follow-Up</th><th>Next Call</th><th></th></tr></thead>
       <tbody id="gc-body"><tr><td colspan="10" class="loading"><span class="spinner"></span></td></tr></tbody></table>
     </div>`;
   await loadGC();
 }
 var _gcs=[];
+async function toggleGCStar(id, currentlyStarred){
+  await sb.from('gc_contacts').update({starred:!currentlyStarred,updated_by:CU.id}).eq('id',id);
+  var gc=_gcs.find(function(g){return g.id===id;});
+  if(gc) gc.starred=!currentlyStarred;
+  filterGC();
+  // Update watchlist badge
+  var starCount=_gcs.filter(function(g){return g.starred;}).length;
+  setSbBadge('sb-ret-due',starCount);
+}
+
 async function loadGC(){
   var res=await sb.from('gc_contacts').select('*').order('created_at',{ascending:false});
   if(res.error){console.error('GC error:',res.error);return;}
@@ -1622,7 +1632,11 @@ function filterGC(){const search=(document.getElementById('gc-search')?.value||'
       return r.gc_next_followup && ddiff(r.gc_next_followup)<0 && (r.gc_fu_status==='call'||r.gc_fu_status==='active');
     });
     else if(filter==='bid_review') rows=rows.filter(function(r){return r.gc_fu_status==='estimation';});
-    else if(filter==='bid_accepted') rows=rows.filter(function(r){return r.gc_fu_status==='est_yes';});if(search)rows=rows.filter(r=>(r.company+r.contact+r.email).toLowerCase().includes(search));const tbody=document.getElementById('gc-body');if(!tbody)return;(function(){var gcRows='';for(var gi=0;gi<rows.length;gi++){var r=rows[gi];var nextC=r.gc_next_followup?fmtD(r.gc_next_followup):'—';var nextCCls=r.gc_next_followup&&ddiff(r.gc_next_followup)<0?'color:#E24B4A;font-weight:700':r.gc_next_followup&&ddiff(r.gc_next_followup)===0?'color:#BA7517;font-weight:700':'color:#888';gcRows+='<tr ondblclick="openGCFU(event,&quot;'+r.id+'&quot;)">'+'<td style="font-weight:600">'+(r.company||'')+'</td>'+'<td style="font-size:12px">'+(r.contact||'').split('\n')[0]+'</td>'+'<td style="font-size:12px"><a href="mailto:'+(r.email||'').split('\n')[0]+'" style="color:#1B5E9B">'+(r.email||'').split('\n')[0]+'</a></td>'+'<td style="font-size:12px">'+(r.phone||'').split('\n')[0]+'</td>'+'<td style="font-size:12px">'+(r.city||'').split('\n')[0]+'</td>'+'<td><span class="'+(r.priority==='1st'?'pri-1':r.priority==='2nd'?'pri-2':'pri-3')+'">'+(r.priority||'—')+'</span></td>'+'<td><span class="badge '+(r.replied==='Yes'?'b-yes':'b-no')+'">'+(r.replied||'No')+'</span></td>'+'<td>'+gcFuBadge(r)+'</td>'+'<td style="font-size:11px;'+nextCCls+'">'+nextC+'</td>'+'<td style="white-space:nowrap"><div style="display:flex;gap:4px"><button class="btn-sm" onclick="editGC(this.dataset.id)" data-id="'+r.id+'">Edit</button><button class="btn-danger" onclick="delGC(this.dataset.id,this.dataset.name)" data-id="'+r.id+'" data-name="'+(r.company||'').replace(/"/g,'')+'">×</button></div></td>'
+    else if(filter==='bid_accepted') rows=rows.filter(function(r){return r.gc_fu_status==='est_yes';});if(search)rows=rows.filter(r=>(r.company+r.contact+r.email).toLowerCase().includes(search));const tbody=document.getElementById('gc-body');if(!tbody)return;(function(){var gcRows='';for(var gi=0;gi<rows.length;gi++){var r=rows[gi];var nextC=r.gc_next_followup?fmtD(r.gc_next_followup):'—';var nextCCls=r.gc_next_followup&&ddiff(r.gc_next_followup)<0?'color:#E24B4A;font-weight:700':r.gc_next_followup&&ddiff(r.gc_next_followup)===0?'color:#BA7517;font-weight:700':'color:#888';gcRows+='<tr ondblclick="openGCFU(event,&quot;'+r.id+'&quot;)">'
+  +'<td style="text-align:center;cursor:pointer" onclick="toggleGCStar(\''+r.id+'\','+!!r.starred+')" title="'+(r.starred?'Remove from GC Watchlist':'Add to GC Watchlist')+'">'
+  +'<span style="font-size:18px;line-height:1;opacity:'+(r.starred?'1':'0.2')+'">'+(r.starred?'⭐':'☆')+'</span>'
+  +'</td>'
+  +'<td style="font-weight:600">'+(r.company||'')+'</td>'+'<td style="font-size:12px">'+(r.contact||'').split('\n')[0]+'</td>'+'<td style="font-size:12px"><a href="mailto:'+(r.email||'').split('\n')[0]+'" style="color:#1B5E9B">'+(r.email||'').split('\n')[0]+'</a></td>'+'<td style="font-size:12px">'+(r.phone||'').split('\n')[0]+'</td>'+'<td style="font-size:12px">'+(r.city||'').split('\n')[0]+'</td>'+'<td><span class="'+(r.priority==='1st'?'pri-1':r.priority==='2nd'?'pri-2':'pri-3')+'">'+(r.priority||'—')+'</span></td>'+'<td><span class="badge '+(r.replied==='Yes'?'b-yes':'b-no')+'">'+(r.replied||'No')+'</span></td>'+'<td>'+gcFuBadge(r)+'</td>'+'<td style="font-size:11px;'+nextCCls+'">'+nextC+'</td>'+'<td style="white-space:nowrap"><div style="display:flex;gap:4px"><button class="btn-sm" onclick="editGC(this.dataset.id)" data-id="'+r.id+'">Edit</button><button class="btn-danger" onclick="delGC(this.dataset.id,this.dataset.name)" data-id="'+r.id+'" data-name="'+(r.company||'').replace(/"/g,'')+'">×</button></div></td>'
       +'</tr>';}tbody.innerHTML=gcRows||'<tr><td colspan="10" style="text-align:center;padding:2rem;color:#bbb">No contacts found.</td></tr>'})()||'<tr><td colspan="10" style="text-align:center;padding:2rem;color:#bbb">No contacts found.</td></tr>';}
 function openGCModal(){editGCId=null;document.getElementById('gc-modal-title').textContent='New GC Contact';['company','contact','email','phone','city','notes','fdate'].forEach(f=>document.getElementById('gm-'+f).value='');document.getElementById('gm-priority').value='1st';document.getElementById('gm-replied').value='No';document.getElementById('gc-modal').classList.add('open');}
 async function editGC(id){const {data:r}=await sb.from('gc_contacts').select('*').eq('id',id).single();if(!r)return;editGCId=id;document.getElementById('gc-modal-title').textContent='Edit GC';['company','contact','email','phone','city'].forEach(f=>document.getElementById('gm-'+f).value=r[f]||'');document.getElementById('gm-priority').value=r.priority||'1st';document.getElementById('gm-replied').value=r.replied||'No';document.getElementById('gm-notes').value=r.note||'';document.getElementById('gm-fdate').value=r.first_email||'';document.getElementById('gc-modal').classList.add('open');}
@@ -1633,7 +1647,7 @@ async function delGC(id,name){if(!confirm(`Delete "${name}"?`))return;await sb.f
 async function renderRetail(){
   const mc=document.getElementById('main-content');
   mc.innerHTML=`
-    <div class="page-hdr"><div><div class="page-title">Retail & Projects</div><div class="page-sub">Direct retail accounts</div></div><button class="btn btn-blue" onclick="openRetailModal()">+ New Contact</button></div>
+    <div class="page-hdr"><div><div class="page-title">GC Watchlist</div><div class="page-sub">Direct retail accounts</div></div><button class="btn btn-blue" onclick="openRetailModal()">+ New Contact</button></div>
     <div id="ret-kpis" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px"></div>
     <div class="toolbar"><input type="text" id="ret-search" placeholder="Search company, contact, project..." oninput="filterRetail()" style="flex:1"></div>
     <div class="tbl-wrap" style="overflow-x:auto">
@@ -1686,26 +1700,40 @@ function retailFuBadge(r){
   return pill;
 }
 function filterRetail(){
-  const search=(document.getElementById('ret-search')?.value||'').toLowerCase();
-  let rows=[..._retail];
-  if(search)rows=rows.filter(r=>((r.company||'')+(r.contact||'')+(r.email||'')+(r.project_name||'')).toLowerCase().includes(search));
-  var today=new Date().toISOString().split('T')[0];
-  if(_retFilter==='overdue') rows=rows.filter(function(r){return r.ret_next_followup&&r.ret_next_followup<=today&&r.ret_fu_status!=='closed'&&r.ret_fu_status!=='nointerest';});
-  else if(_retFilter==='not_contacted') rows=rows.filter(function(r){return !r.ret_fu_status||r.ret_fu_status==='none';});
-  const tbody=document.getElementById('ret-body');
+  // GC Watchlist — shows starred GCs from _gcs
+  var tbody=document.getElementById('ret-body');
   if(!tbody)return;
-  tbody.innerHTML=rows.map(r=>`<tr>
-    <td style="font-weight:600">${r.company||''}</td>
-    <td>${r.contact||''}</td>
-    <td style="font-size:12px;color:#555">${r.project_name||'—'}</td>
-    <td style="font-size:11px;color:#aaa">${r.role||''}</td>
-    <td style="font-size:12px"><a href="mailto:${r.email||''}" style="color:#1B5E9B">${r.email||''}</a></td>
-    <td style="font-size:12px">${r.phone||''}</td>
-    <td><span class="badge ${r.replied==='Yes'?'b-yes':'b-no'}">${r.replied||'No'}</span></td>
-    <td onclick="openRetailFU(event,'${r.id}')" style="cursor:pointer">${retailFuBadge(r)}</td>
-    <td class="note-cell">${r.note||''}</td>
-    <td style="white-space:nowrap"><div style="display:flex;gap:4px"><button class="btn-sm" onclick="editRetail('${r.id}')">Edit</button><button class="btn-danger" onclick="delRetail('${r.id}','${(r.company||'').replace(/'/g,'`')}')">×</button></div></td>
-  </tr>`).join('')||'<tr><td colspan="10" style="text-align:center;padding:2rem;color:#bbb">No contacts.</td></tr>';
+  if(!_gcs||!_gcs.length){
+    tbody.innerHTML='<tr><td colspan="9" style="text-align:center;padding:2rem;color:#bbb">No starred GCs yet — go to GC Contacts and click ⭐ to add to watchlist.</td></tr>';
+    return;
+  }
+  var search=(document.getElementById('ret-search')?.value||'').toLowerCase();
+  var rows=_gcs.filter(function(g){return g.starred;});
+  if(search) rows=rows.filter(function(r){return ((r.company||'')+(r.contact||'')+(r.email||'')+(r.city||'')).toLowerCase().includes(search);});
+  if(!rows.length){
+    tbody.innerHTML='<tr><td colspan="9" style="text-align:center;padding:2rem;color:#bbb">No starred GCs yet — go to GC Contacts and click ⭐ to add to watchlist.</td></tr>';
+    return;
+  }
+  var html='';
+  rows.forEach(function(r){
+    var nextC=r.gc_next_followup?fmtD(r.gc_next_followup):'—';
+    var nextCls=r.gc_next_followup&&ddiff(r.gc_next_followup)<0?'color:#E24B4A;font-weight:700':r.gc_next_followup&&ddiff(r.gc_next_followup)===0?'color:#BA7517;font-weight:700':'color:#888';
+    html+='<tr>'
+      +'<td style="font-weight:600">'+( r.company||'')+'</td>'
+      +'<td style="font-size:12px">'+(r.contact||'')+'</td>'
+      +'<td style="font-size:12px"><a href="mailto:'+(r.email||'')+'" style="color:#1B5E9B">'+(r.email||'')+'</a></td>'
+      +'<td style="font-size:12px">'+(r.phone||'')+'</td>'
+      +'<td style="font-size:12px">'+(r.city||'')+'</td>'
+      +'<td><span class="'+(r.priority==='1st'?'pri-1':r.priority==='2nd'?'pri-2':'pri-3')+'">'+(r.priority||'—')+'</span></td>'
+      +'<td>'+gcFuBadge(r)+'</td>'
+      +'<td style="font-size:11px;'+nextCls+'">'+nextC+'</td>'
+      +'<td style="white-space:nowrap"><div style="display:flex;gap:4px">'
+      +'<button class="btn-sm" onclick="editGC(\''+r.id+'\')">Edit</button>'
+      +'<button onclick="toggleGCStar(\''+r.id+'\',true)" style="padding:4px 8px;border:1px solid #fcc;border-radius:6px;font-size:12px;cursor:pointer;background:#fff;color:#E24B4A" title="Remove from Watchlist">★ Remove</button>'
+      +'</div></td>'
+      +'</tr>';
+  });
+  tbody.innerHTML=html;
 }
 function openRetailModal(){editRetailId=null;document.getElementById('retail-modal-title').textContent='New Retail Contact';['company','contact','project','email','phone','role','notes'].forEach(f=>{var el=document.getElementById('rm-'+f);if(el)el.value='';});document.getElementById('rm-replied').value='No';document.getElementById('rm-fu-date').value='';document.getElementById('rm-fu-type').value='';document.getElementById('retail-modal').classList.add('open');}
 async function editRetail(id){const {data:r}=await sb.from('retail_contacts').select('*').eq('id',id).single();if(!r)return;editRetailId=id;document.getElementById('retail-modal-title').textContent='Edit Retail Contact';['company','contact','email','phone','role'].forEach(f=>document.getElementById('rm-'+f).value=r[f]||'');document.getElementById('rm-project').value=r.project_name||'';document.getElementById('rm-replied').value=r.replied||'No';document.getElementById('rm-fu-date').value=r.fu_date||'';document.getElementById('rm-fu-type').value=r.fu_type||'';document.getElementById('rm-notes').value=r.note||'';document.getElementById('retail-modal').classList.add('open');}
