@@ -476,10 +476,8 @@ body.view-only button[onclick*="Remove"]{
         <span class="sb-badge" id="sb-bids-email" style="background:#1B5E9B;display:none" title="Email follow-up due"></span>
         <span class="sb-badge" id="sb-bids-phone" style="background:#A32D2D;display:none" title="Phone follow-up due"></span></div>
       <div class="sb-item" data-page="gc" data-groups="admin,sales" onclick="showPage('gc')"><span class="sb-dot"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87m-4-12a4 4 0 010 7.75"/></svg></span>GC Contacts
-        <span class="sb-badge" id="sb-gc-email" style="background:#854F0B;display:none" title="Email FU due"></span>
-        <span class="sb-badge" id="sb-gc-phone" style="background:#A32D2D;display:none" title="Phone call due"></span>
-        <span class="sb-badge" id="sb-gc-review" style="background:#5B3FCC;display:none" title="Bid review pending"></span>
-        <span class="sb-badge" id="sb-gc-accepted" style="background:#1D9E75;display:none" title="Bid accepted"></span></div>
+        <span class="sb-badge" id="sb-gc-email" style="background:#854F0B;display:none" title="Email Follow-Up Due"></span>
+        <span class="sb-badge" id="sb-gc-phone" style="background:#A32D2D;display:none" title="Phone Follow-Up Due"></span></div>
       <div class="sb-item" data-page="retail" data-groups="admin,sales,staff" onclick="showPage('retail')"><span class="sb-dot"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg></span>GC Watchlist<span class="sb-badge" id="sb-ret-due" style="background:#854F0B;display:none" title="Retail follow-up due"></span></div>
       <div class="sb-sec">Operations</div>
       <div class="sb-item" data-page="proposals" data-groups="admin,sales" onclick="showPage('proposals')"><span class="sb-dot"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></span>Proposals</div>
@@ -1032,8 +1030,6 @@ async function initApp(user){
           var gcAccepted=_gcs.filter(function(g){return g.replied==='No'||!g.replied;}).length;
           setSbBadge('sb-gc-email',gcEmailDue);
           setSbBadge('sb-gc-phone',gcCallDue);
-          setSbBadge('sb-gc-review',gcReview);
-          setSbBadge('sb-gc-accepted',gcAccepted);
         }
       }
       // Load Retail data into _retail
@@ -1211,8 +1207,6 @@ async function renderDashboard(){
     var gcAccepted=_gcs.filter(function(g){return g.replied==='No'||!g.replied;}).length;
     setSbBadge('sb-gc-email',gcEmailDue);
     setSbBadge('sb-gc-phone',gcCallDue);
-    setSbBadge('sb-gc-review',gcReview);
-    setSbBadge('sb-gc-accepted',gcAccepted);
   }
 
   const todayDate=new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
@@ -1597,8 +1591,8 @@ async function loadGC(){
   var bidAccepted=_gcs.filter(function(r){return r.replied==='No'||!r.replied;}).length;
   var kEl=document.getElementById('gc-kpis');
   if(kEl){kEl.innerHTML=
-    gcKpi('📧','Follow-Up Email','Due Today',emailDue,'#854F0B','email_today')+
-    gcKpi('📞','Follow-Up Phone','Due Today',callDue,'#A32D2D','call_today')+
+    gcKpi('📧','Email Follow-Up Due','Due Today',emailDue,'#854F0B','email_today')+
+    gcKpi('📞','Phone Follow-Up Due','Due Today',callDue,'#A32D2D','call_today')+
     gcKpi('📭','Uncontacted','No outreach yet',bidReview,'#5B3FCC','uncontacted')+
     gcKpi('💬','Did Not Reply','Replied = No',bidAccepted,'#888','no_reply');
   }
@@ -1608,7 +1602,7 @@ async function loadGC(){
     var gcCl=_gcs.filter(function(g){return g.gc_next_followup&&ddiff(g.gc_next_followup)<=0&&(g.gc_fu_status==='call'||g.gc_fu_status==='active');}).length;
     var gcRv=_gcs.filter(function(g){return g.gc_fu_status==='estimation';}).length;
     var gcAc=_gcs.filter(function(g){return g.gc_fu_status==='est_yes';}).length;
-    setSbBadge('sb-gc-email',gcEm);setSbBadge('sb-gc-phone',gcCl);setSbBadge('sb-gc-review',gcRv);setSbBadge('sb-gc-accepted',gcAc);
+    setSbBadge('sb-gc-email',gcEm);setSbBadge('sb-gc-phone',gcCl);
   }
   filterGC();
 }
@@ -1655,8 +1649,8 @@ async function renderRetail(){
       <input type="text" id="ret-search" placeholder="Search company, contact, city..." oninput="filterRetail()" style="flex:1;min-width:180px">
       <select id="wl-filter" onchange="filterRetail()" style="padding:8px 12px;border:1px solid #e0e6f0;border-radius:8px;font-size:13px;background:#fff;cursor:pointer">
         <option value="">All Starred GCs</option>
-        <option value="email_due">📧 Follow-Up Email Due</option>
-        <option value="phone_due">📞 Follow-Up Phone Due</option>
+        <option value="email_due">📧 Email Follow-Up Due</option>
+        <option value="phone_due">📞 Phone Follow-Up Due</option>
         <option value="no_reply">💬 Did Not Reply</option>
       </select>
     </div>
@@ -1727,8 +1721,8 @@ function filterRetail(){
     var fuDue=starred.filter(function(g){return g.gc_next_followup&&ddiff(g.gc_next_followup)<=0&&(g.gc_fu_status==='intro'||g.gc_fu_status==='email_due');}).length;
     var phoneDue=starred.filter(function(g){return g.gc_next_followup&&ddiff(g.gc_next_followup)<=0&&(g.gc_fu_status==='call'||g.gc_fu_status==='active');}).length;
     kEl.innerHTML=
-      wlKpi('📧','Follow-Up Email Due','Overdue or today',fuDue,'#854F0B','email_due')+
-      wlKpi('📞','Follow-Up Phone Due','Overdue or today',phoneDue,'#A32D2D','phone_due')+
+      wlKpi('📧','Email Follow-Up Due','Overdue or today',fuDue,'#854F0B','email_due')+
+      wlKpi('📞','Phone Follow-Up Due','Overdue or today',phoneDue,'#A32D2D','phone_due')+
       wlKpi('⭐','Total Watchlist','All starred GCs',starred.length,'#1B5E9B','');
   }
   if(!starred.length){
