@@ -1910,40 +1910,50 @@ async function renderTasks(){
   const mc=document.getElementById('main-content');
   mc.innerHTML=`
     <div id="task-kpis" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px"></div>
-    <div class="page-hdr"><div><div class="page-title">To-Do</div><div class="page-sub">Tasks and deadlines</div></div></div>
-    <div style="background:#fff;border-radius:12px;border:0.5px solid #e4e8f0;padding:14px;margin-bottom:12px">
-      <div style="font-size:12px;font-weight:700;color:#555;margin-bottom:10px">Add new task</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <input type="text" id="new-task" placeholder="Task description..." onkeydown="if(event.key==='Enter')addTask()" style="flex:1;min-width:200px;padding:8px 12px;border:1px solid #e0e0e0;border-radius:8px;font-size:13px;outline:none">
-        <select id="new-pri" style="padding:8px 10px;border:1px solid #e0e0e0;border-radius:8px;font-size:13px;outline:none"><option value="high">High</option><option value="medium" selected>Medium</option><option value="low">Low</option></select>
-        <input type="date" id="new-date" style="padding:8px 10px;border:1px solid #e0e0e0;border-radius:8px;font-size:13px;outline:none">
-        <select id="new-assign" style="padding:8px 10px;border:1px solid #e0e0e0;border-radius:8px;font-size:13px;outline:none"><option value="">Assign to me</option></select>
-        <button class="btn btn-blue" onclick="addTask()">+ Add</button>
+    <div class="page-hdr"><div><div class="page-title">To-Do</div><div class="page-sub">Daily tasks and long-term projects</div></div></div>
+
+    <!-- SECTION 1: Daily To-Do -->
+    <div style="background:#fff;border-radius:12px;border:0.5px solid #e4e8f0;margin-bottom:20px;overflow:hidden">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:#f5f8fc;border-bottom:1px solid #e4e8f0">
+        <div style="font-size:14px;font-weight:700;color:#1B5E9B">📋 Daily To-Do</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <input type="text" id="new-daily-task" placeholder="Add daily task..." onkeydown="if(event.key==='Enter')addTask('daily')" style="padding:6px 10px;border:1px solid #e0e0e0;border-radius:8px;font-size:13px;outline:none;width:220px">
+          <select id="new-daily-pri" style="padding:6px 10px;border:1px solid #e0e0e0;border-radius:8px;font-size:13px;outline:none"><option value="high">High</option><option value="medium" selected>Medium</option><option value="low">Low</option></select>
+          <select id="new-daily-assign" style="padding:6px 10px;border:1px solid #e0e0e0;border-radius:8px;font-size:13px;outline:none"><option value="">Assign to me</option></select>
+          <button class="btn btn-blue" style="padding:6px 14px" onclick="addTask('daily')">+ Add</button>
+        </div>
       </div>
+      <div class="task-hdr" style="grid-template-columns:34px minmax(0,1fr) 88px 110px 88px 80px"><span></span><span>Task</span><span>Priority</span><span>Assigned To</span><span>Status</span><span></span></div>
+      <div id="daily-task-list"></div>
     </div>
-    <div class="toolbar">
-      <input type="text" id="task-search" placeholder="Search tasks..." oninput="filterTasks()" style="flex:1;min-width:180px">
-      <select id="task-filter" onchange="filterTasks()"><option value="all">All</option><option value="due_today">Due Today</option><option value="high">High Priority</option><option value="pending">Pending</option><option value="done">Done</option><option value="high">High priority</option></select>
-    </div>
-    <div id="today-tasks-section"></div>
-    <div class="tbl-wrap">
+
+    <!-- SECTION 2: Long-Term Tasks -->
+    <div style="background:#fff;border-radius:12px;border:0.5px solid #e4e8f0;overflow:hidden">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:#f5f8fc;border-bottom:1px solid #e4e8f0">
+        <div style="font-size:14px;font-weight:700;color:#533AB7">🎯 Long-Term Tasks</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <input type="text" id="new-long-task" placeholder="Add long-term task..." onkeydown="if(event.key==='Enter')addTask('longterm')" style="padding:6px 10px;border:1px solid #e0e0e0;border-radius:8px;font-size:13px;outline:none;width:220px">
+          <select id="new-long-pri" style="padding:6px 10px;border:1px solid #e0e0e0;border-radius:8px;font-size:13px;outline:none"><option value="high">High</option><option value="medium" selected>Medium</option><option value="low">Low</option></select>
+          <input type="date" id="new-long-date" style="padding:6px 10px;border:1px solid #e0e0e0;border-radius:8px;font-size:13px;outline:none">
+          <select id="new-long-assign" style="padding:6px 10px;border:1px solid #e0e0e0;border-radius:8px;font-size:13px;outline:none"><option value="">Assign to me</option></select>
+          <button class="btn btn-blue" style="padding:6px 14px;background:#533AB7;border-color:#533AB7" onclick="addTask('longterm')">+ Add</button>
+        </div>
+      </div>
       <div class="task-hdr"><span></span><span>Task</span><span>Priority</span><span>Deadline</span><span>Assigned To</span><span>Status</span><span>Progress</span><span></span></div>
-      <div id="task-list"></div>
+      <div id="longterm-task-list"></div>
     </div>`;
   await loadTasks();
   // Load profiles for assign dropdown
   var pRes=await sb.from('profiles').select('full_name').order('full_name');
   var assignEl=document.getElementById('new-assign');
-  if(assignEl&&pRes.data){
-    pRes.data.forEach(function(p){
-      if(p.full_name){
-        var opt=document.createElement('option');
-        opt.value=p.full_name;
-        opt.textContent=p.full_name;
-        assignEl.appendChild(opt);
-      }
-    });
-  }
+  ['new-daily-assign','new-long-assign'].forEach(function(elId){
+    var el=document.getElementById(elId);
+    if(el&&pRes.data){
+      pRes.data.forEach(function(p){
+        if(p.full_name){var opt=document.createElement('option');opt.value=p.full_name;opt.textContent=p.full_name;el.appendChild(opt);}
+      });
+    }
+  });
 }
 var _tasks=[];
 async function loadTasks(){
@@ -1979,46 +1989,73 @@ function setTaskFilter(val){
   if(el){el.value=val;filterTasks();}
 }
 function taskKpi(label,color,val,sub,filterVal){return '<div onclick="setTaskFilter(&quot;'+filterVal+'&quot;)" style="cursor:pointer;background:#fff;border:0.5px solid #eaedf2;border-top:3px solid '+color+';border-radius:10px;padding:14px 16px"><div style="font-size:11px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px">'+label+'</div><div style="font-size:26px;font-weight:800;color:'+color+'">'+val+'</div><div style="font-size:11px;color:#bbb;margin-top:3px">'+sub+'</div></div>';}
+function renderDailyRow(t){
+  var pct=t.done?100:(t.progress||0);
+  return`<div class="task-row done-row-check" style="grid-template-columns:34px minmax(0,1fr) 88px 110px 88px 80px;${t.done?'opacity:0.45':''}">
+    <div class="chk ${t.done?'on':''}" onclick="toggleTask('${t.id}',${t.done})"></div>
+    <div class="tname" style="font-size:13px;${t.done?'text-decoration:line-through':''}">${t.name}</div>
+    <div><span class="tbadge ${t.priority==='high'?'high':t.priority==='medium'?'medium':'low'}">${t.priority||'medium'}</span></div>
+    <div class="by-cell">${t.assigned_name||t.creator?.full_name||'—'}</div>
+    <div><span class="badge ${t.done?'b-win':'b-sent'}" style="cursor:pointer" onclick="toggleTask('${t.id}',${t.done})">${t.done?'Done':'Pending'}</span></div>
+    <div style="display:flex;gap:4px;flex-shrink:0"><button class="btn-sm" onclick="openEditTask('${t.id}')">Edit</button><button class="btn-danger" onclick="delTask('${t.id}','${t.name.replace(/'/g,'`')}')">×</button></div>
+  </div>`;
+}
+
 function filterTasks(){
   const search=(document.getElementById('task-search')?.value||'').toLowerCase();
-  const filter=document.getElementById('task-filter')?.value||'all';
   let rows=[..._tasks];
-  if(filter==='pending')rows=rows.filter(t=>!t.done);
-  if(filter==='done')rows=rows.filter(t=>t.done);
-  if(filter==='high')rows=rows.filter(t=>t.priority==='high'&&!t.done);
-  if(filter==='due_today')rows=rows.filter(t=>!t.done&&t.deadline&&ddiff(t.deadline)<=0);
-  if(filter==='all')rows=rows;
-  if(search)rows=rows.filter(t=>t.name.toLowerCase().includes(search));
+  if(search) rows=rows.filter(t=>t.name.toLowerCase().includes(search));
   rows.sort((a,b)=>{if(a.done!==b.done)return a.done?1:-1;const po={high:0,medium:1,low:2};if((po[a.priority]||1)!==(po[b.priority]||1))return(po[a.priority]||1)-(po[b.priority]||1);if(a.deadline&&b.deadline)return new Date(a.deadline)-new Date(b.deadline);if(a.deadline)return -1;if(b.deadline)return 1;return 0;});
-  const todayTasks=_tasks.filter(t=>!t.done&&t.deadline===todayStr);
-  const ts=document.getElementById('today-tasks-section');
-  if(ts&&todayTasks.length){ts.innerHTML=`<div style="margin-bottom:12px"><div class="today-hdr"><div class="dot-red"></div>Due today — ${todayTasks.length} task${todayTasks.length>1?'s':''}</div><div style="background:#fff;border:1px solid #f09595;border-radius:10px;overflow:hidden">${todayTasks.map(t=>`<div style="display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:0.5px solid #f5f5f5"><div class="chk ${t.done?'on':''}" onclick="toggleTask('${t.id}',${t.done})"></div><span style="font-size:13px;font-weight:500">${t.name}</span><span class="tbadge high" style="margin-left:auto">Today</span></div>`).join('')}</div></div>`;}
-  const tl=document.getElementById('task-list');if(!tl)return;
-  tl.innerHTML=rows.map(t=>{
-    const d=t.deadline;const diff=d?ddiff(d):999;
-    const dlHtml=!d?'<span class="dl-ok">—</span>':t.done?`<span class="dl-ok">${fmtD(d)}</span>`:diff<0?`<span class="dl-ov">${Math.abs(diff)}d overdue</span>`:diff===0?`<span class="dl-tod">Today</span>`:diff===1?`<span class="dl-ok">Tomorrow</span>`:`<span class="dl-ok">${fmtD(d)}</span>`;
-    var pct=t.done?100:(t.progress||0);
-    var pctColor=pct>=100?'#1D9E75':pct>=60?'#1B5E9B':pct>=30?'#BA7517':'#e0e6f0';
-    var progressHtml=t.done?'':`<div style="display:flex;align-items:center;gap:6px">
-      <div style="flex:1;height:6px;background:#f0f0f0;border-radius:3px;overflow:hidden">
-        <div style="width:${pct}%;height:100%;background:${pctColor};border-radius:3px;transition:width 0.3s"></div>
-      </div>
-      <select onchange="updateTaskProgress('${t.id}',this.value)" style="font-size:11px;border:none;background:transparent;color:#555;cursor:pointer;padding:0;outline:none">
-        ${[0,10,20,30,40,50,60,70,80,90,100].map(v=>`<option value="${v}" ${pct==v?'selected':''}>${v}%</option>`).join('')}
-      </select>
-    </div>`;
-    return`<div class="task-row ${t.done?'done-row':''}">
-      <div class="chk ${t.done?'on':''}" onclick="toggleTask('${t.id}',${t.done})"></div>
-      <div class="tname" style="font-size:13px">${t.name}</div>
-      <div><span class="tbadge ${t.priority==='high'?'high':t.priority==='medium'?'medium':'low'}">${t.priority||'medium'}</span></div>
-      <div>${dlHtml}</div>
-      <div class="by-cell">${t.assigned_name||t.creator?.full_name||'—'}</div>
-      <div><span class="badge ${t.done?'b-win':'b-sent'}" style="cursor:pointer" onclick="toggleTask('${t.id}',${t.done})">${t.done?'Done':'Pending'}</span></div>
-      <div>${progressHtml}</div>
-      <div style="display:flex;gap:4px;flex-shrink:0;white-space:nowrap"><button class="btn-sm" onclick="openEditTask('${t.id}')">Edit</button><button class="btn-danger" onclick="delTask('${t.id}','${t.name.replace(/'/g,'`')}')">×</button></div>
-    </div>`;
-  }).join('')||'<div style="text-align:center;padding:2rem;color:#bbb;font-size:13px">No tasks found.</div>';
+
+  // Split into daily and long-term
+  var dailyRows=rows.filter(function(t){return !t.task_type||t.task_type==='daily';});
+  var longtermRows=rows.filter(function(t){return t.task_type==='longterm';});
+
+  // Render daily — no progress bar, no deadline column
+  var dlEl=document.getElementById('daily-task-list');
+  if(dlEl){
+    dlEl.innerHTML=dailyRows.length?dailyRows.map(function(t){
+      return`<div class="task-row ${t.done?'done-row':''}" style="grid-template-columns:34px minmax(0,1fr) 88px 110px 88px 80px">
+        <div class="chk ${t.done?'on':''}" onclick="toggleTask('${t.id}',${t.done})"></div>
+        <div class="tname" style="font-size:13px">${t.name}</div>
+        <div><span class="tbadge ${t.priority==='high'?'high':t.priority==='medium'?'medium':'low'}">${t.priority||'medium'}</span></div>
+        <div class="by-cell">${t.assigned_name||'—'}</div>
+        <div><span class="badge ${t.done?'b-win':'b-sent'}" style="cursor:pointer" onclick="toggleTask('${t.id}',${t.done})">${t.done?'Done':'Pending'}</span></div>
+        <div style="display:flex;gap:4px;flex-shrink:0"><button class="btn-sm" onclick="openEditTask('${t.id}')">Edit</button><button class="btn-danger" onclick="delTask('${t.id}','${t.name.replace(/'/g,'`')}')">×</button></div>
+      </div>`;
+    }).join(''):'<div style="padding:20px;text-align:center;color:#bbb;font-size:13px">No daily tasks — add one above</div>';
+  }
+
+  // Render long-term — with deadline and progress bar
+  var ltEl=document.getElementById('longterm-task-list');
+  if(ltEl){
+    ltEl.innerHTML=longtermRows.length?longtermRows.map(function(t){
+      const d=t.deadline;const diff=d?ddiff(d):999;
+      const dlHtml=!d?'<span class="dl-ok">—</span>':t.done?`<span class="dl-ok">${fmtD(d)}</span>`:diff<0?`<span class="dl-ov">${Math.abs(diff)}d overdue</span>`:diff===0?`<span class="dl-tod">Today</span>`:diff===1?`<span class="dl-ok">Tomorrow</span>`:`<span class="dl-ok">${fmtD(d)}</span>`;
+      var pct=t.done?100:(t.progress||0);
+      var pctColor=pct>=100?'#1D9E75':pct>=60?'#1B5E9B':pct>=30?'#BA7517':'#e0e6f0';
+      var progressHtml=t.done?'':`<div style="display:flex;align-items:center;gap:6px">
+        <div style="flex:1;height:6px;background:#f0f0f0;border-radius:3px;overflow:hidden">
+          <div style="width:${pct}%;height:100%;background:${pctColor};border-radius:3px;transition:width 0.3s"></div>
+        </div>
+        <select onchange="updateTaskProgress('${t.id}',this.value)" style="font-size:11px;border:none;background:transparent;color:#555;cursor:pointer;padding:0;outline:none">
+          ${[0,10,20,30,40,50,60,70,80,90,100].map(v=>`<option value="${v}" ${pct==v?'selected':''}>${v}%</option>`).join('')}
+        </select>
+      </div>`;
+      return`<div class="task-row ${t.done?'done-row':''}">
+        <div class="chk ${t.done?'on':''}" onclick="toggleTask('${t.id}',${t.done})"></div>
+        <div class="tname" style="font-size:13px">${t.name}</div>
+        <div><span class="tbadge ${t.priority==='high'?'high':t.priority==='medium'?'medium':'low'}">${t.priority||'medium'}</span></div>
+        <div>${dlHtml}</div>
+        <div class="by-cell">${t.assigned_name||'—'}</div>
+        <div><span class="badge ${t.done?'b-win':'b-sent'}" style="cursor:pointer" onclick="toggleTask('${t.id}',${t.done})">${t.done?'Done':'Pending'}</span></div>
+        <div>${progressHtml}</div>
+        <div style="display:flex;gap:4px;flex-shrink:0;white-space:nowrap"><button class="btn-sm" onclick="openEditTask('${t.id}')">Edit</button><button class="btn-danger" onclick="delTask('${t.id}','${t.name.replace(/'/g,'`')}')">×</button></div>
+      </div>`;
+    }).join(''):'<div style="padding:20px;text-align:center;color:#bbb;font-size:13px">No long-term tasks — add one above</div>';
+  }
 }
+
 async function updateTaskProgress(id,val){
   var pct=parseInt(val)||0;
   await sb.from('tasks').update({progress:pct,updated_at:new Date().toISOString()}).eq('id',id);
@@ -2027,21 +2064,23 @@ async function updateTaskProgress(id,val){
   filterTasks();
 }
 
-async function addTask(){
-  var name=document.getElementById('new-task')?document.getElementById('new-task').value.trim():'';
+async function addTask(type){
+  type=type||'daily';
+  var isDaily=type==='daily';
+  var prefix=isDaily?'new-daily-':'new-long-';
+  var nameEl=document.getElementById(prefix+'task');
+  var name=nameEl?nameEl.value.trim():'';
   if(!name){alert('Please enter a task description');return;}
-  var pri=document.getElementById('new-pri')?document.getElementById('new-pri').value:'medium';
-  var date=document.getElementById('new-date')?document.getElementById('new-date').value||null:null;
-  var assignEl=document.getElementById('new-assign');
+  var pri=(document.getElementById(prefix+'pri')?.value)||'medium';
+  var dl=isDaily?null:(document.getElementById('new-long-date')?.value||null);
+  var assignEl=document.getElementById(prefix+'assign');
   var assignedName=assignEl&&assignEl.value?assignEl.value:null;
-  // If no assignment, assign to self
   if(!assignedName&&CP) assignedName=CP.full_name||null;
-  var obj={name:name,priority:pri,deadline:date,done:false,assigned_name:assignedName,created_by:CU.id,updated_at:new Date().toISOString()};
+  var obj={name:name,priority:pri,deadline:dl,done:false,assigned_name:assignedName,created_by:CU.id,task_type:type,updated_at:new Date().toISOString()};
   var res=await sb.from('tasks').insert(obj).select().single();
   if(res.error){console.error('Task error:',res.error);return;}
   await logAct('Added task','tasks',res.data?res.data.id:null,'Added: '+name);
-  if(document.getElementById('new-task'))document.getElementById('new-task').value='';
-  if(assignEl)assignEl.value='';
+  if(nameEl) nameEl.value='';
   await loadTasks();
 }
 
