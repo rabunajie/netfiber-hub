@@ -1180,7 +1180,7 @@ async function renderDashboard(){
   const bids=bidsR||[];const tasks=tasksR||[];const gcs=gcsR||[];
   const wins=bids.filter(b=>b.status==='Win'||b.status==='Won');
   const overdueFollowups=bids.filter(b=>b.fu_next_date&&ddiff(b.fu_next_date)<0&&b.status!=='Win'&&b.status!=='Lost');
-  const tasksDueToday=tasks.filter(t=>!t.done&&t.deadline===todayStr);
+  const tasksDueToday=tasks.filter(t=>!t.done&&t.deadline&&ddiff(t.deadline)<=0);
   const pendingTasks=tasks.filter(t=>!t.done);
 
   // Update sidebar badges
