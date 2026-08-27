@@ -1012,7 +1012,7 @@ async function doLogin(){
     if(btn){btn.textContent='Sign In';btn.disabled=false;}
   }
 }
-async function doLogout(){await sb.auth.signOut();CU=null;CP=null;document.getElementById('app').style.display='none';document.getElementById('auth-page').style.display='flex';}
+async function doLogout(){await sb.auth.signOut();CU=null;CP=null;document.getElementById('app').style.display='none';document.getElementById('auth-page').style.display='flex';document.getElementById('login-email').value='';document.getElementById('login-pass').value='';showLogin();}
 function showAE(m){
   var el=document.getElementById('auth-err');
   if(el){el.textContent=m;el.style.display='block';}
