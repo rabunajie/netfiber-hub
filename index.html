@@ -478,14 +478,6 @@ body.view-only button[onclick*="Remove"]{
   </div>
   <div id="mfa-err" style="margin-top:12px;font-size:13px;text-align:center;display:none;color:#E24B4A"></div>
 </div>
-<!-- SET NEW PASSWORD PANEL (reached via the password-reset email link) -->
-<div id="setpw-panel" style="display:none">
-  <div style="font-size:13px;color:#555;margin-bottom:16px;line-height:1.5">Enter a new password for your account.</div>
-  <div class="afield"><label>New Password</label><input autocomplete="new-password" type="password" id="setpw-new" placeholder="New password" onkeydown="if(event.key==='Enter')submitNewPassword()"></div>
-  <div class="afield"><label>Confirm Password</label><input autocomplete="new-password" type="password" id="setpw-confirm" placeholder="Confirm password" onkeydown="if(event.key==='Enter')submitNewPassword()"></div>
-  <button class="auth-btn" id="setpw-btn" onclick="submitNewPassword()">Set New Password</button>
-  <div id="setpw-msg" style="margin-top:12px;font-size:13px;text-align:center;display:none"></div>
-</div>
 </div>
 </div>
 </div>
@@ -919,12 +911,8 @@ body.view-only button[onclick*="Remove"]{
 
 const SB_URL='https://vaubqkmsjsgfqeqbqbvy.supabase.co';
 const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZhdWJxa21zanNnZnFlcWJxYnZ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY5MDQxNzAsImV4cCI6MjA5MjQ4MDE3MH0.FjZ6oK-6fG_T38oZDGukAVj7cBJsarGh8Stwp14wCZM';
-// NOTE: The Supabase service_role key used to live here in the browser (removed).
-// That key bypasses all Row Level Security — anyone viewing page source could have
-// copied it for full, unrestricted database access. All admin-only actions now go
-// through the "admin-actions" Edge Function instead, which keeps that key server-side
-// and checks that the caller is actually an admin before doing anything privileged.
-let sb;
+const SB_SVC='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZhdWJxa21zanNnZnFlcWJxYnZ5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjkwNDE3MCwiZXhwIjoyMDkyNDgwMTcwfQ.G6eeRJSCzRSm0e9r9hxcV7fGkwGWSp-bUMpTRylxrqM';
+let sb, sbA;
 let CU=null,CP=null;
 
 // Initialize Supabase immediately
@@ -932,18 +920,13 @@ try {
   // Purge any previously persisted Supabase session so old logins can't silently auto sign-in
   try{
     Object.keys(localStorage).forEach(function(k){
-      if(/-auth-token$/.test(k)) localStorage.removeItem(k);
+      if(k!=='sb-admin-auth' && /-auth-token$/.test(k)) localStorage.removeItem(k);
     });
   }catch(e){}
   sb = supabase.createClient(SB_URL, SB_KEY, {auth:{persistSession:false}});
+  // Use a different storage key for sbA to avoid duplicate GoTrueClient warning
+  sbA = supabase.createClient(SB_URL, SB_SVC, {auth:{storageKey:'sb-admin-auth'}});
   // No auto session restore — user must sign in explicitly every visit
-  // Handle the password-reset email link: Supabase redirects back here with a
-  // recovery token in the URL and fires this event — show the set-new-password screen.
-  sb.auth.onAuthStateChange(function(event){
-    if(event==='PASSWORD_RECOVERY'){
-      showSetNewPassword();
-    }
-  });
 } catch(e) {
   console.error('Supabase init failed:', e);
 }
@@ -992,7 +975,7 @@ async function loadGroupsFromDB(){
         GROUPS=parsed;
         if(needsSave){
           // Write the patched version back to DB silently
-          try{adminAction('update_group_permissions',{group_permissions:parsed});}catch(e){}
+          try{sbA.from('profiles').update({group_permissions:JSON.stringify(parsed)}).eq('group_name','admin');}catch(e){}
         }
         return;
       }
@@ -1005,7 +988,7 @@ async function saveGroups(g){
   localStorage.setItem('netfiber_groups',JSON.stringify(g));
   try{
     // Save to current admin user's profile
-    var r=await adminAction('update_group_permissions',{group_permissions:g});
+    var r=await sbA.from('profiles').update({group_permissions:JSON.stringify(g)}).eq('id',CU.id);
     if(r.error)console.log('Save warning:',r.error.message);
   }catch(e){console.log('Saved to localStorage only:',e);}
 }
@@ -1069,13 +1052,6 @@ async function initApp(user){
   CU=user;
   const {data:p}=await sb.from('profiles').select('*').eq('id',user.id).single();
   CP=p||{full_name:user.email,group_name:'staff'};
-  // Always restore any write functions a prior view-only session may have overridden,
-  // before deciding whether THIS session needs the view-only lock applied.
-  if(window._origWriteFns){
-    Object.keys(window._origWriteFns).forEach(function(fn){window[fn]=window._origWriteFns[fn];});
-  }
-  document.body.classList.remove('view-only');
-  document.getElementById('view-only-banner').style.display='none';
   window._VIEW_ONLY=CP&&CP.view_only===true;
   if(window._VIEW_ONLY){
     document.body.classList.add('view-only');
@@ -1087,30 +1063,23 @@ async function initApp(user){
         'toggleUserDisabled','toggleViewOnly','adminChangePassword','removeLineItem',
         'logFollowUp','addSection','removeSection',
         'changeGroup','savePurchase','deletePurchase','openNewItemForm'];
-      window._origWriteFns=window._origWriteFns||{};
       writeFns.forEach(function(fn){
-        if(!(fn in window._origWriteFns)) window._origWriteFns[fn]=window[fn];
         window[fn]=function(){voNotify('View Only mode — you cannot make changes.');};
       });
     },500);
-    // Intercept write button clicks as backup — only exact write function names.
-    // Registered once per page load (not per login) to avoid stacking duplicate listeners
-    // across repeated login/logout cycles in the same browser tab.
-    if(!window._voClickListenerAdded){
-      window._voClickListenerAdded=true;
-      document.addEventListener('click',function(e){
-        if(!window._VIEW_ONLY)return;
-        var btn=e.target.closest('button');
-        if(!btn)return;
-        var onclick=btn.getAttribute('onclick')||'';
-        // Only block known write functions — not navigation or filter buttons
-        var writePattern=/\b(saveBid|saveProposal|saveUser|deleteUser|createUser|saveLibraryItem|deleteLibraryItem|saveInboxItem|deleteInboxItem|toggleUserDisabled|toggleViewOnly|adminChangePassword|removeLineItem|addSection|removeSection|changeGroup|logFollowUp|savePurchase|deletePurchase|addLineItem|openNewProposal|openBidModal|openEditUser|openNewItemForm)\b/;
-        if(writePattern.test(onclick)){
-          e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();
-          voNotify('View Only mode — you cannot make changes.');
-        }
-      },true);
-    }
+    // Intercept write button clicks as backup — only exact write function names
+    document.addEventListener('click',function(e){
+      if(!window._VIEW_ONLY)return;
+      var btn=e.target.closest('button');
+      if(!btn)return;
+      var onclick=btn.getAttribute('onclick')||'';
+      // Only block known write functions — not navigation or filter buttons
+      var writePattern=/\b(saveBid|saveProposal|saveUser|deleteUser|createUser|saveLibraryItem|deleteLibraryItem|saveInboxItem|deleteInboxItem|toggleUserDisabled|toggleViewOnly|adminChangePassword|removeLineItem|addSection|removeSection|changeGroup|logFollowUp|savePurchase|deletePurchase|addLineItem|openNewProposal|openBidModal|openEditUser|openNewItemForm)\b/;
+      if(writePattern.test(onclick)){
+        e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();
+        voNotify('View Only mode — you cannot make changes.');
+      }
+    },true);
   }
   // Load group permissions from DB (cross-device sync)
   await loadGroupsFromDB();
@@ -1168,53 +1137,10 @@ function fmt$(n){return'$'+Number(n||0).toLocaleString('en-US',{minimumFractionD
 function fmt2$(n){return'$'+Number(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
 function fmtD(d){if(!d)return'—';return new Date(d+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'2-digit'});}
 function ddiff(d){if(!d)return 999;return Math.round((new Date(d+'T00:00:00')-today)/86400000);}
-// Calls the "admin-actions" Edge Function with the current user's own login token.
-// The Edge Function verifies admin status server-side before doing anything privileged —
-// this replaces the old client-side service_role key entirely.
-async function adminAction(action,payload){
-  try{
-    var sessRes=await sb.auth.getSession();
-    var token=sessRes.data&&sessRes.data.session&&sessRes.data.session.access_token;
-    if(!token) return {data:null,error:{message:'Not signed in'}};
-    var res=await sb.functions.invoke('admin-actions',{
-      body:{action:action,payload:payload||{}},
-      headers:{Authorization:'Bearer '+token}
-    });
-    if(res.error){
-      var msg=res.error.message||'Request failed';
-      // supabase-js wraps non-2xx responses; try to pull the real error text out
-      try{
-        if(res.error.context&&typeof res.error.context.json==='function'){
-          var body=await res.error.context.json();
-          if(body&&body.error) msg=body.error;
-        }
-      }catch(e){}
-      return {data:null,error:{message:msg}};
-    }
-    if(res.data&&res.data.error) return {data:null,error:{message:res.data.error}};
-    return {data:res.data&&res.data.data!==undefined?res.data.data:res.data,error:null};
-  }catch(e){
-    return {data:null,error:{message:e.message||'Request failed'}};
-  }
-}
 function inits(n){if(!n)return'?';return n.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);}
 function closeModal(id){document.getElementById(id).classList.remove('open');}
 // Modal close on outside click disabled — caused issues when selecting/copying text inside modals
 async function logAct(action,table,rid,details){await sb.from('activity_log').insert({user_id:CU.id,user_name:CP.full_name||CU.email,action,table_name:table,record_id:rid,details});}
-// Fetches the full row and saves it into activity_log BEFORE it's deleted, so it can be
-// restored later from Management → Recently Deleted, even if the delete itself succeeds.
-async function logDeletionSnapshot(table,id,label,name){
-  try{
-    var res=await sb.from(table).select('*').eq('id',id).single();
-    var snap=res.data||null;
-    await sb.from('activity_log').insert({
-      user_id:CU.id,user_name:CP.full_name||CU.email,
-      action:label,table_name:table,record_id:id,
-      details:JSON.stringify({name:name||null,snapshot:snap})
-    });
-    return snap;
-  }catch(e){return null;}
-}
 
 function statusBadge(s){
   const m={'Under Review':'b-review','Bid Sent':'b-sent','Win':'b-win','Lost':'b-lost','Submitted':'b-sent','Won':'b-win','WON':'b-win','LOST':'b-lost','Replied':'b-sent','Did Not replay':'b-review'};
@@ -1698,7 +1624,7 @@ async function saveBid(){if(!guardWrite('You cannot save bids in view-only mode.
   }
   closeModal('bid-modal');
   await loadBids();}
-async function delBid(id,name){if(!confirm(`Delete bid "${name}"?`))return;await logDeletionSnapshot('bids',id,'Deleted bid',name);await sb.from('bids').delete().eq('id',id);await loadBids();}
+async function delBid(id,name){if(!confirm(`Delete bid "${name}"?`))return;await sb.from('bids').delete().eq('id',id);await logAct('Deleted bid','bids',null,`Deleted: ${name}`);await loadBids();}
 
 // GC
 async function renderGC(){
@@ -1782,7 +1708,7 @@ function filterGC(){const search=(document.getElementById('gc-search')?.value||'
 function openGCModal(){editGCId=null;document.getElementById('gc-modal-title').textContent='New GC Contact';['company','contact','email','phone','city','notes','fdate'].forEach(f=>document.getElementById('gm-'+f).value='');document.getElementById('gm-priority').value='1st';document.getElementById('gm-replied').value='No';document.getElementById('gc-modal').classList.add('open');}
 async function editGC(id){const {data:r}=await sb.from('gc_contacts').select('*').eq('id',id).single();if(!r)return;editGCId=id;document.getElementById('gc-modal-title').textContent='Edit GC';['company','contact','email','phone','city'].forEach(f=>document.getElementById('gm-'+f).value=r[f]||'');document.getElementById('gm-priority').value=r.priority||'1st';document.getElementById('gm-replied').value=r.replied||'No';document.getElementById('gm-notes').value=r.note||'';document.getElementById('gm-fdate').value=r.first_email||'';document.getElementById('gc-modal').classList.add('open');}
 async function saveGC(){const obj={company:document.getElementById('gm-company').value,contact:document.getElementById('gm-contact').value,email:document.getElementById('gm-email').value,phone:document.getElementById('gm-phone').value,city:document.getElementById('gm-city').value,priority:document.getElementById('gm-priority').value,replied:document.getElementById('gm-replied').value,note:document.getElementById('gm-notes').value,first_email:document.getElementById('gm-fdate').value||null,updated_by:CU.id,updated_at:new Date().toISOString()};if(editGCId){await sb.from('gc_contacts').update(obj).eq('id',editGCId);await logAct('Updated GC','gc_contacts',editGCId,`Updated ${obj.company}`);}else{obj.created_by=CU.id;const {data}=await sb.from('gc_contacts').insert(obj).select().single();await logAct('Added GC','gc_contacts',data?.id,`Added ${obj.company}`);}closeModal('gc-modal');await loadGC();}
-async function delGC(id,name){if(!confirm(`Delete "${name}"?`))return;await logDeletionSnapshot('gc_contacts',id,'Deleted GC',name);await sb.from('gc_contacts').delete().eq('id',id);await loadGC();}
+async function delGC(id,name){if(!confirm(`Delete "${name}"?`))return;await sb.from('gc_contacts').delete().eq('id',id);await logAct('Deleted GC','gc_contacts',null,`Deleted: ${name}`);await loadGC();}
 
 // RETAIL
 async function renderRetail(){
@@ -1911,7 +1837,7 @@ function filterRetail(){
 function openRetailModal(){editRetailId=null;document.getElementById('retail-modal-title').textContent='New Retail Contact';['company','contact','project','email','phone','role','notes'].forEach(f=>{var el=document.getElementById('rm-'+f);if(el)el.value='';});document.getElementById('rm-replied').value='No';document.getElementById('rm-fu-date').value='';document.getElementById('rm-fu-type').value='';document.getElementById('retail-modal').classList.add('open');}
 async function editRetail(id){const {data:r}=await sb.from('retail_contacts').select('*').eq('id',id).single();if(!r)return;editRetailId=id;document.getElementById('retail-modal-title').textContent='Edit Retail Contact';['company','contact','email','phone','role'].forEach(f=>document.getElementById('rm-'+f).value=r[f]||'');document.getElementById('rm-project').value=r.project_name||'';document.getElementById('rm-replied').value=r.replied||'No';document.getElementById('rm-fu-date').value=r.fu_date||'';document.getElementById('rm-fu-type').value=r.fu_type||'';document.getElementById('rm-notes').value=r.note||'';document.getElementById('retail-modal').classList.add('open');}
 async function saveRetail(){const obj={company:document.getElementById('rm-company').value,contact:document.getElementById('rm-contact').value,project_name:document.getElementById('rm-project').value,email:document.getElementById('rm-email').value,phone:document.getElementById('rm-phone').value,role:document.getElementById('rm-role').value,replied:document.getElementById('rm-replied').value,fu_date:document.getElementById('rm-fu-date').value||null,fu_type:document.getElementById('rm-fu-type').value||null,note:document.getElementById('rm-notes').value,updated_by:CU.id,updated_at:new Date().toISOString()};if(editRetailId){await sb.from('retail_contacts').update(obj).eq('id',editRetailId);await logAct('Updated retail','retail_contacts',editRetailId,`Updated ${obj.company}`);}else{obj.created_by=CU.id;const {data}=await sb.from('retail_contacts').insert(obj).select().single();await logAct('Added retail','retail_contacts',data?.id,`Added ${obj.company}`);}closeModal('retail-modal');await loadRetail();}
-async function delRetail(id,name){if(!confirm(`Delete "${name}"?`))return;await logDeletionSnapshot('retail_contacts',id,'Deleted retail',name);await sb.from('retail_contacts').delete().eq('id',id);await loadRetail();}
+async function delRetail(id,name){if(!confirm(`Delete "${name}"?`))return;await sb.from('retail_contacts').delete().eq('id',id);await logAct('Deleted retail','retail_contacts',null,`Deleted: ${name}`);await loadRetail();}
 
 // PURCHASES
 async function renderPurchases(){
@@ -2058,7 +1984,7 @@ async function recalcProjectTotals(projId){
   var pRes=await sb.from('purchase_projects').select('*').eq('id',projId).single();
   if(pRes.data){var idx=_projects.findIndex(function(p){return p.id===projId;});if(idx>=0)_projects[idx]=pRes.data;}
 }
-async function delMat(id){if(!confirm('Remove this item?'))return;await logDeletionSnapshot('purchase_materials',id,'Deleted purchase item',null);await sb.from('purchase_materials').delete().eq('id',id);await recalcProjectTotals(currentProjId);await loadMaterials(currentProjId);}
+async function delMat(id){if(!confirm('Remove this item?'))return;await sb.from('purchase_materials').delete().eq('id',id);await recalcProjectTotals(currentProjId);await loadMaterials(currentProjId);}
 
 // TASKS
 async function renderTasks(){
@@ -2246,7 +2172,7 @@ async function addTask(type){
 }
 
 async function toggleTask(id,wasDone){await sb.from('tasks').update({done:!wasDone,updated_by:CU.id,updated_at:new Date().toISOString()}).eq('id',id);await loadTasks();}
-async function delTask(id,name){if(!confirm(`Delete "${name}"?`))return;await logDeletionSnapshot('tasks',id,'Deleted task',name);await sb.from('tasks').delete().eq('id',id);await loadTasks();}
+async function delTask(id,name){if(!confirm(`Delete "${name}"?`))return;await sb.from('tasks').delete().eq('id',id);await loadTasks();}
 
 // ACTIVITY LOG
 async function renderLog(){
@@ -2270,10 +2196,6 @@ async function renderMgmt(){
   const mc=document.getElementById('main-content');
   mc.innerHTML=`
     <div class="page-hdr"><div><div class="page-title">Management</div><div class="page-sub">Users, groups, and access control</div></div></div>
-    <div class="mgmt-sec">
-      <div class="mgmt-hdr"><h3>Recently Deleted</h3></div>
-      <div style="padding:16px" id="recent-deleted-wrap">Loading…</div>
-    </div>
     <div class="mgmt-sec">
       <div class="mgmt-hdr"><h3>Create New User</h3></div>
       <div style="padding:16px">
@@ -2310,56 +2232,18 @@ async function renderMgmt(){
   await loadUsers();
   renderCustomGroups();
   renderGroupPermsTable();
-  loadRecentDeleted();
-}
-async function loadRecentDeleted(){
-  var wrap=document.getElementById('recent-deleted-wrap');
-  if(!wrap)return;
-  var cutoff=new Date(Date.now()-7*24*60*60*1000).toISOString();
-  var res=await sb.from('activity_log').select('*').ilike('action','Deleted%').gte('created_at',cutoff).order('created_at',{ascending:false}).limit(50);
-  if(res.error){wrap.innerHTML='<div style="color:#E24B4A;font-size:13px">Error: '+res.error.message+'</div>';return;}
-  var rows=res.data||[];
-  if(!rows.length){wrap.innerHTML='<div style="font-size:13px;color:#888">Nothing deleted in the last 7 days.</div>';return;}
-  var html='<div style="font-size:12px;color:#888;margin-bottom:12px">Deletions from the last 7 days. Restoring re-creates the record as it was at the moment it was deleted.</div>';
-  rows.forEach(function(r){
-    var details={};
-    try{details=JSON.parse(r.details||'{}');}catch(e){}
-    var canRestore=!!(details&&details.snapshot);
-    var label=(details&&details.name)?details.name:(r.table_name+' record');
-    html+='<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:0.5px solid #f0f0f0">'
-      +'<div style="flex:1">'
-      +'<div style="font-size:13px;font-weight:600;color:#111">'+r.action+': '+label+'</div>'
-      +'<div style="font-size:11px;color:#999">by '+(r.user_name||'—')+' · '+new Date(r.created_at).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})+'</div>'
-      +'</div>'
-      +(canRestore?'<button class="btn-sm" onclick="restoreDeletedItem('+r.id+')">Restore</button>':'<span style="font-size:11px;color:#ccc">No snapshot</span>')
-      +'</div>';
-  });
-  wrap.innerHTML=html;
-}
-async function restoreDeletedItem(logId){
-  if(!confirm('Restore this record?'))return;
-  var res=await adminAction('restore_deleted',{logId:logId});
-  if(res.error){alert('Error: '+res.error.message);return;}
-  // Proposals also carry their line items/GCs in the log entry — restore those too.
-  try{
-    var logRes=await sb.from('activity_log').select('*').eq('id',logId).single();
-    if(logRes.data&&logRes.data.table_name==='proposals'){
-      var details=JSON.parse(logRes.data.details||'{}');
-      if(details.items&&details.items.length) await sb.from('proposal_items').insert(details.items);
-      if(details.gcs&&details.gcs.length) await sb.from('proposal_gcs').insert(details.gcs);
-    }
-  }catch(e){}
-  showToast('Record restored');
-  loadRecentDeleted();
 }
 async function loadUsers(){
-  var res=await adminAction('list_users',{});
-  var users=(res.data&&res.data.profiles)||[];
-  var authUsers=(res.data&&res.data.authUsers)||[];
-  if(res.error){console.warn('Could not load users:',res.error.message);}
-  var emailMap={};
-  authUsers.forEach(function(u){emailMap[u.id]=u.email;});
-  users=users.map(function(u){return Object.assign({},u,{email:u.email||emailMap[u.id]||''});});
+  var res=await sbA.from('profiles').select('*').order('created_at',{ascending:true});
+  var users=res.data||[];
+  // Fetch emails from Auth admin API and merge into profiles
+  try{
+    var authRes=await sbA.auth.admin.listUsers();
+    var authUsers=authRes.data?.users||[];
+    var emailMap={};
+    authUsers.forEach(function(u){emailMap[u.id]=u.email;});
+    users=users.map(function(u){return Object.assign({},u,{email:u.email||emailMap[u.id]||''});});
+  }catch(e){console.warn('Could not load auth emails:',e);}
   var ul=document.getElementById('users-list');
   if(!ul)return;
   var gc={admin:'g-admin',sales:'g-sales',staff:'g-staff',field:'g-field'};
@@ -2498,7 +2382,7 @@ function getCustomGroups(){
 
 async function toggleViewOnly(userId,currentlyViewOnly){
   if(await isSuperAdmin(userId)){alert('This account is protected and cannot be set to view-only.');return;}
-  var res=await adminAction('toggle_view_only',{id:userId,view_only:!currentlyViewOnly});
+  var res=await sbA.from('profiles').update({view_only:!currentlyViewOnly}).eq('id',userId);
   if(res.error){alert('Error: '+res.error.message);return;}
   renderMgmt();
 }
@@ -2507,13 +2391,13 @@ var SUPER_ADMIN_EMAIL='mabunajie@netfibernetwork.com';
 async function isSuperAdmin(userId){
   // Check if this userId belongs to the super admin account
   try{
-    var r=await adminAction('get_user_by_id',{id:userId});
-    return r.data&&r.data.user&&r.data.user.email===SUPER_ADMIN_EMAIL;
+    var r=await sbA.auth.admin.getUserById(userId);
+    return r.data?.user?.email===SUPER_ADMIN_EMAIL;
   }catch(e){return false;}
 }
 async function toggleUserDisabled(userId,currentlyDisabled){
   if(await isSuperAdmin(userId)){alert('This account is protected and cannot be disabled.');return;}
-  var res=await adminAction('toggle_disabled',{id:userId,disabled:!currentlyDisabled});
+  var res=await sbA.from('profiles').update({disabled:!currentlyDisabled}).eq('id',userId);
   if(res.error){alert('Error: '+res.error.message);return;}
   await loadUsers();
   // Add custom groups to the create-user dropdown
@@ -2527,13 +2411,13 @@ async function toggleUserDisabled(userId,currentlyDisabled){
 }
 
 async function changeGroup(userId,newGroup){
-  var res=await adminAction('change_group',{id:userId,group:newGroup});
+  var res=await sbA.from('profiles').update({group_name:newGroup}).eq('id',userId);
   if(res.error){alert('Error: '+res.error.message);}
   await loadUsers();
 }
 
 
-async function createUser(){const name=document.getElementById('nu-name').value.trim();const email=document.getElementById('nu-email').value.trim();const pass=document.getElementById('nu-pass').value;const group=document.getElementById('nu-group').value;const msg=document.getElementById('create-msg');if(!name||!email||!pass){msg.textContent='Please fill all fields.';msg.style.color='#a32d2d';msg.style.display='block';return;}const {data,error}=await adminAction('create_user',{email:email,password:pass,full_name:name,group:group});if(error){msg.textContent='Error: '+error.message;msg.style.color='#a32d2d';msg.style.display='block';return;}await logAct('Created user','profiles',data.id,`Created ${name} (${group})`);msg.textContent=`✓ ${name} created. They can sign in at hub.netfibernetwork.com`;msg.style.color='#27500A';msg.style.display='block';document.getElementById('nu-name').value='';document.getElementById('nu-email').value='';document.getElementById('nu-pass').value='';await loadUsers();}
+async function createUser(){const name=document.getElementById('nu-name').value.trim();const email=document.getElementById('nu-email').value.trim();const pass=document.getElementById('nu-pass').value;const group=document.getElementById('nu-group').value;const msg=document.getElementById('create-msg');if(!name||!email||!pass){msg.textContent='Please fill all fields.';msg.style.color='#a32d2d';msg.style.display='block';return;}const {data,error}=await sbA.auth.admin.createUser({email,password:pass,email_confirm:true,user_metadata:{full_name:name}});if(error){msg.textContent='Error: '+error.message;msg.style.color='#a32d2d';msg.style.display='block';return;}await sbA.from('profiles').update({full_name:name,group_name:group,role:group==='admin'?'admin':'user'}).eq('id',data.user.id);await logAct('Created user','profiles',data.user.id,`Created ${name} (${group})`);msg.textContent=`✓ ${name} created. They can sign in at hub.netfibernetwork.com`;msg.style.color='#27500A';msg.style.display='block';document.getElementById('nu-name').value='';document.getElementById('nu-email').value='';document.getElementById('nu-pass').value='';await loadUsers();}
 function openEditUser(id,name,email,group){
   document.getElementById('eu-id').value=id;
   document.getElementById('eu-name').value=name;
@@ -2552,8 +2436,12 @@ async function saveUser(){
   const email=document.getElementById('eu-email').value.trim();
   const group=document.getElementById('eu-group').value;
   if(!name){alert('Name is required.');return;}
-  var res=await adminAction('update_user',{id:id,full_name:name,group:group,email:email||undefined});
-  if(res.error){alert('Error: '+res.error.message);return;}
+  // Update profile
+  await sbA.from('profiles').update({full_name:name,group_name:group,role:group==='admin'?'admin':'user'}).eq('id',id);
+  // Update email in auth if changed
+  if(email){
+    await sbA.auth.admin.updateUserById(id,{email:email});
+  }
   await logAct('Updated user','profiles',id,'Updated '+name+' → '+group);
   closeModal('edit-user-modal');
   await loadUsers();
@@ -2563,10 +2451,11 @@ async function deleteUser(){
   const name=document.getElementById('eu-name').value;
   if(await isSuperAdmin(id)){alert('This account is protected and cannot be deleted.');return;}
   if(!confirm('Permanently delete '+name+'? This cannot be undone.'))return;
-  // The edge function snapshots the profile into activity_log before deleting,
-  // so it can be restored later from Management → Recently Deleted.
-  var r=await adminAction('delete_user',{id:id});
-  if(r.error){alert('Error deleting user: '+r.error.message);return;}
+  // Delete profile first (removes FK dependencies), then auth user
+  await sbA.from('profiles').delete().eq('id',id);
+  var r=await sbA.auth.admin.deleteUser(id);
+  if(r.error){alert('Error deleting auth user: '+r.error.message+'. Profile was removed.');}
+  await logAct('Deleted user','profiles',id,'Deleted '+name);
   closeModal('edit-user-modal');
   await loadUsers();
 }
@@ -2590,7 +2479,7 @@ async function logFollowUp(){
   var bidR=await sb.from('bids').select('*').eq('id',currentBidId).single();var cfg2=FU[statusAfter]||{l:'Follow Up',c:'fu-new'};document.getElementById('fu-cur-status').innerHTML='<span class="fu-badge '+cfg2.c+'">'+cfg2.l+'</span>';document.getElementById('fu-last-contact').textContent=fmtD(bidR.data?.last_ping);await loadFUHistory(currentBidId);await loadBids();}
 
 // USERS DROPDOWN
-async function loadUsersDropdown(selId,selectedId){const r=await adminAction('list_profiles_dropdown',{});const users=r.data||[];const sel=document.getElementById(selId);if(!sel)return;sel.innerHTML='<option value="">— Unassigned —</option>'+users.map(u=>`<option value="${u.id}"${selectedId&&u.id===selectedId?' selected':''}>${u.full_name||u.id}</option>`).join('');}
+async function loadUsersDropdown(selId,selectedId){const {data:users=[]}=await sbA.from('profiles').select('id,full_name').order('full_name');const sel=document.getElementById(selId);if(!sel)return;sel.innerHTML='<option value="">— Unassigned —</option>'+users.map(u=>`<option value="${u.id}"${selectedId&&u.id===selectedId?' selected':''}>${u.full_name||u.id}</option>`).join('');}
 
 
 
@@ -2919,7 +2808,6 @@ async function saveInboxItem(){if(!guardWrite('You cannot save items in view-onl
 
 async function deleteInboxItem(id){
   if(!confirm('Delete this saved item?')) return;
-  await logDeletionSnapshot('quick_save',id,'Deleted inbox item',null);
   await sb.from('quick_save').delete().eq('id',id);
   _inboxItems = _inboxItems.filter(function(i){return i.id!==id;});
   renderInboxList();
@@ -3381,7 +3269,7 @@ function deleteGroup(groupName){
   }
   if(!confirm('Delete group "'+groupName+'"? Users in this group will be moved to Staff.'))return;
   // Move users out first
-  adminAction('reassign_group_members',{fromGroup:groupName,toGroup:'staff'});
+  sbA.from('profiles').update({group_name:'staff'}).eq('group_name',groupName).then(function(){});
   var grps=getGroups();
   delete grps[groupName];
   GROUPS=grps;
@@ -3402,7 +3290,6 @@ function deleteGroup(groupName){
 function showForgotPassword(){
   document.getElementById('forgot-panel').style.display='block';
   document.getElementById('mfa-panel').style.display='none';
-  document.getElementById('setpw-panel').style.display='none';
   document.getElementById('auth-form-content').style.display='none';
   document.getElementById('forgot-email').value='';
   document.getElementById('reset-msg').style.display='none';
@@ -3410,37 +3297,8 @@ function showForgotPassword(){
 function showLogin(){
   document.getElementById('forgot-panel').style.display='none';
   document.getElementById('mfa-panel').style.display='none';
-  document.getElementById('setpw-panel').style.display='none';
   document.getElementById('auth-form-content').style.display='block';
   document.getElementById('auth-err').textContent='';
-}
-function showSetNewPassword(){
-  document.getElementById('forgot-panel').style.display='none';
-  document.getElementById('mfa-panel').style.display='none';
-  document.getElementById('auth-form-content').style.display='none';
-  document.getElementById('setpw-panel').style.display='block';
-  document.getElementById('setpw-new').value='';
-  document.getElementById('setpw-confirm').value='';
-  document.getElementById('setpw-msg').style.display='none';
-}
-async function submitNewPassword(){
-  var pw=document.getElementById('setpw-new').value;
-  var pw2=document.getElementById('setpw-confirm').value;
-  var msgEl=document.getElementById('setpw-msg');
-  msgEl.style.display='block';
-  if(!pw||pw.length<6){msgEl.style.color='#E24B4A';msgEl.textContent='Password must be at least 6 characters.';return;}
-  if(pw!==pw2){msgEl.style.color='#E24B4A';msgEl.textContent='Passwords do not match.';return;}
-  var btn=document.getElementById('setpw-btn');
-  btn.textContent='Saving...';btn.disabled=true;
-  var res=await sb.auth.updateUser({password:pw});
-  btn.textContent='Set New Password';btn.disabled=false;
-  if(res.error){msgEl.style.color='#E24B4A';msgEl.textContent='Error: '+res.error.message;return;}
-  msgEl.style.color='#1D9E75';
-  msgEl.textContent='Password updated! Redirecting to sign in...';
-  try{await sb.auth.signOut();}catch(e){}
-  // Clear the recovery token from the URL and return to a clean sign-in screen
-  history.replaceState(null,'',window.location.pathname);
-  setTimeout(function(){showLogin();},1500);
 }
 
 // ===== 2FA LOGIN CHALLENGE =====
@@ -3464,7 +3322,6 @@ function clearTrustedDevice(uid){
 function showMfaChallenge(email){
   document.getElementById('auth-form-content').style.display='none';
   document.getElementById('forgot-panel').style.display='none';
-  document.getElementById('setpw-panel').style.display='none';
   document.getElementById('mfa-panel').style.display='block';
   document.getElementById('mfa-user-email').textContent=email||'';
   var boxes=document.querySelectorAll('#mfa-code-boxes .mfa-box');
@@ -3588,7 +3445,7 @@ async function doAdminChangePassword(){
   if(!pw||pw.length<6){msg.style.display='block';msg.style.color='#E24B4A';msg.textContent='Password must be at least 6 characters';return;}
   if(pw!==pw2){msg.style.display='block';msg.style.color='#E24B4A';msg.textContent='Passwords do not match';return;}
   msg.style.display='block';msg.style.color='#aaa';msg.textContent='Updating...';
-  var res=await adminAction('change_password',{id:uid,password:pw});
+  var res=await sbA.auth.admin.updateUserById(uid,{password:pw});
   if(res.error){msg.style.color='#E24B4A';msg.textContent='Error: '+res.error.message;}
   else{msg.style.color='#1D9E75';msg.textContent='Password updated successfully!';setTimeout(function(){closeModal('change-pw-modal');},1500);}
 }
@@ -4099,16 +3956,6 @@ async function saveProposal(){if(!guardWrite('You cannot save proposals in view-
 
 async function deleteProposal(id,name){
   if(!confirm('Delete proposal "'+name+'"?')) return;
-  try{
-    var propRes=await sb.from('proposals').select('*').eq('id',id).single();
-    var itemsRes=await sb.from('proposal_items').select('*').eq('proposal_id',id);
-    var gcsRes=await sb.from('proposal_gcs').select('*').eq('proposal_id',id);
-    await sb.from('activity_log').insert({
-      user_id:CU.id,user_name:CP.full_name||CU.email,
-      action:'Deleted proposal',table_name:'proposals',record_id:id,
-      details:JSON.stringify({name:name,snapshot:propRes.data||null,items:itemsRes.data||[],gcs:gcsRes.data||[]})
-    });
-  }catch(e){}
   await sb.from('proposals').delete().eq('id',id);
   await loadProposals();
 }
@@ -4264,7 +4111,6 @@ async function saveLibraryItem(){if(!guardWrite('You cannot edit the library in 
 
 async function deleteLibraryItem(id){
   if(!confirm('Remove this item from the library?')) return;
-  await logDeletionSnapshot('item_library',id,'Deleted library item',null);
   await sb.from('item_library').delete().eq('id',id);
   await loadLibraryItems();
   renderLibraryItems();
