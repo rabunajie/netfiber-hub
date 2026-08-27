@@ -2315,8 +2315,17 @@ async function loadMfaStatus(){
 async function startMfaEnroll(){
   var wrap=document.getElementById('mfa-status-wrap');
   wrap.innerHTML='<div style="padding:12px;color:#888"><span class="spinner"></span></div>';
-  var res=await sb.auth.mfa.enroll({factorType:'totp'});
-  if(res.error){wrap.innerHTML='<div style="color:#E24B4A;font-size:13px">Error: '+res.error.message+'</div>';return;}
+  // Clean up any leftover unverified factors from a previous cancelled/failed attempt —
+  // Supabase rejects a new enrollment if a factor with the same (blank) name already exists.
+  try{
+    var existing=await sb.auth.mfa.listFactors();
+    var stale=((existing.data&&existing.data.totp)||[]).filter(function(f){return f.status!=='verified';});
+    for(var i=0;i<stale.length;i++){
+      try{await sb.auth.mfa.unenroll({factorId:stale[i].id});}catch(e){}
+    }
+  }catch(e){}
+  var res=await sb.auth.mfa.enroll({factorType:'totp',friendlyName:'authenticator-'+Date.now()});
+  if(res.error){wrap.innerHTML='<div style="color:#E24B4A;font-size:13px">Error: '+res.error.message+'</div><button class="btn-sm" style="margin-top:8px" onclick="startMfaEnroll()">Try Again</button>';return;}
   _pendingMfaFactorId=res.data.id;
   wrap.innerHTML='<div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start">'
     +'<img src="'+res.data.totp.qr_code+'" style="width:180px;height:180px;border:1px solid #eee;border-radius:8px;flex-shrink:0">'
