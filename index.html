@@ -494,8 +494,8 @@ body.view-only button[onclick*="Remove"]{
     <div class="tb-right">
       <div class="tb-time" id="tb-time"></div>
       <div class="tb-sep"></div>
-      <div class="tb-name" id="tb-name"></div>
-      <div class="tb-av" id="tb-av">RA</div>
+      <div class="tb-name" id="tb-name" onclick="openMyAccount()" style="cursor:pointer" title="My Account"></div>
+      <div class="tb-av" id="tb-av" onclick="openMyAccount()" style="cursor:pointer" title="My Account">RA</div>
     </div>
   </div>
   <div class="body-wrap">
@@ -793,6 +793,27 @@ body.view-only button[onclick*="Remove"]{
     <div style="padding:14px 16px;display:flex;gap:8px;justify-content:flex-end;background:#f9fafb;border-top:0.5px solid #eee">
       <button class="btn btn-sm" onclick="closeModal('proposal-editor-modal')">Cancel</button>
       <button class="btn btn-blue" onclick="saveProposal()">Save Proposal</button>
+    </div>
+  </div>
+</div>
+
+<!-- MY ACCOUNT MODAL -->
+<div class="modal-bg" id="my-account-modal" style="align-items:flex-start;overflow-y:auto;padding:20px">
+  <div style="background:#fff;border-radius:14px;width:100%;max-width:560px;margin:0 auto;overflow:hidden">
+    <div style="background:#1B5E9B;padding:14px 20px;display:flex;align-items:center;justify-content:space-between">
+      <div style="color:#fff;font-size:15px;font-weight:700">My Account</div>
+      <button class="btn-sm" onclick="closeModal('my-account-modal')" style="background:rgba(255,255,255,0.2);border-color:rgba(255,255,255,0.3);color:#fff">Close</button>
+    </div>
+    <div style="padding:18px 20px 6px;border-bottom:0.5px solid #eee;display:flex;align-items:center;gap:12px">
+      <div class="tb-av" style="position:static;width:40px;height:40px;font-size:13px" id="acct-av">--</div>
+      <div>
+        <div id="acct-name" style="font-size:14px;font-weight:700;color:#111"></div>
+        <div id="acct-email" style="font-size:12px;color:#888"></div>
+      </div>
+    </div>
+    <div style="padding:20px">
+      <div style="font-size:13px;font-weight:700;color:#111;margin-bottom:12px">Two-Factor Authentication</div>
+      <div id="mfa-status-wrap">Loading…</div>
     </div>
   </div>
 </div>
@@ -2176,10 +2197,6 @@ async function renderMgmt(){
   mc.innerHTML=`
     <div class="page-hdr"><div><div class="page-title">Management</div><div class="page-sub">Users, groups, and access control</div></div></div>
     <div class="mgmt-sec">
-      <div class="mgmt-hdr"><h3>Two-Factor Authentication (My Account)</h3></div>
-      <div style="padding:16px" id="mfa-status-wrap">Loading…</div>
-    </div>
-    <div class="mgmt-sec">
       <div class="mgmt-hdr"><h3>Create New User</h3></div>
       <div style="padding:16px">
         <div class="fgrid">
@@ -2215,7 +2232,6 @@ async function renderMgmt(){
   await loadUsers();
   renderCustomGroups();
   renderGroupPermsTable();
-  loadMfaStatus();
 }
 async function loadUsers(){
   var res=await sbA.from('profiles').select('*').order('created_at',{ascending:true});
@@ -2264,6 +2280,17 @@ async function loadUsers(){
 
 // ===== 2FA (TOTP) SELF-SERVICE MANAGEMENT =====
 var _pendingMfaFactorId=null;
+// ===== MY ACCOUNT (self-service, available to every user) =====
+function openMyAccount(){
+  if(!CU||!CP)return;
+  var name=CP.full_name||CU.email;
+  var ini=name.split(' ').map(function(w){return w[0];}).join('').toUpperCase().slice(0,2);
+  document.getElementById('acct-name').textContent=name;
+  document.getElementById('acct-email').textContent=CU.email||'';
+  document.getElementById('acct-av').textContent=ini;
+  document.getElementById('my-account-modal').classList.add('open');
+  loadMfaStatus();
+}
 async function loadMfaStatus(){
   var wrap=document.getElementById('mfa-status-wrap');
   if(!wrap)return;
