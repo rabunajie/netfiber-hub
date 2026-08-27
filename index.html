@@ -426,8 +426,8 @@ body.view-only button[onclick*="Remove"]{
   <div class="auth-body">
     <div id="auth-form-content">
     <div class="auth-err" id="auth-err"></div>
-    <div class="afield"><label>Email</label><input autocomplete="off" type="email" id="login-email" placeholder="your@email.com" onkeydown="if(event.key==='Enter')doLogin()"></div>
-    <div class="afield"><label>Password</label><input autocomplete="off" type="password" id="login-pass" placeholder="Password" onkeydown="if(event.key==='Enter')doLogin()"></div>
+    <div class="afield"><label>Email</label><input autocomplete="username" type="email" id="login-email" placeholder="your@email.com" onkeydown="if(event.key==='Enter')doLogin()"></div>
+    <div class="afield"><label>Password</label><input autocomplete="current-password" type="password" id="login-pass" placeholder="Password" onkeydown="if(event.key==='Enter')doLogin()"></div>
     <button class="auth-btn" id="signin-btn" onclick="doLogin()">Sign In</button>
     <div style="text-align:center;margin-top:14px">
       <a href="#" onclick="showForgotPassword()" style="font-size:12px;color:#1B5E9B;text-decoration:none">Forgot your password?</a>
@@ -443,6 +443,16 @@ body.view-only button[onclick*="Remove"]{
     <a href="#" onclick="showLogin()" style="font-size:12px;color:#1B5E9B;text-decoration:none">Back to Sign In</a>
   </div>
   <div id="reset-msg" style="margin-top:12px;font-size:13px;text-align:center;display:none"></div>
+</div>
+<!-- 2FA VERIFICATION PANEL -->
+<div id="mfa-panel" style="display:none">
+  <div style="font-size:13px;color:#555;margin-bottom:16px;line-height:1.5">Enter the 6-digit code from your authenticator app.</div>
+  <div class="afield"><label>Verification Code</label><input autocomplete="one-time-code" type="text" inputmode="numeric" id="mfa-code" maxlength="6" placeholder="123456" style="letter-spacing:6px;font-size:18px;text-align:center" onkeydown="if(event.key==='Enter')submitMfaCode()"></div>
+  <button class="auth-btn" id="mfa-verify-btn" onclick="submitMfaCode()">Verify</button>
+  <div style="text-align:center;margin-top:14px">
+    <a href="#" onclick="cancelMfaLogin()" style="font-size:12px;color:#1B5E9B;text-decoration:none">Back to Sign In</a>
+  </div>
+  <div id="mfa-err" style="margin-top:12px;font-size:13px;text-align:center;display:none;color:#E24B4A"></div>
 </div>
 </div>
 </div>
@@ -861,12 +871,16 @@ let CU=null,CP=null;
 
 // Initialize Supabase immediately
 try {
-  sb = supabase.createClient(SB_URL, SB_KEY);
+  // Purge any previously persisted Supabase session so old logins can't silently auto sign-in
+  try{
+    Object.keys(localStorage).forEach(function(k){
+      if(k!=='sb-admin-auth' && /-auth-token$/.test(k)) localStorage.removeItem(k);
+    });
+  }catch(e){}
+  sb = supabase.createClient(SB_URL, SB_KEY, {auth:{persistSession:false}});
   // Use a different storage key for sbA to avoid duplicate GoTrueClient warning
   sbA = supabase.createClient(SB_URL, SB_SVC, {auth:{storageKey:'sb-admin-auth'}});
-  sb.auth.getSession().then(function(r) {
-    if(r.data && r.data.session) initApp(r.data.session.user);
-  });
+  // No auto session restore — user must sign in explicitly every visit
 } catch(e) {
   console.error('Supabase init failed:', e);
 }
@@ -961,6 +975,14 @@ async function doLogin(){
       showAE('Login failed: '+res.error.message);
       btn.textContent='Sign In';
       btn.disabled=false;
+      return;
+    }
+    // Check if this account requires a 2FA code before granting access
+    var aal = await sb.auth.mfa.getAuthenticatorAssuranceLevel();
+    if(aal.data && aal.data.nextLevel==='aal2' && aal.data.currentLevel!==aal.data.nextLevel){
+      btn.textContent='Sign In';
+      btn.disabled=false;
+      showMfaChallenge();
       return;
     }
     await initApp(res.data.user);
@@ -2124,6 +2146,10 @@ async function renderMgmt(){
   mc.innerHTML=`
     <div class="page-hdr"><div><div class="page-title">Management</div><div class="page-sub">Users, groups, and access control</div></div></div>
     <div class="mgmt-sec">
+      <div class="mgmt-hdr"><h3>Two-Factor Authentication (My Account)</h3></div>
+      <div style="padding:16px" id="mfa-status-wrap">Loading…</div>
+    </div>
+    <div class="mgmt-sec">
       <div class="mgmt-hdr"><h3>Create New User</h3></div>
       <div style="padding:16px">
         <div class="fgrid">
@@ -2159,6 +2185,7 @@ async function renderMgmt(){
   await loadUsers();
   renderCustomGroups();
   renderGroupPermsTable();
+  loadMfaStatus();
 }
 async function loadUsers(){
   var res=await sbA.from('profiles').select('*').order('created_at',{ascending:true});
@@ -2203,6 +2230,69 @@ async function loadUsers(){
       +'</div></div>';
   });
   ul.innerHTML=rows||'<div style="padding:1rem;color:#aaa;font-size:13px">No users found</div>';
+}
+
+// ===== 2FA (TOTP) SELF-SERVICE MANAGEMENT =====
+var _pendingMfaFactorId=null;
+async function loadMfaStatus(){
+  var wrap=document.getElementById('mfa-status-wrap');
+  if(!wrap)return;
+  try{
+    var res=await sb.auth.mfa.listFactors();
+    if(res.error){wrap.innerHTML='<div style="color:#E24B4A;font-size:13px">Error: '+res.error.message+'</div>';return;}
+    var verified=((res.data&&res.data.totp)||[]).filter(function(f){return f.status==='verified';});
+    if(verified.length){
+      wrap.innerHTML='<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">'
+        +'<span style="background:#E8F7F0;color:#1D9E75;padding:6px 14px;border-radius:20px;font-size:12px;font-weight:700">✓ 2FA Enabled</span>'
+        +'<span style="font-size:12px;color:#888">You\'ll be asked for a code from your authenticator app each time you sign in.</span>'
+        +'<button class="btn-danger" onclick="disableMfa(&quot;'+verified[0].id+'&quot;)">Disable 2FA</button>'
+        +'</div>';
+    }else{
+      wrap.innerHTML='<div style="font-size:13px;color:#666;margin-bottom:12px;line-height:1.5">Add an extra layer of security to your account — require a 6-digit code from an authenticator app (Google Authenticator, Authy, 1Password, etc.) each time you sign in.</div>'
+        +'<button class="btn btn-blue" onclick="startMfaEnroll()">Enable 2FA</button>';
+    }
+  }catch(e){wrap.innerHTML='<div style="color:#E24B4A;font-size:13px">Error: '+e.message+'</div>';}
+}
+async function startMfaEnroll(){
+  var wrap=document.getElementById('mfa-status-wrap');
+  wrap.innerHTML='<div style="padding:12px;color:#888"><span class="spinner"></span></div>';
+  var res=await sb.auth.mfa.enroll({factorType:'totp'});
+  if(res.error){wrap.innerHTML='<div style="color:#E24B4A;font-size:13px">Error: '+res.error.message+'</div>';return;}
+  _pendingMfaFactorId=res.data.id;
+  wrap.innerHTML='<div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start">'
+    +'<img src="'+res.data.totp.qr_code+'" style="width:180px;height:180px;border:1px solid #eee;border-radius:8px;flex-shrink:0">'
+    +'<div style="flex:1;min-width:220px">'
+    +'<div style="font-size:12px;color:#666;margin-bottom:8px">Scan this with Google Authenticator, Authy, or a similar app. Or enter this code manually:</div>'
+    +'<div style="font-family:monospace;font-size:13px;background:#f5f5f5;padding:8px 12px;border-radius:6px;margin-bottom:14px;word-break:break-all">'+res.data.totp.secret+'</div>'
+    +'<div class="frow" style="margin-bottom:10px"><label>Enter the 6-digit code to confirm</label><input autocomplete="one-time-code" inputmode="numeric" id="mfa-enroll-code" maxlength="6" placeholder="123456" style="letter-spacing:4px;font-size:16px;padding:8px 12px;border:1px solid #ddd;border-radius:8px;outline:none;width:140px"></div>'
+    +'<button class="btn btn-green" onclick="confirmMfaEnroll()">Confirm &amp; Enable</button> <button class="btn-sm" onclick="cancelMfaEnroll()">Cancel</button>'
+    +'<div id="mfa-enroll-err" style="color:#E24B4A;font-size:12px;margin-top:8px;display:none"></div>'
+    +'</div></div>';
+}
+function showMfaEnrollErr(m){var e=document.getElementById('mfa-enroll-err');if(e){e.textContent=m;e.style.display='block';}}
+async function confirmMfaEnroll(){
+  var code=(document.getElementById('mfa-enroll-code').value||'').trim();
+  if(!code||code.length<6){showMfaEnrollErr('Enter the 6-digit code from your app');return;}
+  if(!_pendingMfaFactorId){showMfaEnrollErr('Enrollment expired — click Enable 2FA again.');return;}
+  var ch=await sb.auth.mfa.challenge({factorId:_pendingMfaFactorId});
+  if(ch.error){showMfaEnrollErr(ch.error.message);return;}
+  var v=await sb.auth.mfa.verify({factorId:_pendingMfaFactorId,challengeId:ch.data.id,code:code});
+  if(v.error){showMfaEnrollErr('Invalid code. Please try again.');return;}
+  _pendingMfaFactorId=null;
+  showToast('Two-factor authentication enabled');
+  loadMfaStatus();
+}
+async function cancelMfaEnroll(){
+  if(_pendingMfaFactorId){try{await sb.auth.mfa.unenroll({factorId:_pendingMfaFactorId});}catch(e){}}
+  _pendingMfaFactorId=null;
+  loadMfaStatus();
+}
+async function disableMfa(factorId){
+  if(!confirm('Disable two-factor authentication for your account?'))return;
+  var r=await sb.auth.mfa.unenroll({factorId:factorId});
+  if(r.error){alert('Error: '+r.error.message);return;}
+  showToast('Two-factor authentication disabled');
+  loadMfaStatus();
 }
 
 
@@ -3124,14 +3214,60 @@ function deleteGroup(groupName){
 // ===== FORGOT PASSWORD =====
 function showForgotPassword(){
   document.getElementById('forgot-panel').style.display='block';
+  document.getElementById('mfa-panel').style.display='none';
   document.getElementById('auth-form-content').style.display='none';
   document.getElementById('forgot-email').value='';
   document.getElementById('reset-msg').style.display='none';
 }
 function showLogin(){
   document.getElementById('forgot-panel').style.display='none';
+  document.getElementById('mfa-panel').style.display='none';
   document.getElementById('auth-form-content').style.display='block';
   document.getElementById('auth-err').textContent='';
+}
+
+// ===== 2FA LOGIN CHALLENGE =====
+function showMfaChallenge(){
+  document.getElementById('auth-form-content').style.display='none';
+  document.getElementById('forgot-panel').style.display='none';
+  document.getElementById('mfa-panel').style.display='block';
+  var codeEl=document.getElementById('mfa-code');
+  codeEl.value='';
+  document.getElementById('mfa-err').style.display='none';
+  setTimeout(function(){codeEl.focus();},50);
+}
+async function cancelMfaLogin(){
+  try{await sb.auth.signOut();}catch(e){}
+  document.getElementById('mfa-panel').style.display='none';
+  document.getElementById('auth-form-content').style.display='block';
+  document.getElementById('login-pass').value='';
+}
+function showMfaErr(m){
+  var el=document.getElementById('mfa-err');
+  if(el){el.textContent=m;el.style.display='block';}
+}
+async function submitMfaCode(){
+  var code=(document.getElementById('mfa-code').value||'').trim();
+  if(!code||code.length<6){showMfaErr('Enter the 6-digit code');return;}
+  var btn=document.getElementById('mfa-verify-btn');
+  btn.textContent='Verifying...';btn.disabled=true;
+  try{
+    var factorsRes=await sb.auth.mfa.listFactors();
+    var totpFactors=(factorsRes.data&&factorsRes.data.totp)||[];
+    var factor=totpFactors.find(function(f){return f.status==='verified';});
+    if(!factor){showMfaErr('No verified authenticator found on this account.');btn.textContent='Verify';btn.disabled=false;return;}
+    var ch=await sb.auth.mfa.challenge({factorId:factor.id});
+    if(ch.error){showMfaErr(ch.error.message);btn.textContent='Verify';btn.disabled=false;return;}
+    var v=await sb.auth.mfa.verify({factorId:factor.id,challengeId:ch.data.id,code:code});
+    if(v.error){showMfaErr('Invalid code. Please try again.');btn.textContent='Verify';btn.disabled=false;return;}
+    var sessRes=await sb.auth.getSession();
+    btn.textContent='Verify';btn.disabled=false;
+    document.getElementById('mfa-panel').style.display='none';
+    await initApp(sessRes.data.session.user);
+  }catch(err){
+    showMfaErr('Error: '+err.message);
+    btn.textContent='Verify';btn.disabled=false;
+  }
 }
 async function sendReset(){
   var email=document.getElementById('forgot-email').value.trim();
