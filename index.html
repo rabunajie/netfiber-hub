@@ -27,6 +27,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .afield input:focus{border-color:#1B5E9B;background:#fff}
 .auth-btn{width:100%;padding:12px;border:none;border-radius:8px;background:#1B5E9B;color:#fff;font-size:14px;font-weight:700;cursor:pointer;letter-spacing:-0.2px}
 .auth-btn:hover{background:#0C447C}
+.mfa-box{width:44px;height:54px;text-align:center;font-size:22px;font-weight:700;border:1px solid #e0e0e0;border-radius:8px;outline:none;background:#fafafa;transition:border 0.15s,background 0.15s;color:#111}
+.mfa-box:focus{border-color:#1B5E9B;background:#fff;box-shadow:0 0 0 3px rgba(27,94,155,0.12)}
 
 /* LAYOUT */
 .app{display:none;height:100vh;flex-direction:column}
@@ -446,9 +448,27 @@ body.view-only button[onclick*="Remove"]{
 </div>
 <!-- 2FA VERIFICATION PANEL -->
 <div id="mfa-panel" style="display:none">
-  <div style="font-size:13px;color:#555;margin-bottom:16px;line-height:1.5">Enter the 6-digit code from your authenticator app.</div>
-  <div class="afield"><label>Verification Code</label><input autocomplete="one-time-code" type="text" inputmode="numeric" id="mfa-code" maxlength="6" placeholder="123456" style="letter-spacing:6px;font-size:18px;text-align:center" onkeydown="if(event.key==='Enter')submitMfaCode()"></div>
-  <button class="auth-btn" id="mfa-verify-btn" onclick="submitMfaCode()">Verify</button>
+  <div style="border-bottom:1px solid #eee;margin:0 -40px 22px"></div>
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+    <div style="width:30px;height:30px;border-radius:8px;background:#1B5E9B;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+    </div>
+    <div style="font-size:19px;font-weight:800;color:#111;letter-spacing:-0.3px">Two-Factor Verification</div>
+  </div>
+  <div id="mfa-user-email" style="font-size:13px;color:#1B5E9B;font-weight:600;margin-bottom:16px;margin-left:40px"></div>
+  <div style="font-size:13px;color:#666;margin-bottom:18px;line-height:1.5">Enter the code from your authenticator app.</div>
+  <div class="afield">
+    <label>Code</label>
+    <div id="mfa-code-boxes" style="display:flex;gap:8px" onpaste="mfaBoxPaste(event)">
+      <input autocomplete="one-time-code" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="1" class="mfa-box" data-idx="0" oninput="mfaBoxInput(event,0)" onkeydown="mfaBoxKeydown(event,0)">
+      <input autocomplete="off" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="1" class="mfa-box" data-idx="1" oninput="mfaBoxInput(event,1)" onkeydown="mfaBoxKeydown(event,1)">
+      <input autocomplete="off" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="1" class="mfa-box" data-idx="2" oninput="mfaBoxInput(event,2)" onkeydown="mfaBoxKeydown(event,2)">
+      <input autocomplete="off" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="1" class="mfa-box" data-idx="3" oninput="mfaBoxInput(event,3)" onkeydown="mfaBoxKeydown(event,3)">
+      <input autocomplete="off" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="1" class="mfa-box" data-idx="4" oninput="mfaBoxInput(event,4)" onkeydown="mfaBoxKeydown(event,4)">
+      <input autocomplete="off" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="1" class="mfa-box" data-idx="5" oninput="mfaBoxInput(event,5)" onkeydown="mfaBoxKeydown(event,5)">
+    </div>
+  </div>
+  <button class="auth-btn" id="mfa-verify-btn" onclick="submitMfaCode()" style="margin-top:8px">Verify</button>
   <div style="text-align:center;margin-top:14px">
     <a href="#" onclick="cancelMfaLogin()" style="font-size:12px;color:#1B5E9B;text-decoration:none">Back to Sign In</a>
   </div>
@@ -982,7 +1002,7 @@ async function doLogin(){
     if(aal.data && aal.data.nextLevel==='aal2' && aal.data.currentLevel!==aal.data.nextLevel){
       btn.textContent='Sign In';
       btn.disabled=false;
-      showMfaChallenge();
+      showMfaChallenge(e);
       return;
     }
     await initApp(res.data.user);
@@ -3227,14 +3247,15 @@ function showLogin(){
 }
 
 // ===== 2FA LOGIN CHALLENGE =====
-function showMfaChallenge(){
+function showMfaChallenge(email){
   document.getElementById('auth-form-content').style.display='none';
   document.getElementById('forgot-panel').style.display='none';
   document.getElementById('mfa-panel').style.display='block';
-  var codeEl=document.getElementById('mfa-code');
-  codeEl.value='';
+  document.getElementById('mfa-user-email').textContent=email||'';
+  var boxes=document.querySelectorAll('#mfa-code-boxes .mfa-box');
+  boxes.forEach(function(b){b.value='';});
   document.getElementById('mfa-err').style.display='none';
-  setTimeout(function(){codeEl.focus();},50);
+  setTimeout(function(){if(boxes[0])boxes[0].focus();},50);
 }
 async function cancelMfaLogin(){
   try{await sb.auth.signOut();}catch(e){}
@@ -3246,8 +3267,46 @@ function showMfaErr(m){
   var el=document.getElementById('mfa-err');
   if(el){el.textContent=m;el.style.display='block';}
 }
+function getMfaCode(){
+  var boxes=document.querySelectorAll('#mfa-code-boxes .mfa-box');
+  var code='';
+  boxes.forEach(function(b){code+=(b.value||'').trim();});
+  return code;
+}
+function mfaBoxInput(e,idx){
+  var el=e.target;
+  el.value=el.value.replace(/[^0-9]/g,'').slice(0,1);
+  var boxes=document.querySelectorAll('#mfa-code-boxes .mfa-box');
+  if(el.value&&idx<boxes.length-1){
+    boxes[idx+1].focus();
+  }
+  if(idx===boxes.length-1&&el.value&&getMfaCode().length===boxes.length){
+    submitMfaCode();
+  }
+}
+function mfaBoxKeydown(e,idx){
+  var boxes=document.querySelectorAll('#mfa-code-boxes .mfa-box');
+  if(e.key==='Backspace'&&!e.target.value&&idx>0){
+    boxes[idx-1].focus();
+  } else if(e.key==='ArrowLeft'&&idx>0){
+    boxes[idx-1].focus();
+  } else if(e.key==='ArrowRight'&&idx<boxes.length-1){
+    boxes[idx+1].focus();
+  } else if(e.key==='Enter'){
+    submitMfaCode();
+  }
+}
+function mfaBoxPaste(e){
+  e.preventDefault();
+  var text=(e.clipboardData||window.clipboardData).getData('text').replace(/[^0-9]/g,'');
+  var boxes=document.querySelectorAll('#mfa-code-boxes .mfa-box');
+  for(var i=0;i<boxes.length;i++){boxes[i].value=text[i]||'';}
+  var lastFilled=Math.min(text.length,boxes.length)-1;
+  if(lastFilled>=0)boxes[lastFilled].focus();
+  if(text.length>=boxes.length)submitMfaCode();
+}
 async function submitMfaCode(){
-  var code=(document.getElementById('mfa-code').value||'').trim();
+  var code=getMfaCode();
   if(!code||code.length<6){showMfaErr('Enter the 6-digit code');return;}
   var btn=document.getElementById('mfa-verify-btn');
   btn.textContent='Verifying...';btn.disabled=true;
@@ -3259,7 +3318,14 @@ async function submitMfaCode(){
     var ch=await sb.auth.mfa.challenge({factorId:factor.id});
     if(ch.error){showMfaErr(ch.error.message);btn.textContent='Verify';btn.disabled=false;return;}
     var v=await sb.auth.mfa.verify({factorId:factor.id,challengeId:ch.data.id,code:code});
-    if(v.error){showMfaErr('Invalid code. Please try again.');btn.textContent='Verify';btn.disabled=false;return;}
+    if(v.error){
+      showMfaErr('Invalid code. Please try again.');
+      btn.textContent='Verify';btn.disabled=false;
+      var boxes=document.querySelectorAll('#mfa-code-boxes .mfa-box');
+      boxes.forEach(function(b){b.value='';});
+      if(boxes[0])boxes[0].focus();
+      return;
+    }
     var sessRes=await sb.auth.getSession();
     btn.textContent='Verify';btn.disabled=false;
     document.getElementById('mfa-panel').style.display='none';
