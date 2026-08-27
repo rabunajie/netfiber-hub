@@ -468,7 +468,11 @@ body.view-only button[onclick*="Remove"]{
       <input autocomplete="off" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="1" class="mfa-box" data-idx="5" oninput="mfaBoxInput(event,5)" onkeydown="mfaBoxKeydown(event,5)">
     </div>
   </div>
-  <button class="auth-btn" id="mfa-verify-btn" onclick="submitMfaCode()" style="margin-top:8px">Verify</button>
+  <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:#666;margin:2px 0 16px;cursor:pointer;user-select:none">
+    <input type="checkbox" id="mfa-remember-device" checked style="width:15px;height:15px;cursor:pointer;flex-shrink:0">
+    Remember this device for 30 days
+  </label>
+  <button class="auth-btn" id="mfa-verify-btn" onclick="submitMfaCode()" style="margin-top:0">Verify</button>
   <div style="text-align:center;margin-top:14px">
     <a href="#" onclick="cancelMfaLogin()" style="font-size:12px;color:#1B5E9B;text-decoration:none">Back to Sign In</a>
   </div>
@@ -1001,6 +1005,11 @@ async function doLogin(){
     // Check if this account requires a 2FA code before granting access
     var aal = await sb.auth.mfa.getAuthenticatorAssuranceLevel();
     if(aal.data && aal.data.nextLevel==='aal2' && aal.data.currentLevel!==aal.data.nextLevel){
+      if(isDeviceTrusted(res.data.user.id)){
+        // Trusted device — skip the 2FA prompt
+        await initApp(res.data.user);
+        return;
+      }
       btn.textContent='Sign In';
       btn.disabled=false;
       showMfaChallenge(e);
@@ -2263,11 +2272,13 @@ async function loadMfaStatus(){
     if(res.error){wrap.innerHTML='<div style="color:#E24B4A;font-size:13px">Error: '+res.error.message+'</div>';return;}
     var verified=((res.data&&res.data.totp)||[]).filter(function(f){return f.status==='verified';});
     if(verified.length){
-      wrap.innerHTML='<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">'
+      var trusted=CU&&isDeviceTrusted(CU.id);
+      wrap.innerHTML='<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:'+(trusted?'10':'0')+'px">'
         +'<span style="background:#E8F7F0;color:#1D9E75;padding:6px 14px;border-radius:20px;font-size:12px;font-weight:700">✓ 2FA Enabled</span>'
-        +'<span style="font-size:12px;color:#888">You\'ll be asked for a code from your authenticator app each time you sign in.</span>'
+        +'<span style="font-size:12px;color:#888">You\'ll be asked for a code from your authenticator app each time you sign in on a device you haven\'t chosen to remember.</span>'
         +'<button class="btn-danger" onclick="disableMfa(&quot;'+verified[0].id+'&quot;)">Disable 2FA</button>'
-        +'</div>';
+        +'</div>'
+        +(trusted?'<div style="display:flex;align-items:center;gap:10px"><span style="font-size:12px;color:#666">This device is remembered — you won\'t be asked for a code here until it expires.</span><button class="btn-sm" onclick="forgetThisDevice()">Forget this device</button></div>':'');
     }else{
       wrap.innerHTML='<div style="font-size:13px;color:#666;margin-bottom:12px;line-height:1.5">Add an extra layer of security to your account — require a 6-digit code from an authenticator app (Google Authenticator, Authy, 1Password, etc.) each time you sign in.</div>'
         +'<button class="btn btn-blue" onclick="startMfaEnroll()">Enable 2FA</button>';
@@ -2300,6 +2311,7 @@ async function confirmMfaEnroll(){
   var v=await sb.auth.mfa.verify({factorId:_pendingMfaFactorId,challengeId:ch.data.id,code:code});
   if(v.error){showMfaEnrollErr('Invalid code. Please try again.');return;}
   _pendingMfaFactorId=null;
+  if(CU) markDeviceTrusted(CU.id,30);
   showToast('Two-factor authentication enabled');
   loadMfaStatus();
 }
@@ -2312,7 +2324,13 @@ async function disableMfa(factorId){
   if(!confirm('Disable two-factor authentication for your account?'))return;
   var r=await sb.auth.mfa.unenroll({factorId:factorId});
   if(r.error){alert('Error: '+r.error.message);return;}
+  if(CU) clearTrustedDevice(CU.id);
   showToast('Two-factor authentication disabled');
+  loadMfaStatus();
+}
+function forgetThisDevice(){
+  if(CU) clearTrustedDevice(CU.id);
+  showToast('This device will ask for a code next time you sign in');
   loadMfaStatus();
 }
 
@@ -3248,6 +3266,23 @@ function showLogin(){
 }
 
 // ===== 2FA LOGIN CHALLENGE =====
+function trustedDeviceKey(uid){return 'nf_trusted_device_'+uid;}
+function isDeviceTrusted(uid){
+  try{
+    var raw=localStorage.getItem(trustedDeviceKey(uid));
+    if(!raw)return false;
+    var obj=JSON.parse(raw);
+    return !!(obj&&obj.expires&&obj.expires>Date.now());
+  }catch(e){return false;}
+}
+function markDeviceTrusted(uid,days){
+  try{
+    localStorage.setItem(trustedDeviceKey(uid),JSON.stringify({expires:Date.now()+(days||30)*24*60*60*1000}));
+  }catch(e){}
+}
+function clearTrustedDevice(uid){
+  try{localStorage.removeItem(trustedDeviceKey(uid));}catch(e){}
+}
 function showMfaChallenge(email){
   document.getElementById('auth-form-content').style.display='none';
   document.getElementById('forgot-panel').style.display='none';
@@ -3328,6 +3363,10 @@ async function submitMfaCode(){
       return;
     }
     var sessRes=await sb.auth.getSession();
+    var rememberEl=document.getElementById('mfa-remember-device');
+    if(rememberEl&&rememberEl.checked&&sessRes.data&&sessRes.data.session){
+      markDeviceTrusted(sessRes.data.session.user.id,30);
+    }
     btn.textContent='Verify';btn.disabled=false;
     document.getElementById('mfa-panel').style.display='none';
     await initApp(sessRes.data.session.user);
