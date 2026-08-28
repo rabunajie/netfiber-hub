@@ -1133,12 +1133,6 @@ async function initApp(user){
         var gcRes=await sb.from('gc_contacts').select('*').order('created_at',{ascending:false});
         if(gcRes.data){
           _gcs=gcRes.data;
-          var gcEmailDue=_gcs.filter(function(g){return g.gc_next_followup&&ddiff(g.gc_next_followup)<=0&&(g.gc_fu_status==='intro'||g.gc_fu_status==='email_due');}).length;
-          var gcCallDue=_gcs.filter(function(g){return g.gc_next_followup&&ddiff(g.gc_next_followup)<=0&&(g.gc_fu_status==='call'||g.gc_fu_status==='active');}).length;
-          var gcReview=_gcs.filter(function(g){return !g.gc_next_followup;}).length;
-          var gcAccepted=_gcs.filter(function(g){return g.replied==='No'||!g.replied;}).length;
-          setSbBadge('sb-gc-email',gcEmailDue);
-          setSbBadge('sb-gc-phone',gcCallDue);
         }
       }
       // Load Retail data into _retail
@@ -1146,10 +1140,9 @@ async function initApp(user){
         var retRes=await sb.from('retail_contacts').select('*').order('created_at',{ascending:false});
         if(retRes.data){
           _retail=retRes.data;
-          var starredCount=_gcs.filter(function(g){return g.starred;}).length;
-          setSbBadge('sb-ret-due',starredCount);
         }
       }
+      updateGCSidebarBadges();
     }catch(e){}
   },300);
 }
@@ -1179,6 +1172,19 @@ function filterMyTasks(tasks){
   return (tasks||[]).filter(function(t){
     return t.created_by===myId || t.assigned_name===myName;
   });
+}
+// GC Contacts shows only unclaimed GCs (no one has starred them yet).
+// GC Watchlist shows only the GCs the CURRENT user has personally claimed (starred_by = my id).
+// Starring in GC Contacts claims a GC (removes it from that list); un-starring in the
+// Watchlist releases it back to GC Contacts for anyone to claim.
+function unclaimedGCs(){return (_gcs||[]).filter(function(g){return !g.starred_by;});}
+function myWatchlistGCs(){return (_gcs||[]).filter(function(g){return g.starred_by&&CU&&g.starred_by===CU.id;});}
+function updateGCSidebarBadges(){
+  var unclaimed=unclaimedGCs();
+  var gcEm=unclaimed.filter(function(g){return g.gc_next_followup&&ddiff(g.gc_next_followup)<=0&&(g.gc_fu_status==='intro'||g.gc_fu_status==='email_due');}).length;
+  var gcCl=unclaimed.filter(function(g){return g.gc_next_followup&&ddiff(g.gc_next_followup)<=0&&(g.gc_fu_status==='call'||g.gc_fu_status==='active');}).length;
+  setSbBadge('sb-gc-email',gcEm);setSbBadge('sb-gc-phone',gcCl);
+  setSbBadge('sb-ret-due',myWatchlistGCs().length);
 }
 // Calls the "admin-actions" Edge Function with the current user's own login token.
 // The Edge Function verifies admin status server-side before doing anything privileged —
@@ -1374,21 +1380,8 @@ async function renderDashboard(){
   var tasksHighCount=tasks.filter(function(t){return !t.done&&t.priority==='high';}).length;
   setSbBadge('sb-tasks-due',tasksDueToday.length);
   setSbBadge('sb-tasks-high',tasksHighCount);
-  // Retail sidebar badge
-  if(typeof _retail!=='undefined'&&_retail.length){
-    var today=new Date().toISOString().split('T')[0];
-    var starredCount2=(_gcs||[]).filter(function(g){return g.starred;}).length;
-    setSbBadge('sb-ret-due',starredCount2);
-  }
-  // GC sidebar badges - load from _gcs if available
-  if(typeof _gcs!=='undefined'&&_gcs.length){
-    var gcEmailDue=_gcs.filter(function(g){return g.gc_next_followup&&ddiff(g.gc_next_followup)<=0&&(g.gc_fu_status==='intro'||g.gc_fu_status==='email_due');}).length;
-    var gcCallDue=_gcs.filter(function(g){return g.gc_next_followup&&ddiff(g.gc_next_followup)<=0&&(g.gc_fu_status==='call'||g.gc_fu_status==='active');}).length;
-    var gcReview=_gcs.filter(function(g){return !g.gc_next_followup;}).length;
-    var gcAccepted=_gcs.filter(function(g){return g.replied==='No'||!g.replied;}).length;
-    setSbBadge('sb-gc-email',gcEmailDue);
-    setSbBadge('sb-gc-phone',gcCallDue);
-  }
+  // GC Contacts and GC Watchlist sidebar badges
+  updateGCSidebarBadges();
 
   const todayDate=new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
   const hour=new Date().getHours();
@@ -1749,25 +1742,36 @@ async function renderGC(){
   await loadGC();
 }
 var _gcs=[];
-async function toggleGCStar(id, currentlyStarred){
-  await sb.from('gc_contacts').update({starred:!currentlyStarred,updated_by:CU.id}).eq('id',id);
+async function toggleGCStar(id, currentlyMine){
+  var newVal=currentlyMine?null:CU.id;
+  if(!currentlyMine){
+    // Guard against a race where someone else claimed it moments ago
+    var check=await sb.from('gc_contacts').select('starred_by').eq('id',id).single();
+    if(check.data&&check.data.starred_by&&check.data.starred_by!==CU.id){
+      showToast('Someone else just added this to their watchlist');
+      await loadGC();
+      return;
+    }
+  }
+  await sb.from('gc_contacts').update({starred_by:newVal,updated_by:CU.id}).eq('id',id);
   var gc=_gcs.find(function(g){return g.id===id;});
-  if(gc) gc.starred=!currentlyStarred;
-  filterGC();
-  // Update watchlist badge
-  var starCount=_gcs.filter(function(g){return g.starred;}).length;
-  setSbBadge('sb-ret-due',starCount);
+  if(gc) gc.starred_by=newVal;
+  if(document.getElementById('gc-body')) filterGC();
+  if(document.getElementById('ret-body')) filterRetail();
+  updateGCSidebarBadges();
 }
 
 async function loadGC(){
   var res=await sb.from('gc_contacts').select('*').order('created_at',{ascending:false});
   if(res.error){console.error('GC error:',res.error);return;}
   _gcs=res.data||[];
+  // GC Contacts only ever shows unclaimed GCs — claimed ones live in the claimer's Watchlist
+  var visible=unclaimedGCs();
   // Compute KPIs
-  var emailDue=_gcs.filter(function(r){return r.gc_next_followup&&ddiff(r.gc_next_followup)<=0&&(r.gc_fu_status==='intro'||r.gc_fu_status==='email_due');}).length;
-  var callDue=_gcs.filter(function(r){return r.gc_next_followup&&ddiff(r.gc_next_followup)<=0&&(r.gc_fu_status==='call'||r.gc_fu_status==='active');}).length;
-  var bidReview=_gcs.filter(function(r){return !r.gc_next_followup;}).length;
-  var bidAccepted=_gcs.filter(function(r){return r.replied==='No'||!r.replied;}).length;
+  var emailDue=visible.filter(function(r){return r.gc_next_followup&&ddiff(r.gc_next_followup)<=0&&(r.gc_fu_status==='intro'||r.gc_fu_status==='email_due');}).length;
+  var callDue=visible.filter(function(r){return r.gc_next_followup&&ddiff(r.gc_next_followup)<=0&&(r.gc_fu_status==='call'||r.gc_fu_status==='active');}).length;
+  var bidReview=visible.filter(function(r){return !r.gc_next_followup;}).length;
+  var bidAccepted=visible.filter(function(r){return r.replied==='No'||!r.replied;}).length;
   var kEl=document.getElementById('gc-kpis');
   if(kEl){kEl.innerHTML=
     gcKpi('📧','Email Follow-Up Due','Due today or overdue',emailDue,'#854F0B','email_due')+
@@ -1775,14 +1779,7 @@ async function loadGC(){
     gcKpi('📭','Uncontacted','No outreach yet',bidReview,'#5B3FCC','uncontacted')+
     gcKpi('💬','Did Not Reply','Replied = No',bidAccepted,'#888','no_reply');
   }
-  // Update sidebar GC badges
-  if(typeof setSbBadge==='function'){
-    var gcEm=_gcs.filter(function(g){return g.gc_next_followup&&ddiff(g.gc_next_followup)<=0&&(g.gc_fu_status==='intro'||g.gc_fu_status==='email_due');}).length;
-    var gcCl=_gcs.filter(function(g){return g.gc_next_followup&&ddiff(g.gc_next_followup)<=0&&(g.gc_fu_status==='call'||g.gc_fu_status==='active');}).length;
-    var gcRv=_gcs.filter(function(g){return g.gc_fu_status==='estimation';}).length;
-    var gcAc=_gcs.filter(function(g){return g.gc_fu_status==='est_yes';}).length;
-    setSbBadge('sb-gc-email',gcEm);setSbBadge('sb-gc-phone',gcCl);
-  }
+  updateGCSidebarBadges();
   filterGC();
 }
 function gcKpi(icon,label,sub,val,color,filter){
@@ -1792,7 +1789,7 @@ function gcKpi(icon,label,sub,val,color,filter){
     +'<div style="font-size:11px;color:#bbb;margin-top:3px">'+sub+'</div>'
     +'</div>';
 }
-function filterGC(){const search=(document.getElementById('gc-search')?.value||'').toLowerCase();const filter=document.getElementById('gc-filter')?.value||'';let rows=[..._gcs];if(filter==='email_due'||filter==='email_today'||filter==='email_overdue') rows=rows.filter(function(r){
+function filterGC(){const search=(document.getElementById('gc-search')?.value||'').toLowerCase();const filter=document.getElementById('gc-filter')?.value||'';let rows=unclaimedGCs();if(filter==='email_due'||filter==='email_today'||filter==='email_overdue') rows=rows.filter(function(r){
       return r.gc_next_followup && ddiff(r.gc_next_followup)<=0 && (r.gc_fu_status==='intro'||r.gc_fu_status==='email_due');
     });
     else if(filter==='call_due'||filter==='call_today'||filter==='call_overdue') rows=rows.filter(function(r){
@@ -1800,8 +1797,8 @@ function filterGC(){const search=(document.getElementById('gc-search')?.value||'
     });
     else if(filter==='uncontacted') rows=rows.filter(function(r){return !r.gc_next_followup;});
     else if(filter==='no_reply') rows=rows.filter(function(r){return r.replied==='No'||!r.replied;});if(search)rows=rows.filter(r=>(r.company+r.contact+r.email).toLowerCase().includes(search));const tbody=document.getElementById('gc-body');if(!tbody)return;(function(){var gcRows='';for(var gi=0;gi<rows.length;gi++){var r=rows[gi];var nextC=r.gc_next_followup?fmtD(r.gc_next_followup):'—';var nextCCls=r.gc_next_followup&&ddiff(r.gc_next_followup)<0?'color:#E24B4A;font-weight:700':r.gc_next_followup&&ddiff(r.gc_next_followup)===0?'color:#BA7517;font-weight:700':'color:#888';gcRows+='<tr ondblclick="openGCFU(event,&quot;'+r.id+'&quot;)">'
-  +'<td style="text-align:center;cursor:pointer" onclick="toggleGCStar(\''+r.id+'\','+!!r.starred+')" title="'+(r.starred?'Remove from GC Watchlist':'Add to GC Watchlist')+'">'
-  +'<span style="font-size:18px;line-height:1;color:'+(r.starred?'#F5B301':'#ccc')+'">'+(r.starred?'★':'☆')+'</span>'
+  +'<td style="text-align:center;cursor:pointer" onclick="toggleGCStar(\''+r.id+'\',false)" title="Add to My GC Watchlist">'
+  +'<span style="font-size:18px;line-height:1;color:#ccc">☆</span>'
   +'</td>'
   +'<td style="font-weight:600">'+(r.company||'')+'</td>'+'<td style="font-size:12px">'+(r.contact||'').split('\n')[0]+'</td>'+'<td style="font-size:12px"><a href="mailto:'+(r.email||'').split('\n')[0]+'" style="color:#1B5E9B">'+(r.email||'').split('\n')[0]+'</a></td>'+'<td style="font-size:12px">'+(r.phone||'').split('\n')[0]+'</td>'+'<td style="font-size:12px">'+(r.city||'').split('\n')[0]+'</td>'+'<td><span class="'+(r.priority==='1st'?'pri-1':r.priority==='2nd'?'pri-2':'pri-3')+'">'+(r.priority||'—')+'</span></td>'+'<td><span class="badge '+(r.replied==='Yes'?'b-yes':'b-no')+'">'+(r.replied||'No')+'</span></td>'+'<td>'+gcFuBadge(r)+'</td>'+'<td style="font-size:11px;'+nextCCls+'">'+nextC+'</td>'+'<td style="white-space:nowrap"><div style="display:flex;gap:4px"><button class="btn-sm" onclick="editGC(this.dataset.id)" data-id="'+r.id+'">Edit</button><button class="btn-danger" onclick="delGC(this.dataset.id,this.dataset.name)" data-id="'+r.id+'" data-name="'+(r.company||'').replace(/"/g,'')+'">×</button></div></td>'
       +'</tr>';}tbody.innerHTML=gcRows||'<tr><td colspan="10" style="text-align:center;padding:2rem;color:#bbb">No contacts found.</td></tr>'})()||'<tr><td colspan="10" style="text-align:center;padding:2rem;color:#bbb">No contacts found.</td></tr>';}
@@ -1815,7 +1812,7 @@ async function renderRetail(){
   const mc=document.getElementById('main-content');
   mc.innerHTML=`
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px">
-      <div><div class="page-title">⭐ GC Watchlist</div><div class="page-sub">Starred GCs — priority relationship building targets</div></div>
+      <div><div class="page-title">⭐ GC Watchlist</div><div class="page-sub">GCs you've claimed — removed from GC Contacts until you release them</div></div>
     </div>
     <div id="wl-kpis" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px"></div>
     <div class="toolbar">
@@ -1831,6 +1828,7 @@ async function renderRetail(){
       <table><thead><tr><th>Company</th><th>Contact</th><th>Email</th><th>Phone</th><th>City</th><th>Priority</th><th>Follow-Up Status</th><th>Next Call</th><th></th></tr></thead>
       <tbody id="ret-body"><tr><td colspan="9" class="loading"><span class="spinner"></span></td></tr></tbody></table>
     </div>`;
+  await loadGC();
   filterRetail();
 }
 var _retail=[];
@@ -1887,7 +1885,7 @@ function filterRetail(){
   // GC Watchlist — shows starred GCs from _gcs
   var tbody=document.getElementById('ret-body');
   if(!tbody)return;
-  var starred=(_gcs||[]).filter(function(g){return g.starred;});
+  var starred=myWatchlistGCs();
   // Build KPIs
   var kEl=document.getElementById('wl-kpis');
   if(kEl&&starred.length){
@@ -1899,7 +1897,7 @@ function filterRetail(){
       wlKpi('⭐','Total Watchlist','All starred GCs',starred.length,'#1B5E9B','');
   }
   if(!starred.length){
-    tbody.innerHTML='<tr><td colspan="9" style="text-align:center;padding:2rem;color:#bbb">No starred GCs yet — go to GC Contacts and click ⭐ to add to watchlist.</td></tr>';
+    tbody.innerHTML='<tr><td colspan="9" style="text-align:center;padding:2rem;color:#bbb">No GCs on your watchlist yet — go to GC Contacts and click ☆ to claim one.</td></tr>';
     return;
   }
   var search=(document.getElementById('ret-search')?.value||'').toLowerCase();
@@ -1910,7 +1908,7 @@ function filterRetail(){
   else if(wlF==='phone_due') rows=rows.filter(function(r){return r.gc_next_followup&&ddiff(r.gc_next_followup)<=0&&(r.gc_fu_status==='call'||r.gc_fu_status==='active');});
   else if(wlF==='no_reply') rows=rows.filter(function(r){return r.replied==='No'||!r.replied;});
   if(!rows.length){
-    tbody.innerHTML='<tr><td colspan="9" style="text-align:center;padding:2rem;color:#bbb">No starred GCs yet — go to GC Contacts and click ⭐ to add to watchlist.</td></tr>';
+    tbody.innerHTML='<tr><td colspan="9" style="text-align:center;padding:2rem;color:#bbb">No GCs on your watchlist yet — go to GC Contacts and click ☆ to claim one.</td></tr>';
     return;
   }
   var html='';
