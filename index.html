@@ -1168,6 +1168,18 @@ function fmt$(n){return'$'+Number(n||0).toLocaleString('en-US',{minimumFractionD
 function fmt2$(n){return'$'+Number(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
 function fmtD(d){if(!d)return'—';return new Date(d+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'2-digit'});}
 function ddiff(d){if(!d)return 999;return Math.round((new Date(d+'T00:00:00')-today)/86400000);}
+// Shared rule for "my tasks": admins see everything; everyone else sees only tasks
+// they created themselves or that are assigned to them by name. Used by both the
+// To-Do page itself and the dashboard/sidebar badges, so counts always match what's
+// actually visible on the To-Do page.
+function filterMyTasks(tasks){
+  if(CP&&CP.group_name==='admin') return tasks||[];
+  var myName=CP?CP.full_name||'':null;
+  var myId=CU?CU.id:null;
+  return (tasks||[]).filter(function(t){
+    return t.created_by===myId || t.assigned_name===myName;
+  });
+}
 // Calls the "admin-actions" Edge Function with the current user's own login token.
 // The Edge Function verifies admin status server-side before doing anything privileged —
 // this replaces the old client-side service_role key entirely.
@@ -1343,7 +1355,7 @@ async function renderDashboard(){
     sb.from('tasks').select('*'),
     sb.from('gc_contacts').select('*')
   ]);
-  const bids=bidsR||[];const tasks=tasksR||[];const gcs=gcsR||[];
+  const bids=bidsR||[];const tasks=filterMyTasks(tasksR||[]);const gcs=gcsR||[];
   const wins=bids.filter(b=>b.status==='Win'||b.status==='Won');
   const overdueFollowups=bids.filter(b=>b.fu_next_date&&ddiff(b.fu_next_date)<0&&b.status!=='Win'&&b.status!=='Lost');
   const tasksDueToday=tasks.filter(t=>!t.done&&t.deadline&&ddiff(t.deadline)<=0);
@@ -2129,15 +2141,8 @@ var _tasks=[];
 async function loadTasks(){
   var {data:rows,error}=await sb.from('tasks').select('*').order('created_at',{ascending:false});
   if(error){console.error('Tasks error:',error);return;}
-  // Show only tasks created by or assigned to current user
-  var myName=CP?CP.full_name||'':null;
-  var myId=CU?CU.id:null;
-  _tasks=(rows||[]).filter(function(t){
-    // Admin sees all tasks
-    if(CP&&CP.group_name==='admin') return true;
-    // Others see tasks they created or assigned to them
-    return t.created_by===myId || t.assigned_name===myName;
-  });
+  // Show only tasks created by or assigned to current user (admins see all)
+  _tasks=filterMyTasks(rows||[]);
   filterTasks();
 }
 var _taskFilter='all';
