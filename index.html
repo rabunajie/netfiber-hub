@@ -1207,10 +1207,11 @@ async function logDeletionSnapshot(table,id,label,name){
   try{
     var res=await sb.from(table).select('*').eq('id',id).single();
     var snap=res.data||null;
+    var displayName=name||(snap&&(snap.name||snap.full_name||snap.product_service||snap.company||snap.gc||null));
     await sb.from('activity_log').insert({
       user_id:CU.id,user_name:CP.full_name||CU.email,
       action:label,table_name:table,record_id:id,
-      details:JSON.stringify({name:name||null,snapshot:snap})
+      details:JSON.stringify({name:displayName,snapshot:snap})
     });
     return snap;
   }catch(e){return null;}
@@ -2249,12 +2250,48 @@ async function toggleTask(id,wasDone){await sb.from('tasks').update({done:!wasDo
 async function delTask(id,name){if(!confirm(`Delete "${name}"?`))return;await logDeletionSnapshot('tasks',id,'Deleted task',name);await sb.from('tasks').delete().eq('id',id);await loadTasks();}
 
 // ACTIVITY LOG
+// Turns a raw activity_log row into a clean, human-readable line — never shows raw JSON.
+function formatLogLine(r){
+  var raw=r.details||'';
+  var parsed=null;
+  try{parsed=JSON.parse(raw);}catch(e){/* plain text details — used as-is below */}
+  if(parsed&&typeof parsed==='object'){
+    var subject=parsed.name||(parsed.snapshot&&(parsed.snapshot.name||parsed.snapshot.full_name||parsed.snapshot.product_service||parsed.snapshot.company))||null;
+    if(parsed.restored_from_log) return 'Restored a previously deleted record';
+    return subject?('"'+subject+'"'):'(no additional details)';
+  }
+  return raw||'';
+}
 async function renderLog(){
   const mc=document.getElementById('main-content');
-  mc.innerHTML=`<div class="page-hdr"><div><div class="page-title">Activity Log</div><div class="page-sub">Full audit trail of all actions</div></div></div><div class="tbl-wrap"><div id="log-body"><div class="loading"><span class="spinner"></span></div></div></div>`;
+  mc.innerHTML=`<div class="page-hdr"><div><div class="page-title">Activity Log</div><div class="page-sub">Full audit trail of all actions</div></div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <select id="log-clear-range" style="padding:8px 10px;border:1px solid #ddd;border-radius:8px;font-size:12px">
+        <option value="30">Older than 30 days</option>
+        <option value="7">Older than 7 days</option>
+        <option value="0">All history</option>
+      </select>
+      <button class="btn-danger" onclick="clearLogHistory()">Clear Log History</button>
+    </div>
+  </div>
+  <div class="mgmt-sec" style="margin-bottom:16px">
+    <div class="mgmt-hdr"><h3>Recently Deleted</h3></div>
+    <div style="padding:16px" id="recent-deleted-wrap">Loading…</div>
+  </div>
+  <div class="tbl-wrap"><div id="log-body"><div class="loading"><span class="spinner"></span></div></div></div>`;
   const {data:rows=[]}=await sb.from('activity_log').select('*').order('created_at',{ascending:false}).limit(150);
   const lb=document.getElementById('log-body');
-  lb.innerHTML=rows.map(r=>`<div class="log-item"><div class="log-av">${inits(r.user_name)}</div><div class="log-txt"><strong>${r.user_name||'Unknown'}</strong> ${r.action} — <span style="color:#555">${r.details||''}</span><div class="log-time">${new Date(r.created_at).toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'})}</div></div></div>`).join('')||'<div class="loading">No activity yet.</div>';
+  lb.innerHTML=rows.map(r=>`<div class="log-item"><div class="log-av">${inits(r.user_name)}</div><div class="log-txt"><strong>${r.user_name||'Unknown'}</strong> ${r.action} — <span style="color:#555">${formatLogLine(r)}</span><div class="log-time">${new Date(r.created_at).toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'})}</div></div></div>`).join('')||'<div class="loading">No activity yet.</div>';
+  loadRecentDeleted();
+}
+async function clearLogHistory(){
+  var days=parseInt(document.getElementById('log-clear-range').value,10);
+  var label=days?('everything older than '+days+' days'):'ALL activity log history';
+  if(!confirm('Clear '+label+'? This cannot be undone. Note: this also removes the ability to restore anything deleted in that window.'))return;
+  var res=await adminAction('clear_activity_log',{olderThanDays:days});
+  if(res.error){alert('Error: '+res.error.message);return;}
+  showToast('Log history cleared');
+  renderLog();
 }
 
 // MANAGEMENT
@@ -2270,10 +2307,6 @@ async function renderMgmt(){
   const mc=document.getElementById('main-content');
   mc.innerHTML=`
     <div class="page-hdr"><div><div class="page-title">Management</div><div class="page-sub">Users, groups, and access control</div></div></div>
-    <div class="mgmt-sec">
-      <div class="mgmt-hdr"><h3>Recently Deleted</h3></div>
-      <div style="padding:16px" id="recent-deleted-wrap">Loading…</div>
-    </div>
     <div class="mgmt-sec">
       <div class="mgmt-hdr"><h3>Create New User</h3></div>
       <div style="padding:16px">
@@ -2310,7 +2343,6 @@ async function renderMgmt(){
   await loadUsers();
   renderCustomGroups();
   renderGroupPermsTable();
-  loadRecentDeleted();
 }
 async function loadRecentDeleted(){
   var wrap=document.getElementById('recent-deleted-wrap');
