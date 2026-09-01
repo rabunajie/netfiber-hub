@@ -3259,13 +3259,13 @@ function renderPipelinePage(){
     +'<div class="page-hdr" style="background:#f0f3f8"><div><div class="page-title">Business Pipeline Report</div><div class="page-sub">Track performance and drive growth</div></div>'
     +'<div style="display:flex;gap:8px"><select autocomplete="off" id="pipeline-range" onchange="renderPipeline()" style="padding:8px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px;background:#fff"><option value="3">Last 3 months</option><option value="6" selected>Last 6 months</option><option value="12">Last 12 months</option><option value="0">All time</option></select>'
     +'<button class="btn btn-blue" onclick="exportPipelinePDF()">Download PDF</button></div></div>'
-    +'<div id="pipeline-kpis" style="display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:20px"></div>'
+    +'<div id="pipeline-kpis" style="display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:20px"></div>'
     +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px">'
     +'<div style="background:#fff;border-radius:14px;padding:24px;border:0.5px solid #eaedf2"><div style="font-size:13px;font-weight:700;color:#1a1a2e;margin-bottom:20px">&#128202; Bids Sent per Month</div><canvas id="chart-bids-monthly" height="140"></canvas></div>'
     +'<div style="background:#fff;border-radius:14px;padding:24px;border:0.5px solid #eaedf2"><div style="font-size:13px;font-weight:700;color:#1a1a2e;margin-bottom:20px">&#127942; Won vs Lost per Month</div><canvas id="chart-bid-status" height="140"></canvas></div>'
     +'</div>'
     +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px">'
-    +'<div style="background:#fff;border-radius:14px;padding:24px;border:0.5px solid #eaedf2"><div style="font-size:13px;font-weight:700;color:#1a1a2e;margin-bottom:20px">&#128200; Win Rate % per Month</div><canvas id="chart-win-rate" height="140"></canvas></div>'
+    +'<div style="background:#fff;border-radius:14px;padding:24px;border:0.5px solid #eaedf2"><div style="font-size:13px;font-weight:700;color:#1a1a2e;margin-bottom:20px">&#128200; Win Rate % per Month <span style="font-size:11px;font-weight:400;color:#aaa">(of decided bids)</span></div><canvas id="chart-win-rate" height="140"></canvas></div>'
     +'<div style="background:#fff;border-radius:14px;padding:24px;border:0.5px solid #eaedf2"><div style="font-size:13px;font-weight:700;color:#1a1a2e;margin-bottom:20px">&#128176; Revenue Pipeline ($)</div><canvas id="chart-revenue" height="140"></canvas></div>'
     +'</div>'
     +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px">'
@@ -3286,24 +3286,35 @@ async function renderPipeline(){
   for(var m=nM-1;m>=0;m--){var d=new Date(now.getFullYear(),now.getMonth()-m,1);labels.push(d.toLocaleString('en-US',{month:'short',year:'2-digit'}));}
   function gl(ds){if(!ds)return null;return new Date(ds).toLocaleString('en-US',{month:'short',year:'2-digit'});}
   function gbd(b){return b.due_date||b.last_ping||b.created_at||null;}
-  var act=bids.filter(function(b){return ['Bid Sent','Submitted','Win','Lost','Under Review'].indexOf(b.status||'')>=0;});
-  var fil=act.filter(function(b){var d=gbd(b);return d&&new Date(d)>=cutoff;});
-  if(!fil.length)fil=act;
+  // "Sent" = the bid has actually gone out: Bid Sent, Win, or Lost. Under Review bids
+  // are still being prepared and have NOT been sent yet — they must not count as sent.
+  // 'Submitted' is kept only for old records saved before statuses were standardized.
+  var SENT_STATUSES=['Bid Sent','Submitted','Win','Lost'];
+  var sentBids=bids.filter(function(b){return SENT_STATUSES.indexOf(b.status||'')>=0;});
+  var reviewBids=bids.filter(function(b){return (b.status||'Under Review')==='Under Review';});
+  var fil=sentBids.filter(function(b){var d=gbd(b);return d&&new Date(d)>=cutoff;});
+  if(!fil.length)fil=sentBids;
+  var filReview=reviewBids.filter(function(b){var d=gbd(b);return d&&new Date(d)>=cutoff;});
+  if(!filReview.length)filReview=reviewBids;
   var bpm={},wpm={},lpm={},rpm={},wvpm={};
   labels.forEach(function(l){bpm[l]=0;wpm[l]=0;lpm[l]=0;rpm[l]=0;wvpm[l]=0;});
   fil.forEach(function(b){var l=gl(gbd(b));if(!l||bpm[l]===undefined)return;bpm[l]++;if(b.status==='Win'){wpm[l]++;wvpm[l]+=(b.price||0);}if(b.status==='Lost')lpm[l]++;rpm[l]+=(b.price||0);});
-  var wrpm=labels.map(function(l){return bpm[l]>0?Math.round((wpm[l]/bpm[l])*100):0;});
+  // Win rate is of DECIDED bids only (won / (won+lost)) — pending "Bid Sent" bids
+  // haven't resolved yet and shouldn't dilute the rate.
+  var wrpm=labels.map(function(l){var decided=wpm[l]+lpm[l];return decided>0?Math.round((wpm[l]/decided)*100):0;});
   var gcpm={};labels.forEach(function(l){gcpm[l]=0;});
   gcs.forEach(function(g){var l=gl(g.created_at);if(l&&gcpm[l]!==undefined)gcpm[l]++;});
   var gcR=gcs.filter(function(g){return ['call','active','est_yes'].indexOf(g.gc_fu_status||'')>=0;}).length;
   var gcN=gcs.filter(function(g){return !g.gc_fu_status||g.gc_fu_status==='none'||g.gc_fu_status==='intro';}).length;
   var gcI=gcs.filter(function(g){return g.gc_fu_status==='nointerest';}).length;
+  var tR=filReview.length;
   var tB=fil.length,tW=fil.filter(function(b){return b.status==='Win';}).length;
   var tL=fil.filter(function(b){return b.status==='Lost';}).length;
   var tV=fil.reduce(function(s,b){return s+(b.price||0);},0);
-  var wr=tB>0?Math.round((tW/tB)*100):0;
+  var tDecided=tW+tL;
+  var wr=tDecided>0?Math.round((tW/tDecided)*100):0;
   var kEl=document.getElementById('pipeline-kpis');
-  if(kEl)kEl.innerHTML=plKpi('Bids Sent','#1B5E9B',tB,'in period')+plKpi('Won','#1D9E75',tW,'projects')+plKpi('Lost','#E24B4A',tL,'projects')+plKpi('Win Rate','#854F0B',wr+'%','of bids')+plKpi('Value','#1B5E9B','$'+fmt$(tV),'total');
+  if(kEl)kEl.innerHTML=plKpi('In Review','#5B3FCC',tR,'being prepared')+plKpi('Bids Sent','#1B5E9B',tB,'in period')+plKpi('Won','#1D9E75',tW,'projects')+plKpi('Lost','#E24B4A',tL,'projects')+plKpi('Win Rate','#854F0B',wr+'%','of decided bids')+plKpi('Pipeline Value','#1B5E9B',fmt$(tV),'sent bids, total');
   Object.values(_pc).forEach(function(c){if(c)c.destroy();});_pc={};
   if(typeof Chart==='undefined'){console.error('Chart.js not loaded');return;}
   function lo(cb){return{responsive:true,plugins:{legend:{position:'top',labels:{usePointStyle:true,font:{size:11}}}},scales:{x:{grid:{display:false}},y:{beginAtZero:true,ticks:{callback:cb||function(v){return Number.isInteger(v)?v:'';}}}}};} 
@@ -3318,8 +3329,8 @@ async function renderPipeline(){
   _pc.f=mk('chart-gc-status',[ds('New GC Contacts','#6B4FA8',labels.map(function(l){return gcpm[l];}))]);
   var iEl=document.getElementById('pipeline-insights');
   if(iEl){var ins=[];
-    ins.push(tB<5?{t:'Low Bid Volume',x:'Only '+tB+' bids. Aim for 5-10/month.',c:'#E24B4A'}:{t:'Good Bid Volume',x:tB+' bids submitted!',c:'#1D9E75'});
-    ins.push(wr===0?{t:'No Wins Yet',x:'Focus on follow-up quality.',c:'#E24B4A'}:wr<20?{t:'Win Rate: '+wr+'%',x:'Aim for 20-30%.',c:'#BA7517'}:{t:'Win Rate: '+wr+'%',x:'Strong! Track best GCs.',c:'#1D9E75'});
+    ins.push(tB<5?{t:'Low Bid Volume',x:'Only '+tB+' bids sent. Aim for 5-10/month.',c:'#E24B4A'}:{t:'Good Bid Volume',x:tB+' bids sent!',c:'#1D9E75'});
+    ins.push(tDecided===0?{t:'No Decided Bids Yet',x:tR+' bid(s) still in review or awaiting a decision.',c:'#854F0B'}:wr===0?{t:'No Wins Yet',x:'Focus on follow-up quality.',c:'#E24B4A'}:wr<20?{t:'Win Rate: '+wr+'%',x:'Of decided bids. Aim for 20-30%.',c:'#BA7517'}:{t:'Win Rate: '+wr+'%',x:'Of decided bids. Strong! Track best GCs.',c:'#1D9E75'});
     var gr=gcs.length>0?Math.round((gcR/gcs.length)*100):0;
     ins.push(gr<30?{t:'GC Outreach: '+gr+'%',x:'Increase call frequency.',c:'#E24B4A'}:{t:'GC Response: '+gr+'%',x:'Good engagement!',c:'#1D9E75'});
     iEl.innerHTML=ins.map(function(i){return '<div style="background:#f8faff;border-radius:10px;padding:16px;border-left:4px solid '+i.c+'"><div style="font-size:13px;font-weight:700;color:#1a1a2e;margin-bottom:6px">'+i.t+'</div><div style="font-size:12px;color:#666;line-height:1.5">'+i.x+'</div></div>';}).join('');
