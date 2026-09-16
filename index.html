@@ -4402,7 +4402,18 @@ async function printEstimate(id){
     
     +'<div style="margin-top:40px"></div>'
     +'<div class="print-thank">THANK YOU FOR THE OPPORTUNITY TO WORK WITH YOU!<br><span style="font-weight:400;font-size:11px">We look forward to delivering professional, on-time results for your project.</span></div>'
-    +'<div class="print-sign" style="margin-top:30px"><div><div class="print-sign-line">Signed</div><div style="margin-top:20px"><div class="print-sign-line">Print Name</div></div></div><div><div class="print-sign-line">Date</div><div style="margin-top:20px"><div class="print-sign-line">Title</div></div></div></div>'
+    +(function(){
+      var gcName=primaryGC.company||'Client';
+      function sigBlock(partyName){
+        return '<div>'
+          +'<div style="font-size:12px;font-weight:700;color:#111;margin-bottom:24px">'+partyName+'</div>'
+          +'<div class="print-sign-line" style="margin-bottom:24px">Signature</div>'
+          +'<div class="print-sign-line" style="margin-bottom:24px">Printed Name / Title</div>'
+          +'<div class="print-sign-line">Date</div>'
+          +'</div>';
+      }
+      return '<div class="print-sign" style="margin-top:30px">'+sigBlock('NetFiber Network Cabling')+sigBlock(gcName)+'</div>';
+    })()
     +'</div></div>';
 
   var pa=document.getElementById('print-area');
