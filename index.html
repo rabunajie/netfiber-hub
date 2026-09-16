@@ -308,7 +308,7 @@ tr:hover td{background:#fafcff}
   #print-area{position:absolute;left:0;top:0;width:100%;background:#fff}
   .no-print{display:none!important}
   .print-doc{width:100%;font-family:Arial,sans-serif}
-  .print-table thead{display:table-row-group}
+  .print-table thead{display:table-header-group}
   .print-table{page-break-inside:auto;width:100%}
   .print-table tr{page-break-inside:avoid;page-break-after:auto}
   .print-doc>div{min-height:unset!important}
@@ -4360,19 +4360,20 @@ async function printEstimate(id){
     var secTotal=Math.round((secSub+secTax)*100)/100;
     // Each section: table header + section name row + items + section totals
     // Wrap section in avoid-break div so header + items + totals stay together as much as possible
-    sectionsHtml+='<div style="'+(secOrder.indexOf(sid2)>0?'page-break-before:always;':'')+'page-break-inside:avoid">';
+    sectionsHtml+='<div style="'+(secOrder.indexOf(sid2)>0?'page-break-before:always;':'')+'">';
     sectionsHtml+='<table class="print-table" style="margin-bottom:0"><thead>'+thRow+'</thead>';
-    if(sg.header) sectionsHtml+='<tbody><tr><td colspan="6" style="padding:8px 10px;font-weight:700;color:#1B5E9B;font-size:12px;background:#EEF4FB;border-bottom:1px solid #d0dcea;print-color-adjust:exact;-webkit-print-color-adjust:exact">'+sg.header+'</td></tr>'+secRows+'</tbody>';
+    if(sg.header) sectionsHtml+='<tbody><tr style="page-break-inside:avoid"><td colspan="6" style="padding:8px 10px;font-weight:700;color:#1B5E9B;font-size:12px;background:#EEF4FB;border-bottom:1px solid #d0dcea;print-color-adjust:exact;-webkit-print-color-adjust:exact">'+sg.header+'</td></tr>'+secRows+'</tbody>';
     else sectionsHtml+='<tbody>'+secRows+'</tbody>';
     sectionsHtml+='</table>';
-    // Section totals
-    sectionsHtml+='<div class="print-totals" style="margin-top:8px;margin-bottom:'+(hasMultiple?'20':'0')+'px">'
+    // Section totals — kept together as one block, but allowed to flow onto a fresh
+    // page if the item table above ran long, rather than forcing the whole table down.
+    sectionsHtml+='<div class="print-totals" style="margin-top:8px;margin-bottom:'+(hasMultiple?'20':'0')+'px;page-break-inside:avoid">'
       +'<div class="print-totals-box">'
       +'<div class="print-total-row"><span>Subtotal</span><span>'+fmt2$(secSub)+'</span></div>'
       +'<div class="print-total-row"><span>Sales tax ('+taxRate2+'%)</span><span>'+fmt2$(secTax)+'</span></div>'
       +'<div class="print-total-row bold"><span>Total</span><span>'+fmt2$(secTotal)+'</span></div>'
       +'</div></div>'
-      +'</div>';  // close page-break-inside:avoid wrapper
+      +'</div>';  // close section wrapper
   });
   // Grand total row only if multiple sections
   var grandTax=Math.round(grandTaxable*taxRate2/100*100)/100;
