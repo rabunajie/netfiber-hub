@@ -275,6 +275,11 @@ tr:hover td{background:#fafcff}
 .ped-toolbar{padding:12px 16px;border-bottom:0.5px solid #f2f4f8;display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:#f9fafb}
 .ped-section{padding:16px;border-bottom:0.5px solid #f2f4f8}
 .ped-section-title{font-size:11px;font-weight:800;color:#1B5E9B;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:12px}
+.rte-toolbar{display:flex;gap:4px;align-items:center;padding:4px;background:#f5f6f8;border:1px solid #e5e5e5;border-bottom:none;border-radius:6px 6px 0 0}
+.rte-toolbar button{background:#fff;border:1px solid #ddd;border-radius:5px;font-size:12px;cursor:pointer;padding:3px 0;color:#333}
+.rte-toolbar button:hover{background:#eef4fb;border-color:#1B5E9B}
+.rte-editable{border:1px solid #e5e5e5;border-radius:0 0 6px 6px;padding:8px 10px;font-size:13px;line-height:1.7;outline:none;overflow-y:auto}
+.rte-editable:empty:before{content:attr(data-placeholder);color:#bbb}
 .ped-grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .ped-grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
 .ifield{margin-bottom:0}
@@ -4070,6 +4075,32 @@ function updatePageBlock(pageId,blockId,field,val){
   var b=(p.blocks||[]).find(function(b){return b.id===blockId;});
   if(b)b[field]=val;
 }
+// Lightweight rich-text toolbar for Additional Page text fields — lets the user
+// adjust font size and color like a basic word processor, without a full editor
+// library. Works by applying browser text-formatting commands to whichever
+// contenteditable box the user last clicked into.
+var _rteActiveField=null;
+function rteSetActive(el){_rteActiveField=el;}
+function rteExec(cmd,val){
+  if(_rteActiveField) _rteActiveField.focus();
+  document.execCommand(cmd,false,val||null);
+}
+function rteToolbarHtml(){
+  return '<div class="rte-toolbar" onmousedown="event.preventDefault()">'
+    +'<select onmousedown="event.stopPropagation()" onchange="rteExec(\'fontSize\',this.value);this.selectedIndex=0" style="font-size:11px;padding:3px 4px;border:1px solid #ddd;border-radius:5px;background:#fff">'
+    +'<option value="">Size</option>'
+    +'<option value="2">Small</option>'
+    +'<option value="3">Normal</option>'
+    +'<option value="5">Large</option>'
+    +'<option value="7">X-Large</option>'
+    +'</select>'
+    +'<button type="button" onclick="rteExec(\'bold\')" style="font-weight:700;width:24px" title="Bold">B</button>'
+    +'<button type="button" onclick="rteExec(\'italic\')" style="font-style:italic;width:24px" title="Italic">I</button>'
+    +'<button type="button" onclick="rteExec(\'underline\')" style="text-decoration:underline;width:24px" title="Underline">U</button>'
+    +'<input type="color" onmousedown="event.stopPropagation()" onchange="rteExec(\'foreColor\',this.value)" title="Text color" style="width:26px;height:24px;padding:0;border:1px solid #ddd;border-radius:5px;cursor:pointer">'
+    +'<button type="button" onclick="rteExec(\'removeFormat\')" style="font-size:10px;padding:0 6px" title="Clear formatting">Clear</button>'
+    +'</div>';
+}
 function renderCustomPages(){
   var wrap=document.getElementById('ped-custom-pages');
   if(!wrap)return;
@@ -4099,7 +4130,8 @@ function renderCustomPages(){
       +'<option value="after_terms"'+((!p.anchor||p.anchor==='after_terms'||p.anchor==='before_terms')?' selected':'')+'>After Scope/Terms (before the signature page)</option>'
       +'</select>'
       +'</div>'
-      +'<textarea autocomplete="off" onchange="updateCustomPage(\''+p.id+'\',\'text\',this.value)" style="width:100%;height:110px;font-size:13px;line-height:1.7;padding:10px;border:1px solid #e5e5e5;border-radius:6px;font-family:Georgia,serif;resize:vertical;margin-bottom:10px" placeholder="Intro text for this page (optional — leave blank if this page is just a set of sections below)...">'+(p.text||'')+'</textarea>'
+      +rteToolbarHtml()
+      +'<div class="rte-editable" contenteditable="true" data-placeholder="Intro text for this page (optional — leave blank if this page is just a set of sections below)..." onfocus="rteSetActive(this)" oninput="updateCustomPage(\''+p.id+'\',\'text\',this.innerHTML)" style="min-height:90px;margin-bottom:10px">'+(p.text||'')+'</div>'
       +'<div style="margin-left:4px;border-left:2px solid #e5e5e5;padding-left:12px">'
       +blocks.map(function(b){
         return '<div style="margin-bottom:10px">'
@@ -4107,7 +4139,8 @@ function renderCustomPages(){
           +'<input autocomplete="off" value="'+(b.heading||'').replace(/"/g,'&quot;')+'" onchange="updatePageBlock(\''+p.id+'\',\''+b.id+'\',\'heading\',this.value)" placeholder="Section heading..." style="flex:1;padding:5px 8px;border:1px solid #d0dcea;border-radius:6px;font-size:12px;font-weight:700;outline:none;background:#fff">'
           +'<button onclick="removePageBlock(\''+p.id+'\',\''+b.id+'\')" title="Remove this section" style="background:none;border:none;cursor:pointer;color:#E24B4A;font-size:13px;padding:2px 6px">✕</button>'
           +'</div>'
-          +'<textarea autocomplete="off" onchange="updatePageBlock(\''+p.id+'\',\''+b.id+'\',\'text\',this.value)" style="width:100%;height:70px;font-size:12px;line-height:1.6;padding:8px;border:1px solid #eee;border-radius:6px;resize:vertical" placeholder="Section content...">'+(b.text||'')+'</textarea>'
+          +rteToolbarHtml()
+          +'<div class="rte-editable" contenteditable="true" data-placeholder="Section content..." onfocus="rteSetActive(this)" oninput="updatePageBlock(\''+p.id+'\',\''+b.id+'\',\'text\',this.innerHTML)" style="min-height:60px">'+(b.text||'')+'</div>'
           +'</div>';
       }).join('')
       +'<button onclick="addPageBlock(\''+p.id+'\')" style="padding:5px 10px;background:#fff;border:1px dashed #aaa;border-radius:6px;color:#666;font-size:11px;font-weight:600;cursor:pointer">+ Add Section to This Page</button>'
@@ -4614,11 +4647,11 @@ async function printEstimate(id){
     return '<div style="page-break-before:always;position:relative;min-height:9.5in;box-sizing:border-box">'
       +miniHeader
       +(p.title?'<div style="font-size:16px;font-weight:700;color:#1B5E9B;margin-bottom:18px">'+p.title+'</div>':'')
-      +(p.text?'<div style="font-size:13px;color:#333;line-height:1.8;white-space:pre-wrap;margin-bottom:14px">'+p.text+'</div>':'')
+      +(p.text?'<div style="font-size:13px;color:#333;line-height:1.8;margin-bottom:14px">'+p.text+'</div>':'')
       +((p.blocks||[]).map(function(b){
         return (b.heading||b.text)?'<div style="margin-bottom:16px">'
           +(b.heading?'<div style="font-size:13px;font-weight:700;color:#1B5E9B;margin-bottom:6px">'+b.heading+'</div>':'')
-          +(b.text?'<div style="font-size:13px;color:#333;line-height:1.8;white-space:pre-wrap">'+b.text+'</div>':'')
+          +(b.text?'<div style="font-size:13px;color:#333;line-height:1.8">'+b.text+'</div>':'')
           +'</div>':'';
       }).join(''))
       +'<div style="position:absolute;bottom:0;left:0;right:0">'+miniFooter+'</div>'
