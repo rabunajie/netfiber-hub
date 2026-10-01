@@ -4698,7 +4698,7 @@ async function printEstimate(id){
       var pages=allCustomPages.filter(function(p){return p.anchor==='after_terms'||!p.anchor;});
       var out='<div style="position:absolute;bottom:0;left:0;right:0">'+miniFooter+'</div></div>'; // close the terms-page wrapper
       out+=pages.map(renderCustomPageHtml).join('');
-      out+='<div style="page-break-before:always">'; // fresh page for thank-you/signature below — deliberately NOT forcing a min-height here: this is the true last page, and forcing one reliably spills a blank extra page in print, which matters more than exact bottom-pinning on this one page
+      out+='<div style="page-break-before:always;position:relative;min-height:9.5in;box-sizing:border-box">'; // fresh page box for thank-you/signature below
       return out;
     })()
     
@@ -4716,8 +4716,10 @@ async function printEstimate(id){
       }
       return '<div class="print-sign" style="margin-top:30px">'+sigBlock('NetFiber Network Cabling')+sigBlock(gcName)+'</div>';
     })()
-    +'<div style="margin-top:60px">'+miniFooter+'</div>'
-    +'</div></div>';
+    +'<div style="position:absolute;bottom:0;left:0;right:0">'+miniFooter+'</div>'
+    +'</div>'
+    +'<div style="height:0;overflow:hidden"></div>' // invisible anchor — helps the print engine correctly close off the final page's height instead of spilling a trailing blank page, since nothing else follows the signature page
+    +'</div>';
 
   var pa=document.getElementById('print-area');
   pa.innerHTML=doc; pa.style.display='block';
