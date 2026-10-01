@@ -4043,6 +4043,14 @@ function movePage(i,dir){
   var tmp=_customPages[i];_customPages[i]=_customPages[j];_customPages[j]=tmp;
   renderCustomPages();
 }
+function setPagePosition(i,newPos){
+  var n=_customPages.length;
+  var j=Math.max(1,Math.min(n,parseInt(newPos,10)||1))-1;
+  if(j===i){renderCustomPages();return;} // reset the displayed number if unchanged/invalid
+  var item=_customPages.splice(i,1)[0];
+  _customPages.splice(j,0,item);
+  renderCustomPages();
+}
 function addPageBlock(pageId){
   var p=_customPages.find(function(p){return p.id===pageId;});
   if(!p)return;
@@ -4070,7 +4078,8 @@ function renderCustomPages(){
     var blocks=p.blocks||[];
     return '<div style="margin-bottom:14px;border:1px solid #e0e6f0;border-radius:8px;padding:12px;background:#fafbfd" data-pg-id="'+p.id+'">'
       +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">'
-      +'<span style="font-size:11px;color:#aaa;font-weight:700;white-space:nowrap">PAGE '+(i+1)+'</span>'
+      +'<span style="font-size:10px;color:#aaa;font-weight:700;white-space:nowrap">PAGE</span>'
+      +'<input type="number" min="1" max="'+_customPages.length+'" value="'+(i+1)+'" onchange="setPagePosition('+i+',this.value)" title="Type a position to move this page there" style="width:36px;padding:4px 2px;border:1px solid #d0dcea;border-radius:6px;font-size:12px;font-weight:700;color:#555;text-align:center;outline:none">'
       +'<div style="display:flex;flex-direction:column;gap:1px">'
       +'<button onclick="movePage('+i+',-1)" title="Move earlier" '+(i===0?'disabled':'')+' style="background:none;border:none;cursor:'+(i===0?'default':'pointer')+';color:'+(i===0?'#ddd':'#888')+';font-size:10px;line-height:1;padding:1px">▲</button>'
       +'<button onclick="movePage('+i+',1)" title="Move later" '+(i===_customPages.length-1?'disabled':'')+' style="background:none;border:none;cursor:'+(i===_customPages.length-1?'default':'pointer')+';color:'+(i===_customPages.length-1?'#ddd':'#888')+';font-size:10px;line-height:1;padding:1px">▼</button>'
@@ -4668,7 +4677,7 @@ async function printEstimate(id){
           +'<div style="position:absolute;bottom:0;left:0;right:0">'+miniFooter+'</div>'
           +'</div>';
       });
-      out+='<div style="page-break-before:always">'; // fresh page for thank-you/signature below — no forced height here since it's the last page and nothing follows it
+      out+='<div style="page-break-before:always;position:relative;min-height:9.5in;box-sizing:border-box">'; // fresh page box for thank-you/signature below
       return out;
     })()
     
@@ -4686,7 +4695,7 @@ async function printEstimate(id){
       }
       return '<div class="print-sign" style="margin-top:30px">'+sigBlock('NetFiber Network Cabling')+sigBlock(gcName)+'</div>';
     })()
-    +'<div style="margin-top:40px">'+miniFooter+'</div>'
+    +'<div style="position:absolute;bottom:0;left:0;right:0">'+miniFooter+'</div>'
     +'</div></div>';
 
   var pa=document.getElementById('print-area');
