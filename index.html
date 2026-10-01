@@ -4022,12 +4022,13 @@ function updateCustomSection(id,field,val){
   if(s)s[field]=val;
 }
 
-// ADDITIONAL PAGES — each is its own full printed page (title + body text), own
-// page break, fully deletable. Separate from the inline "custom sections" above.
+// ADDITIONAL PAGES — each is its own full printed page, own page break, fully
+// deletable and reorderable. Each page can hold an intro paragraph plus any number
+// of its own named sections, so one page can cover a multi-part write-up on its own.
 var _customPages=[];
 function addCustomPage(){
   var id='pg_'+Date.now();
-  _customPages.push({id:id,title:'',text:''});
+  _customPages.push({id:id,title:'',text:'',blocks:[]});
   renderCustomPages();
   setTimeout(function(){var ins=document.querySelectorAll('#ped-custom-pages input');if(ins.length)ins[ins.length-1].focus();},50);
 }
@@ -4036,18 +4037,61 @@ function removeCustomPage(id){
   _customPages=_customPages.filter(function(p){return p.id!==id;});
   renderCustomPages();
 }
+function movePage(id,dir){
+  var i=_customPages.findIndex(function(p){return p.id===id;});
+  var j=i+dir;
+  if(i<0||j<0||j>=_customPages.length)return;
+  var tmp=_customPages[i];_customPages[i]=_customPages[j];_customPages[j]=tmp;
+  renderCustomPages();
+}
+function addPageBlock(pageId){
+  var p=_customPages.find(function(p){return p.id===pageId;});
+  if(!p)return;
+  if(!p.blocks)p.blocks=[];
+  p.blocks.push({id:'blk_'+Date.now(),heading:'',text:''});
+  renderCustomPages();
+}
+function removePageBlock(pageId,blockId){
+  var p=_customPages.find(function(p){return p.id===pageId;});
+  if(!p)return;
+  p.blocks=(p.blocks||[]).filter(function(b){return b.id!==blockId;});
+  renderCustomPages();
+}
+function updatePageBlock(pageId,blockId,field,val){
+  var p=_customPages.find(function(p){return p.id===pageId;});
+  if(!p)return;
+  var b=(p.blocks||[]).find(function(b){return b.id===blockId;});
+  if(b)b[field]=val;
+}
 function renderCustomPages(){
   var wrap=document.getElementById('ped-custom-pages');
   if(!wrap)return;
   if(!_customPages.length){wrap.innerHTML='<div style="font-size:12px;color:#bbb;padding:6px 0">No additional pages yet.</div>';return;}
   wrap.innerHTML=_customPages.map(function(p,i){
+    var blocks=p.blocks||[];
     return '<div style="margin-bottom:14px;border:1px solid #e0e6f0;border-radius:8px;padding:12px;background:#fafbfd" data-pg-id="'+p.id+'">'
       +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">'
-      +'<span style="font-size:11px;color:#aaa;font-weight:700">PAGE '+(i+1)+'</span>'
+      +'<span style="font-size:11px;color:#aaa;font-weight:700;white-space:nowrap">PAGE '+(i+1)+'</span>'
+      +'<div style="display:flex;flex-direction:column;gap:1px">'
+      +'<button onclick="movePage(\''+p.id+'\',-1)" title="Move earlier" '+(i===0?'disabled':'')+' style="background:none;border:none;cursor:'+(i===0?'default':'pointer')+';color:'+(i===0?'#ddd':'#888')+';font-size:10px;line-height:1;padding:1px">▲</button>'
+      +'<button onclick="movePage(\''+p.id+'\',1)" title="Move later" '+(i===_customPages.length-1?'disabled':'')+' style="background:none;border:none;cursor:'+(i===_customPages.length-1?'default':'pointer')+';color:'+(i===_customPages.length-1?'#ddd':'#888')+';font-size:10px;line-height:1;padding:1px">▼</button>'
+      +'</div>'
       +'<input autocomplete="off" value="'+(p.title||'').replace(/"/g,'&quot;')+'" onchange="updateCustomPage(\''+p.id+'\',\'title\',this.value)" placeholder="Page Title (e.g. Scope of Work Detail)" style="flex:1;padding:6px 9px;border:1px solid #d0dcea;border-radius:6px;font-size:13px;font-weight:700;outline:none;background:#fff">'
       +'<button onclick="removeCustomPage(\''+p.id+'\')" title="Delete this page" style="background:none;border:none;cursor:pointer;color:#E24B4A;font-size:15px;padding:2px 6px">✕</button>'
       +'</div>'
-      +'<textarea autocomplete="off" onchange="updateCustomPage(\''+p.id+'\',\'text\',this.value)" style="width:100%;height:160px;font-size:13px;line-height:1.7;padding:10px;border:1px solid #e5e5e5;border-radius:6px;font-family:Georgia,serif;resize:vertical" placeholder="Write this page\'s content here, like a blank document...">'+(p.text||'')+'</textarea>'
+      +'<textarea autocomplete="off" onchange="updateCustomPage(\''+p.id+'\',\'text\',this.value)" style="width:100%;height:110px;font-size:13px;line-height:1.7;padding:10px;border:1px solid #e5e5e5;border-radius:6px;font-family:Georgia,serif;resize:vertical;margin-bottom:10px" placeholder="Intro text for this page (optional — leave blank if this page is just a set of sections below)...">'+(p.text||'')+'</textarea>'
+      +'<div style="margin-left:4px;border-left:2px solid #e5e5e5;padding-left:12px">'
+      +blocks.map(function(b){
+        return '<div style="margin-bottom:10px">'
+          +'<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">'
+          +'<input autocomplete="off" value="'+(b.heading||'').replace(/"/g,'&quot;')+'" onchange="updatePageBlock(\''+p.id+'\',\''+b.id+'\',\'heading\',this.value)" placeholder="Section heading..." style="flex:1;padding:5px 8px;border:1px solid #d0dcea;border-radius:6px;font-size:12px;font-weight:700;outline:none;background:#fff">'
+          +'<button onclick="removePageBlock(\''+p.id+'\',\''+b.id+'\')" title="Remove this section" style="background:none;border:none;cursor:pointer;color:#E24B4A;font-size:13px;padding:2px 6px">✕</button>'
+          +'</div>'
+          +'<textarea autocomplete="off" onchange="updatePageBlock(\''+p.id+'\',\''+b.id+'\',\'text\',this.value)" style="width:100%;height:70px;font-size:12px;line-height:1.6;padding:8px;border:1px solid #eee;border-radius:6px;resize:vertical" placeholder="Section content...">'+(b.text||'')+'</textarea>'
+          +'</div>';
+      }).join('')
+      +'<button onclick="addPageBlock(\''+p.id+'\')" style="padding:5px 10px;background:#fff;border:1px dashed #aaa;border-radius:6px;color:#666;font-size:11px;font-weight:600;cursor:pointer">+ Add Section to This Page</button>'
+      +'</div>'
       +'</div>';
   }).join('');
 }
@@ -4602,21 +4646,29 @@ async function printEstimate(id){
     +(function(){var fs=prop.fixed_sections_on?JSON.parse(prop.fixed_sections_on):{};if(fs.notes===false)return'';var n=prop.notes||DEFAULT_PROJ_NOTES;return n?'<div class="print-scope"><h3>Notes:</h3><ul>'+n.split('\n').filter(function(l){return l.trim();}).map(function(l){return '<li>'+l.replace(/^[•\-]\s*/,'')+'</li>';}).join('')+'</ul></div>':'';})()
     +(function(){var fs=prop.fixed_sections_on?JSON.parse(prop.fixed_sections_on):{};if(fs.ack===false)return'';var a=prop.acknowledgment||DEFAULT_ACK;return a?'<div class="print-scope"><h3>Acknowledgment:</h3><p style="font-size:12px;color:#333;line-height:1.7">'+a+'</p></div>':'';})()
     +(function(){
-      // Additional pages — only touches the page flow if any actually exist, so
-      // proposals with none keep printing exactly as before.
+      // Close the Terms page box with its own footer, insert any additional pages,
+      // then open a fresh page box for the Thank-You/Signature content — always, so
+      // that long Terms content and the Signature page each get their own properly
+      // sized page instead of sharing one oversized box (which broke footer placement
+      // on both whenever Terms ran long enough to spill onto a second page).
       var pages=prop.custom_pages?JSON.parse(prop.custom_pages):[];
-      pages=pages.filter(function(p){return (p.title||'').trim()||(p.text||'').trim();});
-      if(!pages.length) return '';
+      pages=pages.filter(function(p){return (p.title||'').trim()||(p.text||'').trim()||(p.blocks&&p.blocks.some(function(b){return (b.heading||'').trim()||(b.text||'').trim();}));});
       var out='<div style="position:absolute;bottom:0;left:0;right:0">'+miniFooter+'</div></div>'; // close the terms-page wrapper
       pages.forEach(function(p){
         out+='<div style="page-break-before:always;position:relative;min-height:9.5in;box-sizing:border-box">'
           +miniHeader
           +(p.title?'<div style="font-size:16px;font-weight:700;color:#1B5E9B;margin-bottom:18px">'+p.title+'</div>':'')
-          +'<div style="font-size:13px;color:#333;line-height:1.8;white-space:pre-wrap">'+(p.text||'')+'</div>'
+          +(p.text?'<div style="font-size:13px;color:#333;line-height:1.8;white-space:pre-wrap;margin-bottom:14px">'+p.text+'</div>':'')
+          +((p.blocks||[]).map(function(b){
+            return (b.heading||b.text)?'<div style="margin-bottom:16px">'
+              +(b.heading?'<div style="font-size:13px;font-weight:700;color:#1B5E9B;margin-bottom:6px">'+b.heading+'</div>':'')
+              +(b.text?'<div style="font-size:13px;color:#333;line-height:1.8;white-space:pre-wrap">'+b.text+'</div>':'')
+              +'</div>':'';
+          }).join(''))
           +'<div style="position:absolute;bottom:0;left:0;right:0">'+miniFooter+'</div>'
           +'</div>';
       });
-      out+='<div style="page-break-before:always;position:relative;min-height:9.5in;box-sizing:border-box">'; // reopen wrapper for thank-you/signature below
+      out+='<div style="page-break-before:always;position:relative;min-height:9.5in;box-sizing:border-box">'; // fresh page box for thank-you/signature below
       return out;
     })()
     
