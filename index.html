@@ -812,7 +812,7 @@ body.view-only button[onclick*="Remove"]{
       <div>
         <div style="color:#fff;font-size:16px;font-weight:700;display:flex;align-items:center;gap:8px">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M12 2a10 10 0 1 0 10 10"/><circle cx="18" cy="5" r="3" fill="#fff" stroke="none"/></svg>
-          Tonight's Business Review
+          <span id="ai-analysis-title-text">Tonight's Business Review</span>
         </div>
         <div id="ai-analysis-date" style="color:rgba(255,255,255,0.8);font-size:11px;margin-top:2px"></div>
       </div>
@@ -1162,10 +1162,9 @@ async function initApp(user){
       updateGCSidebarBadges();
     }catch(e){}
   },300);
-  // AI Advisor nightly analysis — admin-only, shown once per day automatically
-  if(CP.group_name==='admin'){
-    setTimeout(checkDailyAIAnalysis,600);
-  }
+  // AI Advisor nightly analysis — shown once per day automatically for anyone with
+  // an analysis available (admins get the company review, everyone else their own)
+  setTimeout(checkDailyAIAnalysis,600);
 }
 /* getSession called in initSupabase */
 
@@ -3041,31 +3040,40 @@ function todayStrLocal(){
 }
 function aiSeenKey(){return 'nf_ai_seen_'+todayStrLocal()+'_'+(CU?CU.id:'');}
 async function checkDailyAIAnalysis(){
-  if(!CP||CP.group_name!=='admin')return;
+  if(!CP||!CU)return;
   try{
-    var res=await adminAction('get_latest_ai_analysis',{});
+    var isAdmin=CP.group_name==='admin';
+    var res=await adminAction(isAdmin?'get_latest_ai_analysis':'get_my_ai_analysis',{});
     if(res.error||!res.data)return;
     var row=res.data;
     if(row.analysis_date!==todayStrLocal())return; // nothing generated yet today
     var seen=localStorage.getItem(aiSeenKey());
     if(seen)return;
-    showAIAnalysisModal(row);
+    showAIAnalysisModal(row,isAdmin);
   }catch(e){}
 }
-function showAIAnalysisModal(row){
+function showAIAnalysisModal(row,isAdmin){
+  document.getElementById('ai-analysis-title-text').textContent=isAdmin?"Tonight's Business Review":'Your Personal Work Review';
   document.getElementById('ai-analysis-date').textContent=new Date(row.analysis_date+'T00:00:00').toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
   document.getElementById('ai-analysis-body').innerHTML=simpleMarkdownToHtml(row.summary);
   document.getElementById('ai-analysis-modal').classList.add('open');
   localStorage.setItem(aiSeenKey(),'1');
 }
 async function viewTodaysAIAnalysis(){
-  var res=await adminAction('get_latest_ai_analysis',{});
+  var isAdmin=CP&&CP.group_name==='admin';
+  var res=await adminAction(isAdmin?'get_latest_ai_analysis':'get_my_ai_analysis',{});
   if(res.error||!res.data){alert(res.error?res.error.message:'No analysis has been generated yet.');return;}
-  showAIAnalysisModal(res.data);
+  showAIAnalysisModal(res.data,isAdmin);
 }
 async function loadAISettingsBar(){
   var el=document.getElementById('ai-settings-bar');
   if(!el)return;
+  if(!CP||CP.group_name!=='admin'){
+    // Non-admins only get a button for their own personal review — no global settings.
+    el.innerHTML='<button class="btn-sm" onclick="viewTodaysAIAnalysis()">📋 My Daily Review</button>'
+      +'<button class="btn-sm" onclick="runMyAnalysisNow()">▶ Run My Review Now</button>';
+    return;
+  }
   var res=await adminAction('get_ai_settings',{});
   if(res.error){el.innerHTML='';return;}
   var s=res.data||{enabled:true,run_hour:3,run_minute:0};
@@ -3074,7 +3082,7 @@ async function loadAISettingsBar(){
     '<button class="btn-sm" onclick="viewTodaysAIAnalysis()">📋 Today\'s Review</button>'
     +'<button class="btn-sm" id="ai-toggle-btn" onclick="toggleAIAutoAnalysis('+(!s.enabled)+')" style="'+(s.enabled?'':'background:#fdecea;border-color:#f3c7c2;color:#a32d2d')+'">'+(s.enabled?'🔔 Auto-Analysis: On':'🔕 Auto-Analysis: Off')+'</button>'
     +'<input type="time" id="ai-run-time" value="'+hh+':'+mm+'" onchange="updateAIRunTime(this.value)" style="padding:6px 8px;border:1px solid #ddd;border-radius:7px;font-size:12px">'
-    +'<button class="btn-sm" onclick="runAIAnalysisNow()">▶ Run Tonight\'s Review Now</button>';
+    +'<button class="btn-sm" onclick="runAIAnalysisNow()">▶ Run Tonight\'s Review Now (Company)</button>';
 }
 async function toggleAIAutoAnalysis(newVal){
   var res=await adminAction('update_ai_settings',{enabled:newVal});
@@ -3091,7 +3099,15 @@ async function runAIAnalysisNow(){
   var btn=event&&event.target;
   if(btn){btn.textContent='Running…';btn.disabled=true;}
   var res=await adminAction('run_ai_analysis_now',{});
-  if(btn){btn.textContent='▶ Run Tonight\'s Review Now';btn.disabled=false;}
+  if(btn){btn.textContent='▶ Run Tonight\'s Review Now (Company)';btn.disabled=false;}
+  if(res.error){alert('Error: '+res.error.message);return;}
+  await viewTodaysAIAnalysis();
+}
+async function runMyAnalysisNow(){
+  var btn=event&&event.target;
+  if(btn){btn.textContent='Running…';btn.disabled=true;}
+  var res=await adminAction('run_my_analysis_now',{});
+  if(btn){btn.textContent='▶ Run My Review Now';btn.disabled=false;}
   if(res.error){alert('Error: '+res.error.message);return;}
   await viewTodaysAIAnalysis();
 }
@@ -3101,7 +3117,7 @@ function renderAIAdvisor(){
   var isAdmin=CP&&CP.group_name==='admin';
   mc.innerHTML = `
   <div style="display:flex;flex-direction:column;height:100%;overflow:hidden">
-  ${isAdmin?'<div id="ai-settings-bar" style="flex-shrink:0;display:flex;gap:8px;align-items:center;padding:10px 20px;background:#fff;border-bottom:1px solid #e0e6f0;flex-wrap:wrap">Loading nightly analysis settings…</div>':''}
+  <div id="ai-settings-bar" style="flex-shrink:0;display:flex;gap:8px;align-items:center;padding:10px 20px;background:#fff;border-bottom:1px solid #e0e6f0;flex-wrap:wrap">Loading…</div>
   <div style="display:flex;flex:1;overflow:hidden;background:#f0f3f8">
 
     <!-- LEFT: Quick actions + stats panel -->
@@ -3141,7 +3157,7 @@ function renderAIAdvisor(){
   </div>
   </div>`;
 
-  if(isAdmin) loadAISettingsBar();
+  loadAISettingsBar();
 
   // Build quick actions
   var quickBtns = [
