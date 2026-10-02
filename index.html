@@ -2129,13 +2129,15 @@ async function renderTasks(){
       <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:#f5f8fc;border-bottom:1px solid #e4e8f0">
         <div style="font-size:14px;font-weight:700;color:#1B5E9B">📋 Daily To-Do</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-          <input autocomplete="off" type="text" id="new-daily-task" placeholder="Add daily task..." onkeydown="if(event.key==='Enter')addTask('daily')" style="padding:6px 10px;border:1px solid #e0e0e0;border-radius:8px;font-size:13px;outline:none;flex:1;min-width:280px">
+          <input autocomplete="off" type="text" id="new-daily-task" placeholder="Add daily task..." onkeydown="if(event.key==='Enter')addTask('daily')" style="padding:6px 10px;border:1px solid #e0e0e0;border-radius:8px;font-size:13px;outline:none;flex:1;min-width:220px">
           <select autocomplete="off" id="new-daily-pri" style="padding:6px 10px;border:1px solid #e0e0e0;border-radius:8px;font-size:13px;outline:none"><option value="high">High</option><option value="medium" selected>Medium</option><option value="low">Low</option></select>
+          <input autocomplete="off" type="date" id="new-daily-start" title="Start Day" style="padding:6px 10px;border:1px solid #e0e0e0;border-radius:8px;font-size:13px;outline:none">
+          <input autocomplete="off" type="date" id="new-daily-end" title="End Day" style="padding:6px 10px;border:1px solid #e0e0e0;border-radius:8px;font-size:13px;outline:none">
           <select autocomplete="off" id="new-daily-assign" style="padding:6px 10px;border:1px solid #e0e0e0;border-radius:8px;font-size:13px;outline:none"><option value="">Assign to me</option></select>
           <button class="btn btn-blue" style="padding:6px 14px" onclick="addTask('daily')">+ Add</button>
         </div>
       </div>
-      <div class="task-hdr" style="grid-template-columns:34px minmax(0,1fr) 88px 110px 88px 80px"><span></span><span>Task</span><span>Priority</span><span>Assigned To</span><span>Status</span><span></span></div>
+      <div class="task-hdr" style="grid-template-columns:34px minmax(0,1fr) 88px 95px 95px 110px 88px 80px"><span></span><span>Task</span><span>Priority</span><span>Start Day</span><span>End Day</span><span>Assigned To</span><span>Status</span><span></span></div>
       <div id="daily-task-list"></div>
     </div>
 
@@ -2144,14 +2146,15 @@ async function renderTasks(){
       <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:#f5f8fc;border-bottom:1px solid #e4e8f0">
         <div style="font-size:14px;font-weight:700;color:#533AB7">🎯 Long-Term Tasks</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-          <input autocomplete="off" type="text" id="new-long-task" placeholder="Add long-term task..." onkeydown="if(event.key==='Enter')addTask('longterm')" style="padding:6px 10px;border:1px solid #e0e0e0;border-radius:8px;font-size:13px;outline:none;flex:1;min-width:280px">
+          <input autocomplete="off" type="text" id="new-long-task" placeholder="Add long-term task..." onkeydown="if(event.key==='Enter')addTask('longterm')" style="padding:6px 10px;border:1px solid #e0e0e0;border-radius:8px;font-size:13px;outline:none;flex:1;min-width:220px">
           <select autocomplete="off" id="new-long-pri" style="padding:6px 10px;border:1px solid #e0e0e0;border-radius:8px;font-size:13px;outline:none"><option value="high">High</option><option value="medium" selected>Medium</option><option value="low">Low</option></select>
-          <input autocomplete="off" type="date" id="new-long-date" style="padding:6px 10px;border:1px solid #e0e0e0;border-radius:8px;font-size:13px;outline:none">
+          <input autocomplete="off" type="date" id="new-long-start" title="Start Day" style="padding:6px 10px;border:1px solid #e0e0e0;border-radius:8px;font-size:13px;outline:none">
+          <input autocomplete="off" type="date" id="new-long-date" title="End Day" style="padding:6px 10px;border:1px solid #e0e0e0;border-radius:8px;font-size:13px;outline:none">
           <select autocomplete="off" id="new-long-assign" style="padding:6px 10px;border:1px solid #e0e0e0;border-radius:8px;font-size:13px;outline:none"><option value="">Assign to me</option></select>
           <button class="btn btn-blue" style="padding:6px 14px;background:#533AB7;border-color:#533AB7" onclick="addTask('longterm')">+ Add</button>
         </div>
       </div>
-      <div class="task-hdr"><span></span><span>Task</span><span>Priority</span><span>Deadline</span><span>Assigned To</span><span>Status</span><span>Progress</span><span></span></div>
+      <div class="task-hdr" style="grid-template-columns:34px minmax(0,1fr) 80px 95px 95px 110px 80px 1fr 80px"><span></span><span>Task</span><span>Priority</span><span>Start Day</span><span>End Day</span><span>Assigned To</span><span>Status</span><span>Progress</span><span></span></div>
       <div id="longterm-task-list"></div>
     </div>`;
   await loadTasks();
@@ -2225,10 +2228,12 @@ function filterTasks(){
   var dlEl=document.getElementById('daily-task-list');
   if(dlEl){
     dlEl.innerHTML=dailyRows.length?dailyRows.map(function(t){
-      return`<div class="task-row ${t.done?'done-row':''}" style="grid-template-columns:34px minmax(0,1fr) 88px 110px 88px 80px">
+      return`<div class="task-row ${t.done?'done-row':''}" style="grid-template-columns:34px minmax(0,1fr) 88px 95px 95px 110px 88px 80px">
         <div class="chk ${t.done?'on':''}" onclick="toggleTask('${t.id}',${t.done})"></div>
-        <div class="tname" style="font-size:13px">${t.name}</div>
+        <div class="tname" style="font-size:13px">${t.name}${t.ai_generated?' <span title="Suggested by AI" style="font-size:11px">🤖</span>':''}</div>
         <div><span class="tbadge ${t.priority==='high'?'high':t.priority==='medium'?'medium':'low'}">${t.priority||'medium'}</span></div>
+        <div style="font-size:12px;color:#888">${t.start_date?fmtD(t.start_date):'—'}</div>
+        <div style="font-size:12px;color:#888">${t.deadline?fmtD(t.deadline):'—'}</div>
         <div class="by-cell">${t.assigned_name||'—'}</div>
         <div><span class="badge ${t.done?'b-win':'b-sent'}" style="cursor:pointer" onclick="toggleTask('${t.id}',${t.done})">${t.done?'Done':'Pending'}</span></div>
         <div style="display:flex;gap:4px;flex-shrink:0"><button class="btn-sm" onclick="openEditTask('${t.id}')">Edit</button><button class="btn-danger" onclick="delTask('${t.id}','${t.name.replace(/'/g,'`')}')">×</button></div>
@@ -2252,10 +2257,11 @@ function filterTasks(){
           ${[0,10,20,30,40,50,60,70,80,90,100].map(v=>`<option value="${v}" ${pct==v?'selected':''}>${v}%</option>`).join('')}
         </select>
       </div>`;
-      return`<div class="task-row ${t.done?'done-row':''}">
+      return`<div class="task-row ${t.done?'done-row':''}" style="grid-template-columns:34px minmax(0,1fr) 80px 95px 95px 110px 80px 1fr 80px">
         <div class="chk ${t.done?'on':''}" onclick="toggleTask('${t.id}',${t.done})"></div>
-        <div class="tname" style="font-size:13px">${t.name}</div>
+        <div class="tname" style="font-size:13px">${t.name}${t.ai_generated?' <span title="Suggested by AI" style="font-size:11px">🤖</span>':''}</div>
         <div><span class="tbadge ${t.priority==='high'?'high':t.priority==='medium'?'medium':'low'}">${t.priority||'medium'}</span></div>
+        <div style="font-size:12px;color:#888">${t.start_date?fmtD(t.start_date):'—'}</div>
         <div>${dlHtml}</div>
         <div class="by-cell">${t.assigned_name||'—'}</div>
         <div><span class="badge ${t.done?'b-win':'b-sent'}" style="cursor:pointer" onclick="toggleTask('${t.id}',${t.done})">${t.done?'Done':'Pending'}</span></div>
@@ -2282,11 +2288,12 @@ async function addTask(type){
   var name=nameEl?nameEl.value.trim():'';
   if(!name){alert('Please enter a task description');return;}
   var pri=(document.getElementById(prefix+'pri')?.value)||'medium';
-  var dl=isDaily?null:(document.getElementById('new-long-date')?.value||null);
+  var dl=isDaily?(document.getElementById('new-daily-end')?.value||null):(document.getElementById('new-long-date')?.value||null);
+  var sd=isDaily?(document.getElementById('new-daily-start')?.value||null):(document.getElementById('new-long-start')?.value||null);
   var assignEl=document.getElementById(prefix+'assign');
   var assignedName=assignEl&&assignEl.value?assignEl.value:null;
   if(!assignedName&&CP) assignedName=CP.full_name||null;
-  var obj={name:name,priority:pri,deadline:dl,done:false,assigned_name:assignedName,created_by:CU.id,task_type:type,updated_at:new Date().toISOString()};
+  var obj={name:name,priority:pri,deadline:dl,start_date:sd,done:false,assigned_name:assignedName,created_by:CU.id,task_type:type,updated_at:new Date().toISOString()};
   var res=await sb.from('tasks').insert(obj).select().single();
   if(res.error){console.error('Task error:',res.error);return;}
   await logAct('Added task','tasks',res.data?res.data.id:null,'Added: '+name);
@@ -2778,6 +2785,7 @@ async function openEditTask(taskId){
   document.getElementById('et-name').value=task.name||'';
   document.getElementById('et-priority').value=task.priority||'medium';
   document.getElementById('et-done').value=task.done?'true':'false';
+  document.getElementById('et-start').value=task.start_date||'';
   document.getElementById('et-deadline').value=task.deadline||'';
   // Load profiles
   var pRes=await sb.from('profiles').select('full_name');
@@ -2795,9 +2803,10 @@ async function saveEditTask(){
   var pri=document.getElementById('et-priority').value;
   var done=document.getElementById('et-done').value==='true';
   var deadline=document.getElementById('et-deadline').value||null;
+  var startDate=document.getElementById('et-start').value||null;
   var assigned=document.getElementById('et-assign').value||null;
   if(!name){alert('Task name required');return;}
-  var res=await sb.from('tasks').update({name:name,priority:pri,done:done,deadline:deadline,assigned_name:assigned,updated_by:CU.id,updated_at:new Date().toISOString()}).eq('id',id);
+  var res=await sb.from('tasks').update({name:name,priority:pri,done:done,deadline:deadline,start_date:startDate,assigned_name:assigned,updated_by:CU.id,updated_at:new Date().toISOString()}).eq('id',id);
   if(res.error){alert('Error: '+res.error.message);return;}
   closeModal('edit-task-modal');
   await loadTasks();
@@ -3313,6 +3322,14 @@ async function buildAIContext(){
     return {ref:b.ref,project:b.project,gc:b.gc||b.gc_name,status:b.status,price:b.price,source:b.source,due:b.due_date};
   });
 
+  var tasksR=await sb.from('tasks').select('*');
+  var allTasks=tasksR.data||[];
+  var openTasks=allTasks.filter(function(t){return !t.done;});
+  var overdueTasks=openTasks.filter(function(t){return t.deadline&&ddiff(t.deadline)<=0;});
+  var taskLines=openTasks.slice(0,15).map(function(t){
+    return '- '+t.name+' | Assigned: '+(t.assigned_name||'Unassigned')+' | Priority: '+(t.priority||'medium')+' | Start: '+(t.start_date||'—')+' | End: '+(t.deadline||'—')+(t.progress?' | '+t.progress+'% done':'');
+  }).join('\n');
+
   return `You are the AI Business Advisor for NetFiber Network Cabling Solutions LLC, a startup based in Houston, TX.
 
 COMPANY BACKGROUND:
@@ -3340,6 +3357,10 @@ ${overdueFU.slice(0,5).map(function(b){return '- '+b.project+' ('+b.gc+') — du
 
 RECENT BIDS:
 ${recentBids.map(function(b){return '- '+b.ref+': '+b.project+' | GC: '+b.gc+' | Status: '+b.status+' | $'+b.price+' | Source: '+b.source;}).join('\n')}
+
+TASKS (company-wide, each with Start Day and End Day):
+- Total open tasks: ${openTasks.length} (${overdueTasks.length} overdue)
+${taskLines||'No open tasks'}
 
 Be direct, specific, and honest. Reference actual numbers from the data. Give actionable advice. You know this is a real startup trying to grow. Don't be generic — use the actual data to give real insights. Keep responses clear and structured with line breaks.`;
 }
@@ -5012,7 +5033,8 @@ function exportPipelinePDF(){
           <option value="true">Done</option>
         </select>
       </div>
-      <div class="frow"><label>Deadline</label><input autocomplete="off" id="et-deadline" type="date"></div>
+      <div class="frow"><label>Start Day</label><input autocomplete="off" id="et-start" type="date"></div>
+      <div class="frow"><label>End Day</label><input autocomplete="off" id="et-deadline" type="date"></div>
       <div class="frow"><label>Assigned To</label>
         <select autocomplete="off" id="et-assign">
           <option value="">Assign to...</option>
