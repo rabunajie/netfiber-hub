@@ -590,6 +590,7 @@ body.view-only button[onclick*="Remove"]{
       <div class="frow"><label>Priority</label><select autocomplete="off" id="gm-priority"><option>1st</option><option>2nd</option><option>3rd</option><option>Do not call</option></select></div>
       <div class="frow"><label>Replied</label><select autocomplete="off" id="gm-replied"><option>No</option><option>Yes</option></select></div>
       <div class="frow"><label>First Email Date</label><input autocomplete="off" id="gm-fdate" type="date"></div>
+      <div class="frow"><label>Assigned To</label><select autocomplete="off" id="gm-assigned"><option value="">— Unassigned —</option></select></div>
     </div>
     <div class="frow"><label>Notes</label><textarea autocomplete="off" id="gm-notes"></textarea></div>
     <div class="mfooter"><button class="btn btn-sm" onclick="closeModal('gc-modal')">Cancel</button><button class="btn btn-blue" onclick="saveGC()">Save</button></div>
@@ -1768,8 +1769,8 @@ async function renderGC(){
 </select>
     </div>
     <div class="tbl-wrap" style="overflow-x:auto">
-      <table><thead><tr><th style="width:36px">⭐</th><th>Company</th><th>Contact</th><th>Email</th><th>Phone</th><th>City</th><th>Priority</th><th>Replied</th><th>Follow-Up</th><th>Next Call</th><th></th></tr></thead>
-      <tbody id="gc-body"><tr><td colspan="10" class="loading"><span class="spinner"></span></td></tr></tbody></table>
+      <table><thead><tr><th style="width:36px">⭐</th><th>Company</th><th>Contact</th><th>Email</th><th>Phone</th><th>City</th><th>Priority</th><th>Replied</th><th>Follow-Up</th><th>Next Call</th><th>Assigned To</th><th></th></tr></thead>
+      <tbody id="gc-body"><tr><td colspan="11" class="loading"><span class="spinner"></span></td></tr></tbody></table>
     </div>`;
   await loadGC();
 }
@@ -1796,7 +1797,14 @@ async function toggleGCStar(id, currentlyMine){
 async function loadGC(){
   var res=await sb.from('gc_contacts').select('*').order('created_at',{ascending:false});
   if(res.error){console.error('GC error:',res.error);return;}
-  _gcs=res.data||[];
+  // Resolve assigned_name from profiles using assigned_to UUID
+  var profRes=await sb.from('profiles').select('id,full_name');
+  var profMap={};
+  (profRes.data||[]).forEach(function(p){if(p.id)profMap[p.id]=p.full_name||'';});
+  _gcs=(res.data||[]).map(function(g){
+    if(g.assigned_to&&profMap[g.assigned_to]) g.assigned_name=profMap[g.assigned_to];
+    return g;
+  });
   // GC Contacts only ever shows unclaimed GCs — claimed ones live in the claimer's Watchlist
   var visible=unclaimedGCs();
   // Compute KPIs
@@ -1832,11 +1840,11 @@ function filterGC(){const search=(document.getElementById('gc-search')?.value||'
   +'<td style="text-align:center;cursor:pointer" onclick="toggleGCStar(\''+r.id+'\',false)" title="Add to My GC Watchlist">'
   +'<span style="font-size:18px;line-height:1;color:#ccc">☆</span>'
   +'</td>'
-  +'<td style="font-weight:600">'+(r.company||'')+'</td>'+'<td style="font-size:12px">'+(r.contact||'').split('\n')[0]+'</td>'+'<td style="font-size:12px"><a href="mailto:'+(r.email||'').split('\n')[0]+'" style="color:#1B5E9B">'+(r.email||'').split('\n')[0]+'</a></td>'+'<td style="font-size:12px">'+(r.phone||'').split('\n')[0]+'</td>'+'<td style="font-size:12px">'+(r.city||'').split('\n')[0]+'</td>'+'<td><span class="'+(r.priority==='1st'?'pri-1':r.priority==='2nd'?'pri-2':'pri-3')+'">'+(r.priority||'—')+'</span></td>'+'<td><span class="badge '+(r.replied==='Yes'?'b-yes':'b-no')+'">'+(r.replied||'No')+'</span></td>'+'<td>'+gcFuBadge(r)+'</td>'+'<td style="font-size:11px;'+nextCCls+'">'+nextC+'</td>'+'<td style="white-space:nowrap"><div style="display:flex;gap:4px"><button class="btn-sm" onclick="editGC(this.dataset.id)" data-id="'+r.id+'">Edit</button><button class="btn-danger" onclick="delGC(this.dataset.id,this.dataset.name)" data-id="'+r.id+'" data-name="'+(r.company||'').replace(/"/g,'')+'">×</button></div></td>'
-      +'</tr>';}tbody.innerHTML=gcRows||'<tr><td colspan="10" style="text-align:center;padding:2rem;color:#bbb">No contacts found.</td></tr>'})()||'<tr><td colspan="10" style="text-align:center;padding:2rem;color:#bbb">No contacts found.</td></tr>';}
-function openGCModal(){editGCId=null;document.getElementById('gc-modal-title').textContent='New GC Contact';['company','contact','email','phone','city','notes','fdate'].forEach(f=>document.getElementById('gm-'+f).value='');document.getElementById('gm-priority').value='1st';document.getElementById('gm-replied').value='No';document.getElementById('gc-modal').classList.add('open');}
-async function editGC(id){const {data:r}=await sb.from('gc_contacts').select('*').eq('id',id).single();if(!r)return;editGCId=id;document.getElementById('gc-modal-title').textContent='Edit GC';['company','contact','email','phone','city'].forEach(f=>document.getElementById('gm-'+f).value=r[f]||'');document.getElementById('gm-priority').value=r.priority||'1st';document.getElementById('gm-replied').value=r.replied||'No';document.getElementById('gm-notes').value=r.note||'';document.getElementById('gm-fdate').value=r.first_email||'';document.getElementById('gc-modal').classList.add('open');}
-async function saveGC(){const obj={company:document.getElementById('gm-company').value,contact:document.getElementById('gm-contact').value,email:document.getElementById('gm-email').value,phone:document.getElementById('gm-phone').value,city:document.getElementById('gm-city').value,priority:document.getElementById('gm-priority').value,replied:document.getElementById('gm-replied').value,note:document.getElementById('gm-notes').value,first_email:document.getElementById('gm-fdate').value||null,updated_by:CU.id,updated_at:new Date().toISOString()};if(editGCId){await sb.from('gc_contacts').update(obj).eq('id',editGCId);await logAct('Updated GC','gc_contacts',editGCId,`Updated ${obj.company}`);}else{obj.created_by=CU.id;const {data}=await sb.from('gc_contacts').insert(obj).select().single();await logAct('Added GC','gc_contacts',data?.id,`Added ${obj.company}`);}closeModal('gc-modal');await loadGC();}
+  +'<td style="font-weight:600">'+(r.company||'')+'</td>'+'<td style="font-size:12px">'+(r.contact||'').split('\n')[0]+'</td>'+'<td style="font-size:12px"><a href="mailto:'+(r.email||'').split('\n')[0]+'" style="color:#1B5E9B">'+(r.email||'').split('\n')[0]+'</a></td>'+'<td style="font-size:12px">'+(r.phone||'').split('\n')[0]+'</td>'+'<td style="font-size:12px">'+(r.city||'').split('\n')[0]+'</td>'+'<td><span class="'+(r.priority==='1st'?'pri-1':r.priority==='2nd'?'pri-2':'pri-3')+'">'+(r.priority||'—')+'</span></td>'+'<td><span class="badge '+(r.replied==='Yes'?'b-yes':'b-no')+'">'+(r.replied||'No')+'</span></td>'+'<td>'+gcFuBadge(r)+'</td>'+'<td style="font-size:11px;'+nextCCls+'">'+nextC+'</td>'+'<td class="by-cell" style="font-size:12px">'+(r.assigned_name||'—')+'</td>'+'<td style="white-space:nowrap"><div style="display:flex;gap:4px"><button class="btn-sm" onclick="editGC(this.dataset.id)" data-id="'+r.id+'">Edit</button><button class="btn-danger" onclick="delGC(this.dataset.id,this.dataset.name)" data-id="'+r.id+'" data-name="'+(r.company||'').replace(/"/g,'')+'">×</button></div></td>'
+      +'</tr>';}tbody.innerHTML=gcRows||'<tr><td colspan="11" style="text-align:center;padding:2rem;color:#bbb">No contacts found.</td></tr>'})()||'<tr><td colspan="11" style="text-align:center;padding:2rem;color:#bbb">No contacts found.</td></tr>';}
+async function openGCModal(){editGCId=null;document.getElementById('gc-modal-title').textContent='New GC Contact';['company','contact','email','phone','city','notes','fdate'].forEach(f=>document.getElementById('gm-'+f).value='');document.getElementById('gm-priority').value='1st';document.getElementById('gm-replied').value='No';await loadUsersDropdown('gm-assigned',null);document.getElementById('gc-modal').classList.add('open');}
+async function editGC(id){const {data:r}=await sb.from('gc_contacts').select('*').eq('id',id).single();if(!r)return;editGCId=id;document.getElementById('gc-modal-title').textContent='Edit GC';['company','contact','email','phone','city'].forEach(f=>document.getElementById('gm-'+f).value=r[f]||'');document.getElementById('gm-priority').value=r.priority||'1st';document.getElementById('gm-replied').value=r.replied||'No';document.getElementById('gm-notes').value=r.note||'';document.getElementById('gm-fdate').value=r.first_email||'';await loadUsersDropdown('gm-assigned',r.assigned_to||null);document.getElementById('gc-modal').classList.add('open');}
+async function saveGC(){const obj={company:document.getElementById('gm-company').value,contact:document.getElementById('gm-contact').value,email:document.getElementById('gm-email').value,phone:document.getElementById('gm-phone').value,city:document.getElementById('gm-city').value,priority:document.getElementById('gm-priority').value,replied:document.getElementById('gm-replied').value,note:document.getElementById('gm-notes').value,first_email:document.getElementById('gm-fdate').value||null,assigned_to:document.getElementById('gm-assigned').value||null,updated_by:CU.id,updated_at:new Date().toISOString()};if(editGCId){await sb.from('gc_contacts').update(obj).eq('id',editGCId);await logAct('Updated GC','gc_contacts',editGCId,`Updated ${obj.company}`);}else{obj.created_by=CU.id;const {data}=await sb.from('gc_contacts').insert(obj).select().single();await logAct('Added GC','gc_contacts',data?.id,`Added ${obj.company}`);}closeModal('gc-modal');await loadGC();}
 async function delGC(id,name){if(!confirm(`Delete "${name}"?`))return;await logDeletionSnapshot('gc_contacts',id,'Deleted GC',name);await sb.from('gc_contacts').delete().eq('id',id);await loadGC();}
 
 // RETAIL
@@ -3322,6 +3330,17 @@ async function buildAIContext(){
     return {ref:b.ref,project:b.project,gc:b.gc||b.gc_name,status:b.status,price:b.price,source:b.source,due:b.due_date};
   });
 
+  var gcsR=await sb.from('gc_contacts').select('*');
+  var allGCs=gcsR.data||[];
+  var profRes2=await sb.from('profiles').select('id,full_name');
+  var profMap2={};
+  (profRes2.data||[]).forEach(function(p){if(p.id)profMap2[p.id]=p.full_name||'';});
+  var staleGCsAll=allGCs.filter(function(g){return g.gc_next_followup&&ddiff(g.gc_next_followup)<=0;});
+  var gcByAssignee={};
+  allGCs.forEach(function(g){
+    var owner=(g.assigned_to&&profMap2[g.assigned_to])||(g.starred_by&&profMap2[g.starred_by])||'Unassigned';
+    gcByAssignee[owner]=(gcByAssignee[owner]||0)+1;
+  });
   var tasksR=await sb.from('tasks').select('*');
   var allTasks=tasksR.data||[];
   var openTasks=allTasks.filter(function(t){return !t.done;});
@@ -3357,6 +3376,9 @@ ${overdueFU.slice(0,5).map(function(b){return '- '+b.project+' ('+b.gc+') — du
 
 RECENT BIDS:
 ${recentBids.map(function(b){return '- '+b.ref+': '+b.project+' | GC: '+b.gc+' | Status: '+b.status+' | $'+b.price+' | Source: '+b.source;}).join('\n')}
+
+GC CONTACTS: ${allGCs.length} total, ${staleGCsAll.length} with an overdue follow-up
+GCs by who's responsible for them (assigned or claimed on their watchlist): ${JSON.stringify(gcByAssignee)}
 
 TASKS (company-wide, each with Start Day and End Day):
 - Total open tasks: ${openTasks.length} (${overdueTasks.length} overdue)
