@@ -1133,7 +1133,7 @@ async function initApp(user){
       var writeFns=['saveBid','saveProposal','saveUser','deleteUser','createUser',
         'saveLibraryItem','deleteLibraryItem','saveInboxItem','deleteInboxItem',
         'toggleUserDisabled','toggleViewOnly','adminChangePassword','removeLineItem',
-        'logFollowUp','addSection','removeSection',
+        'logFollowUp','startEditFuLog','saveFuLog','deleteFuLog','addSection','removeSection',
         'changeGroup','savePurchase','deletePurchase','openNewItemForm'];
       window._origWriteFns=window._origWriteFns||{};
       writeFns.forEach(function(fn){
@@ -1152,7 +1152,7 @@ async function initApp(user){
         if(!btn)return;
         var onclick=btn.getAttribute('onclick')||'';
         // Only block known write functions — not navigation or filter buttons
-        var writePattern=/\b(saveBid|saveProposal|saveUser|deleteUser|createUser|saveLibraryItem|deleteLibraryItem|saveInboxItem|deleteInboxItem|toggleUserDisabled|toggleViewOnly|adminChangePassword|removeLineItem|addSection|removeSection|changeGroup|logFollowUp|savePurchase|deletePurchase|addLineItem|openNewProposal|openBidModal|openEditUser|openNewItemForm)\b/;
+        var writePattern=/\b(saveBid|saveProposal|saveUser|deleteUser|createUser|saveLibraryItem|deleteLibraryItem|saveInboxItem|deleteInboxItem|toggleUserDisabled|toggleViewOnly|adminChangePassword|removeLineItem|addSection|removeSection|changeGroup|logFollowUp|startEditFuLog|saveFuLog|deleteFuLog|savePurchase|deletePurchase|addLineItem|openNewProposal|openBidModal|openEditUser|openNewItemForm)\b/;
         if(writePattern.test(onclick)){
           e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();
           voNotify('View Only mode — you cannot make changes.');
@@ -2712,7 +2712,79 @@ async function deleteUser(){
 
 // FOLLOW-UP
 async function openFU(e,bidId){e.stopPropagation();currentBidId=bidId;const {data:bid}=await sb.from('bids').select('*').eq('id',bidId).single();if(!bid)return;document.getElementById('fu-proj-name').textContent=bid.project||bid.ref||'Project';document.getElementById('fu-proj-gc').textContent=bid.gc||'';var fuK=bid.fu_status||'none';if(fuK==='new')fuK='none';var cfg=FU[fuK]||{l:'Follow Up',c:'fu-new'};document.getElementById('fu-cur-status').innerHTML='<span class="fu-badge '+cfg.c+'">'+cfg.l+'</span>';const nd=bid.fu_next_date;if(nd){const diff=ddiff(nd);document.getElementById('fu-next-action').innerHTML=diff<0?'<span style="color:#E24B4A">'+Math.abs(diff)+'d overdue — Act now!</span>':diff===0?'<span style="color:#BA7517">Due TODAY</span>':'In '+diff+' day'+(diff!==1?'s':'')+'  ('+fmtD(nd)+')';document.getElementById('fu-next-date').value=nd;}else{document.getElementById('fu-next-action').textContent='Not scheduled';const s=new Date();s.setDate(s.getDate()+4);document.getElementById('fu-next-date').value=s.toISOString().split('T')[0];}document.getElementById('fu-last-contact').textContent=bid.last_ping?fmtD(bid.last_ping):'Never';await loadFUHistory(bidId);document.getElementById('fu-modal').classList.add('open');}
-async function loadFUHistory(bidId){const {data:logs=[]}=await sb.from('activity_log').select('*').eq('table_name','followup').eq('record_id',bidId).order('created_at',{ascending:false});const tc={email:'ftp-email',call:'ftp-call',meeting:'ftp-meeting',note:'ftp-note'};const tl={email:'Email',call:'Phone Call',meeting:'Meeting',note:'Note'};document.getElementById('fu-history').innerHTML=logs.length?logs.map(l=>{let p={};try{p=JSON.parse(l.details);}catch(e){p={note:l.details};}return`<div class="fu-log-item"><span class="fu-type-pill ${tc[p.type]||'ftp-note'}">${tl[p.type]||'Note'}</span><div style="flex:1"><div style="font-size:13px;color:#1a1a1a">${p.note||''}</div><div style="font-size:11px;color:#bbb;margin-top:3px">${l.user_name} · ${new Date(l.created_at).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})}</div></div></div>`;}).join(''):'<div style="color:#bbb;font-size:13px;padding:1rem 0">No follow-ups logged yet. Double-click a bid row to get started.</div>';}
+// ===== Follow-up log entries: edit / delete (shared by Bids, GC Contacts, Retail) =====
+var FU_LOG_CFG={
+  followup:{
+    tl:{email:'Email',call:'Phone Call',meeting:'Meeting',note:'Note'},
+    tc:{email:'ftp-email',call:'ftp-call',meeting:'ftp-meeting',note:'ftp-note'},
+    reload:function(){return loadFUHistory(currentBidId);}
+  },
+  gc_followup:{
+    tl:{email:'Email',call:'Phone Call',visit:'In Person',note:'Note'},
+    tc:{email:'ftp-email',call:'ftp-call',visit:'ftp-meeting',note:'ftp-note'},
+    reload:function(){return loadGCFUHistory(currentGCId);}
+  },
+  retail_followup:{
+    tl:{email:'Email',call:'Phone Call',visit:'In Person',note:'Note'},
+    tc:{email:'ftp-email',call:'ftp-call',visit:'ftp-meeting',note:'ftp-note'},
+    reload:function(){return loadRetailFUHistory(currentRetailId);}
+  }
+};
+var _fuLogCache={};
+function fuEsc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function fuLogItemHtml(l){
+  var cfg=FU_LOG_CFG[l.table_name]||FU_LOG_CFG.followup;
+  var p={};try{p=JSON.parse(l.details);}catch(ex){p={note:l.details};}
+  _fuLogCache[l.id]={log:l,p:p};
+  // People can change their own entries; admins can change anyone's.
+  var canEdit=!!(CU&&CP&&(CP.group_name==='admin'||l.user_id===CU.id));
+  var when=new Date(l.created_at).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
+  return '<div class="fu-log-item" id="fulog-'+l.id+'">'
+    +'<span class="fu-type-pill '+(cfg.tc[p.type]||'ftp-note')+'">'+(cfg.tl[p.type]||'Note')+'</span>'
+    +'<div style="flex:1;min-width:0"><div style="font-size:13px;color:#1a1a1a;white-space:pre-wrap;word-break:break-word">'+fuEsc(p.note||'')+'</div>'
+    +'<div style="font-size:11px;color:#bbb;margin-top:3px">'+fuEsc(l.user_name)+' · '+when+(p.edited?' · edited':'')+'</div></div>'
+    +(canEdit?'<div style="display:flex;gap:4px;flex-shrink:0"><button class="btn-sm" onclick="startEditFuLog(\''+l.id+'\')">Edit</button><button class="btn-danger" onclick="deleteFuLog(\''+l.id+'\')" title="Delete this log entry">×</button></div>':'')
+    +'</div>';
+}
+function startEditFuLog(id){
+  var c=_fuLogCache[id];if(!c)return;
+  var cfg=FU_LOG_CFG[c.log.table_name]||FU_LOG_CFG.followup;
+  var el=document.getElementById('fulog-'+id);if(!el)return;
+  var opts=Object.keys(cfg.tl).map(function(k){return '<option value="'+k+'"'+(k===(c.p.type||'note')?' selected':'')+'>'+cfg.tl[k]+'</option>';}).join('');
+  el.innerHTML='<div style="flex:1;min-width:0">'
+    +'<select id="fulog-type-'+id+'" style="padding:5px 8px;border:1px solid #ddd;border-radius:6px;font-size:12px;margin-bottom:6px">'+opts+'</select>'
+    +'<textarea id="fulog-note-'+id+'" style="width:100%;min-height:64px;padding:7px 9px;border:1px solid #ddd;border-radius:6px;font-size:13px;font-family:inherit;outline:none;resize:vertical">'+fuEsc(c.p.note||'')+'</textarea>'
+    +'<div style="display:flex;gap:6px;margin-top:6px"><button class="btn btn-blue" style="padding:5px 12px;font-size:12px" onclick="saveFuLog(\''+id+'\')">Save</button><button class="btn-sm" onclick="cancelEditFuLog(\''+id+'\')">Cancel</button></div>'
+    +'</div>';
+  var ta=document.getElementById('fulog-note-'+id);if(ta)ta.focus();
+}
+function cancelEditFuLog(id){
+  var c=_fuLogCache[id];var el=document.getElementById('fulog-'+id);
+  if(c&&el)el.outerHTML=fuLogItemHtml(c.log);
+}
+async function saveFuLog(id){
+  var c=_fuLogCache[id];if(!c)return;
+  var note=(document.getElementById('fulog-note-'+id).value||'').trim();
+  var type=document.getElementById('fulog-type-'+id).value;
+  if(!note){alert("The note can't be empty — use the × button to delete this entry instead.");return;}
+  var res=await adminAction('edit_followup_log',{id:id,type:type,note:note});
+  if(res.error){alert('Error: '+res.error.message);return;}
+  await (FU_LOG_CFG[c.log.table_name]||FU_LOG_CFG.followup).reload();
+  showToast('Log entry updated');
+}
+async function deleteFuLog(id){
+  var c=_fuLogCache[id];if(!c)return;
+  if(!confirm('Delete this log entry? An admin can restore it from Activity Log → Recently Deleted if needed.'))return;
+  var res=await adminAction('delete_followup_log',{id:id});
+  if(res.error){alert('Error: '+res.error.message);return;}
+  await (FU_LOG_CFG[c.log.table_name]||FU_LOG_CFG.followup).reload();
+  showToast('Log entry deleted');
+}
+
+async function loadFUHistory(bidId){
+  const {data:logs=[]}=await sb.from('activity_log').select('*').eq('table_name','followup').eq('record_id',bidId).order('created_at',{ascending:false});
+  document.getElementById('fu-history').innerHTML=logs.length?logs.map(function(l){return fuLogItemHtml(l);}).join(''):'<div style="color:#bbb;font-size:13px;padding:1rem 0">No follow-ups logged yet. Double-click a bid row to get started.</div>';
+}
 async function logFollowUp(){
   var type=document.getElementById('fu-type').value;
   var note=document.getElementById('fu-note-input').value.trim();
@@ -2765,9 +2837,7 @@ async function openRetailFU(e,retId){
 async function loadRetailFUHistory(retId){
   var res=await sb.from('activity_log').select('*').eq('table_name','retail_followup').eq('record_id',retId).order('created_at',{ascending:false});
   var logs=res.data||[];
-  var tl={email:'Email',call:'Phone Call',visit:'In Person',note:'Note'};
-  var tc={email:'ftp-email',call:'ftp-call',visit:'ftp-meeting',note:'ftp-note'};
-  document.getElementById('ret-fu-history').innerHTML=logs.length?logs.map(function(l){var p={};try{p=JSON.parse(l.details);}catch(ex){p={note:l.details};}return'<div class="fu-log-item"><span class="fu-type-pill '+(tc[p.type]||'ftp-note')+'">'+(tl[p.type]||'Note')+'</span><div style="flex:1"><div style="font-size:13px">'+(p.note||'')+'</div><div style="font-size:11px;color:#bbb;margin-top:3px">'+l.user_name+' · '+new Date(l.created_at).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})+'</div></div></div>';}).join(''):'<div style="color:#bbb;font-size:13px;padding:1rem 0">No activity yet.</div>';
+  document.getElementById('ret-fu-history').innerHTML=logs.length?logs.map(function(l){return fuLogItemHtml(l);}).join(''):'<div style="color:#bbb;font-size:13px;padding:1rem 0">No activity yet.</div>';
 }
 async function logRetailFU(){
   var type=document.getElementById('ret-fu-type').value;
@@ -2806,9 +2876,7 @@ async function openGCFU(e,gcId){
 async function loadGCFUHistory(gcId){
   var res=await sb.from('activity_log').select('*').eq('table_name','gc_followup').eq('record_id',gcId).order('created_at',{ascending:false});
   var logs=res.data||[];
-  var tl={email:'Email',call:'Phone Call',visit:'In Person',note:'Note'};
-  var tc={email:'ftp-email',call:'ftp-call',visit:'ftp-meeting',note:'ftp-note'};
-  document.getElementById('gc-fu-history').innerHTML=logs.length?logs.map(function(l){var p={};try{p=JSON.parse(l.details);}catch(ex){p={note:l.details};}return'<div class="fu-log-item"><span class="fu-type-pill '+(tc[p.type]||'ftp-note')+'">'+(tl[p.type]||'Note')+'</span><div style="flex:1"><div style="font-size:13px">'+(p.note||'')+'</div><div style="font-size:11px;color:#bbb;margin-top:3px">'+l.user_name+' · '+new Date(l.created_at).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})+'</div></div></div>';}).join(''):'<div style="color:#bbb;font-size:13px;padding:1rem 0">No activity yet. Double-click any GC row to start.</div>';
+  document.getElementById('gc-fu-history').innerHTML=logs.length?logs.map(function(l){return fuLogItemHtml(l);}).join(''):'<div style="color:#bbb;font-size:13px;padding:1rem 0">No activity yet. Double-click any GC row to start.</div>';
 }
 async function logGCFollowUp(){
   var type=document.getElementById('gc-fu-type').value;
