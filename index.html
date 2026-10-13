@@ -7,6 +7,7 @@
 <title>Vantage</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 
 *{box-sizing:border-box;margin:0;padding:0}
@@ -1541,6 +1542,73 @@ async function renderDashboard(){
 }
 
 // BIDS
+
+// ---------- Excel export (exports exactly what the user sees in the table) ----------
+function _xlsxDownload(aoa,sheetName,fileBase,numCols){
+  var stamp=new Date().toISOString().slice(0,10);
+  var fname=fileBase+'_'+stamp;
+  if(typeof XLSX==='undefined'){
+    // Library failed to load (offline/blocked) — fall back to CSV so export still works
+    var csv=aoa.map(function(r){return r.map(function(c){c=(c==null?'':String(c));return '"'+c.replace(/"/g,'""')+'"';}).join(',');}).join('\r\n');
+    var b=new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'});
+    var a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=fname+'.csv';document.body.appendChild(a);a.click();a.remove();
+    showToast('Excel library unavailable — downloaded as CSV');return;
+  }
+  var ws=XLSX.utils.aoa_to_sheet(aoa);
+  // column widths
+  var widths=[];
+  aoa.forEach(function(r){r.forEach(function(c,i){var l=(c==null?'':String(c)).length;widths[i]=Math.max(widths[i]||8,Math.min(l+2,60));});});
+  ws['!cols']=widths.map(function(w){return {wch:w};});
+  // money format on numeric columns
+  (numCols||[]).forEach(function(ci){
+    for(var r=1;r<aoa.length;r++){var ref=XLSX.utils.encode_cell({r:r,c:ci});if(ws[ref]&&ws[ref].t==='n')ws[ref].z='$#,##0.00';}
+  });
+  var wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,sheetName.slice(0,31));
+  XLSX.writeFile(wb,fname+'.xlsx');
+  showToast('Exported '+(aoa.length-1)+' rows to Excel');
+}
+// Exports the currently visible rows of a table (respects search/filters). Columns with an
+// empty header (action buttons) and the ⭐ column are skipped.
+function exportTableToExcel(tbodyId,sheetName,fileBase){
+  var tb=document.getElementById(tbodyId);
+  if(!tb){showToast('Nothing to export');return;}
+  var table=tb.closest('table');
+  var ths=[].slice.call(table.querySelectorAll('thead th'));
+  var keep=[];var head=[];
+  ths.forEach(function(th,i){
+    var t=(th.textContent||'').replace(/\s+/g,' ').trim();
+    if(!t||t==='⭐')return;
+    keep.push(i);head.push(t);
+  });
+  var aoa=[head];var moneyCols=[];
+  [].slice.call(tb.querySelectorAll('tr')).forEach(function(tr){
+    if(tr.style.display==='none')return;
+    var tds=tr.querySelectorAll('td');
+    if(!tds.length||tds[0].hasAttribute('colspan'))return; // loading / empty rows
+    var row=keep.map(function(i,k){
+      var raw=((tds[i]&&tds[i].textContent)||'').replace(/\s+/g,' ').trim();
+      if(raw==='—'||raw==='-')return '';
+      if(/^-?\$[\d,]+(\.\d+)?$/.test(raw)){
+        if(moneyCols.indexOf(k)<0)moneyCols.push(k);
+        return parseFloat(raw.replace(/[$,]/g,''));
+      }
+      return raw;
+    });
+    aoa.push(row);
+  });
+  if(aoa.length<2){showToast('No rows to export');return;}
+  _xlsxDownload(aoa,sheetName,fileBase,moneyCols);
+}
+function exportPurchasesToExcel(){
+  var rows=_projects||[];
+  if(!rows.length){showToast('No projects to export');return;}
+  var aoa=[['Project','GC','Estimate #','Status','Sold','Total Cost','Profit','Balance Remaining','Collected','Tax Unpaid','Tax Paid']];
+  rows.forEach(function(r){
+    aoa.push([r.project_name||'',r.gc||'',r.estimate_no||'',r.status||'Not Started',r.sold_amount||0,r.total_cost||0,r.profit||0,r.balance_remaining||0,r.paid_to_date||0,r.tax_unpaid||0,r.tax_paid||0]);
+  });
+  _xlsxDownload(aoa,'Purchases','Purchases',[4,5,6,7,8,9,10]);
+}
 async function renderBids(){
   const mc=document.getElementById('main-content');
   mc.innerHTML=`
@@ -1554,6 +1622,7 @@ async function renderBids(){
     <div id="bid-kpis" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px"></div>
     <div class="toolbar">
       <input autocomplete="off" type="text" id="bid-search" placeholder="Search project, GC, ref..." oninput="filterBids()" style="flex:1;min-width:180px">
+      <button class="btn" onclick="exportTableToExcel('bid-body','Bid Opportunities','Bid_Opportunities')" title="Download the table you see as Excel" style="padding:8px 14px;border:1px solid #1D9E75;color:#1D9E75;background:#fff;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">⬇ Export Excel</button>
       <div id="bid-scope-toggle" style="display:flex;border:1px solid #e0e6f0;border-radius:8px;overflow:hidden;font-size:13px">
         <button id="btn-my-bids" onclick="setBidScope('mine')" style="padding:8px 14px;border:none;cursor:pointer;background:#1B5E9B;color:#fff;font-weight:600">My Bids</button>
         <button id="btn-all-bids" onclick="setBidScope('all')" style="padding:8px 14px;border:none;cursor:pointer;background:#fff;color:#555;font-weight:500">All Bids</button>
@@ -1757,7 +1826,7 @@ async function openBidModal(){editBidId=null;document.getElementById('bid-modal-
 async function editBid(id){const {data:r}=await sb.from('bids').select('*').eq('id',id).single();if(!r)return;editBidId=id;document.getElementById('bid-modal-title').textContent='Edit Bid';var statusMap={'Submitted':'Bid Sent','Won':'Win','WON':'Win','LOST':'Lost','Replied':'Bid Sent','Did Not replay':'Under Review'};var cleanStatus=statusMap[r.status]||r.status||'Under Review';document.getElementById('bm-ref').value=r.ref||'';document.getElementById('bm-source').value=r.source||'PlanHub';document.getElementById('bm-project').value=r.project||'';document.getElementById('bm-status').value=cleanStatus;// Force the select to reflect value
 var statusEl=document.getElementById('bm-status');var statusValid=['Under Review','Bid Sent','Win','Lost'];if(!statusValid.includes(statusEl.value))statusEl.value='Under Review';document.getElementById('bm-gc').value=r.gc||'';document.getElementById('bm-poc').value=r.poc||'';document.getElementById('bm-email').value=r.email||'';document.getElementById('bm-phone').value=r.phone||'';document.getElementById('bm-price').value=r.price||0;document.getElementById('bm-cost').value=r.cost||0;document.getElementById('bm-due').value=r.due_date||'';document.getElementById('bm-ping').value=r.last_ping||'';document.getElementById('bm-notes').value=r.notes||'';document.getElementById('bm-scope').value=r.scope||'';await loadUsersDropdown('bm-assigned',r.assigned_to||null);document.getElementById('bid-modal').classList.add('open');}
 async function saveBid(){if(!guardWrite('You cannot save bids in view-only mode.'))return;const price=parseFloat(document.getElementById('bm-price').value)||0;const cost=parseFloat(document.getElementById('bm-cost').value)||0;const statusVal=document.getElementById('bm-status').value;const obj={ref:document.getElementById('bm-ref').value,source:document.getElementById('bm-source').value,project:document.getElementById('bm-project').value,status:statusVal,gc:document.getElementById('bm-gc').value,poc:document.getElementById('bm-poc').value,email:document.getElementById('bm-email').value,phone:document.getElementById('bm-phone').value,price,cost,profit:price-cost,due_date:document.getElementById('bm-due').value||null,last_ping:document.getElementById('bm-ping').value||null,notes:document.getElementById('bm-notes').value,scope:document.getElementById('bm-scope').value,assigned_to:document.getElementById('bm-assigned').value||null,updated_by:CU.id,updated_at:new Date().toISOString()};if(editBidId){
-    const {data:updatedRow,error:upErr}=await sb.from('bids').update(obj).eq('id',editBidId).select().single();console.log('Updated row from DB:',updatedRow?.status,'error:',upErr);
+    const {data:updatedRow,error:upErr}=await sb.from('bids').update(obj).eq('id',editBidId).select().single();
     if(upErr){console.error('Save bid error:',upErr);alert('Error saving bid: '+upErr.message);return;}
     await logAct('Updated bid','bids',editBidId,`Updated ${obj.ref}`);
   }else{
@@ -1778,6 +1847,7 @@ async function renderGC(){
     <div id="gc-kpis" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px"></div>
     <div class="toolbar">
       <input autocomplete="off" type="text" id="gc-search" placeholder="Search company, contact..." oninput="filterGC()" style="flex:1;min-width:180px">
+      <button class="btn" onclick="exportTableToExcel('gc-body','GC Contacts','GC_Contacts')" title="Download the table you see as Excel" style="padding:8px 14px;border:1px solid #1D9E75;color:#1D9E75;background:#fff;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">⬇ Export Excel</button>
       <select autocomplete="off" id="gc-filter" onchange="filterGC()" style="padding:8px 12px;border:1px solid #e0e6f0;border-radius:8px;font-size:13px;background:#fff;cursor:pointer">
   <option value="">All Contacts</option>
   <option value="email_due">📧 Email Follow-Up Due</option>
@@ -1999,7 +2069,7 @@ async function delRetail(id,name){if(!confirm(`Delete "${name}"?`))return;await 
 async function renderPurchases(){
   const mc=document.getElementById('main-content');
   mc.innerHTML=`
-    <div class="page-hdr"><div><div class="page-title">Purchases</div><div class="page-sub">Project material costs and orders</div></div><button class="btn btn-blue" onclick="openPPModal()">+ New Project</button></div>
+    <div class="page-hdr"><div><div class="page-title">Purchases</div><div class="page-sub">Project material costs and orders</div></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" onclick="exportPurchasesToExcel()" title="Download the project list as Excel" style="padding:8px 14px;border:1px solid #1D9E75;color:#1D9E75;background:#fff;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">⬇ Export Excel</button><button class="btn btn-blue" onclick="openPPModal()">+ New Project</button></div></div>
     <div id="purchases-body"><div class="loading"><span class="spinner"></span></div></div>`;
   await loadPurchases();
 }
@@ -2144,11 +2214,13 @@ async function delMat(id){if(!confirm('Remove this item?'))return;await logDelet
 
 // TASKS
 async function renderTasks(){
-  _taskFilter='all';
+  _taskFilter='all';_taskUser='';
   const mc=document.getElementById('main-content');
   mc.innerHTML=`
     <div id="task-kpis" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px"></div>
-    <div class="page-hdr"><div><div class="page-title">To-Do</div><div class="page-sub">Daily tasks and long-term projects</div></div></div>
+    <div class="page-hdr"><div><div class="page-title">To-Do</div><div class="page-sub">Daily tasks and long-term projects</div></div>
+      ${(CP&&CP.group_name==='admin')?'<div style="display:flex;align-items:center;gap:8px"><span style="font-size:13px;color:#666;font-weight:600">👤 View user:</span><select autocomplete="off" id="task-user-filter" onchange="setTaskUser(this.value)" style="padding:8px 12px;border:1px solid #e0e6f0;border-radius:8px;font-size:13px;background:#fff;cursor:pointer;min-width:160px"><option value="">All users</option></select></div>':''}
+    </div>
 
     <!-- SECTION 1: Daily To-Do -->
     <div style="background:#fff;border-radius:12px;border:0.5px solid #e4e8f0;margin-bottom:20px;overflow:hidden">
@@ -2187,6 +2259,8 @@ async function renderTasks(){
   // Load profiles for assign dropdown
   var pRes=await sb.from('profiles').select('full_name').order('full_name');
   var assignEl=document.getElementById('new-assign');
+  var tuf=document.getElementById('task-user-filter');
+  if(tuf&&pRes.data){pRes.data.forEach(function(p){if(p.full_name){var o=document.createElement('option');o.value=p.full_name;o.textContent=p.full_name;tuf.appendChild(o);}});}
   ['new-daily-assign','new-long-assign'].forEach(function(elId){
     var el=document.getElementById(elId);
     if(el&&pRes.data){
@@ -2205,6 +2279,8 @@ async function loadTasks(){
   filterTasks();
 }
 var _taskFilter='all';
+var _taskUser='';
+function setTaskUser(v){_taskUser=v||'';filterTasks();}
 function setTaskFilter(val){
   _taskFilter=(_taskFilter===val)?'all':val;
   filterTasks();
@@ -2227,7 +2303,9 @@ function renderDailyRow(t){
 
 function filterTasks(){
   const search=(document.getElementById('task-search')?.value||'').toLowerCase();
-  let rows=[..._tasks];
+  // Admin "View user" filter: narrows both the list and the KPI boxes to one person
+  var baseTasks=_taskUser?_tasks.filter(function(t){return (t.assigned_name||'')===_taskUser;}):_tasks;
+  let rows=[...baseTasks];
   if(search) rows=rows.filter(t=>t.name.toLowerCase().includes(search));
   if(_taskFilter==='high') rows=rows.filter(t=>!t.done&&t.priority==='high');
   else if(_taskFilter==='due_today') rows=rows.filter(t=>!t.done&&t.deadline&&ddiff(t.deadline)<=0);
@@ -2235,11 +2313,11 @@ function filterTasks(){
   // 'all' — no extra filtering
   var kEl=document.getElementById('task-kpis');
   if(kEl){
-    var high=_tasks.filter(function(t){return !t.done&&t.priority==='high';}).length;
-    var dueToday=_tasks.filter(function(t){return !t.done&&t.deadline&&ddiff(t.deadline)<=0;}).length;
-    var done=_tasks.filter(function(t){return t.done;}).length;
+    var high=baseTasks.filter(function(t){return !t.done&&t.priority==='high';}).length;
+    var dueToday=baseTasks.filter(function(t){return !t.done&&t.deadline&&ddiff(t.deadline)<=0;}).length;
+    var done=baseTasks.filter(function(t){return t.done;}).length;
     kEl.innerHTML=
-      taskKpi('Total Tasks','#1B5E9B',_tasks.length,'assigned to me','all')+
+      taskKpi('Total Tasks','#1B5E9B',baseTasks.length,_taskUser?('for '+_taskUser):'assigned to me','all')+
       taskKpi('High Priority','#E24B4A',high,'need attention','high')+
       taskKpi('Due Today','#854F0B',dueToday,'or overdue','due_today')+
       taskKpi('Completed','#1D9E75',done,'tasks done','done');
