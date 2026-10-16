@@ -563,6 +563,11 @@ body.view-only button[onclick*="Remove"]{
       <div class="frow"><label>Source</label><select autocomplete="off" id="bm-source"><option>PlanHub</option><option>ConstructConnect</option><option>Buildingconnect</option><option>Reach out</option><option>Other</option></select></div>
       <div class="frow"><label>Project Name</label><input autocomplete="off" id="bm-project"></div>
       <div class="frow"><label>Status</label><select autocomplete="off" id="bm-status"><option value="Under Review">Under Review</option><option value="Bid Sent">Bid Sent</option><option value="Win">Win</option><option value="Lost">Lost</option></select></div>
+      <div class="frow"><label>TDLR # / Project #</label><input autocomplete="off" id="bm-tdlr" placeholder="e.g. TABS2026012345"></div>
+      <div class="frow"><label>GC Status</label><select autocomplete="off" id="bm-gcstatus"><option>Not Checked Yet</option><option>Waiting on City Callback</option><option>GC Unknown Yet</option><option>Still in Bidding</option><option>GC Awarded</option><option>Project On Hold / Cancelled</option></select></div>
+      <div class="frow" style="grid-column:1/-1"><label>Project Address</label><input autocomplete="off" id="bm-address" placeholder="Street address"></div>
+      <div class="frow"><label>City</label><input autocomplete="off" id="bm-city"></div>
+      <div class="frow"><label>State</label><input autocomplete="off" id="bm-state" placeholder="TX" maxlength="2" style="text-transform:uppercase"></div>
       <div class="frow"><label>GC / Client</label><input autocomplete="off" id="bm-gc"></div>
       <div class="frow"><label>POC Name</label><input autocomplete="off" id="bm-poc"></div>
       <div class="frow"><label>Email</label><input autocomplete="off" id="bm-email"></div>
@@ -1134,7 +1139,7 @@ async function initApp(user){
       var writeFns=['saveBid','saveProposal','saveUser','deleteUser','createUser',
         'saveLibraryItem','deleteLibraryItem','saveInboxItem','deleteInboxItem',
         'toggleUserDisabled','toggleViewOnly','adminChangePassword','removeLineItem',
-        'logFollowUp','startEditFuLog','saveFuLog','deleteFuLog','addSection','removeSection',
+        'logFollowUp','quickSetGcStatus','startEditFuLog','saveFuLog','deleteFuLog','addSection','removeSection',
         'changeGroup','savePurchase','deletePurchase','openNewItemForm'];
       window._origWriteFns=window._origWriteFns||{};
       writeFns.forEach(function(fn){
@@ -1153,7 +1158,7 @@ async function initApp(user){
         if(!btn)return;
         var onclick=btn.getAttribute('onclick')||'';
         // Only block known write functions — not navigation or filter buttons
-        var writePattern=/\b(saveBid|saveProposal|saveUser|deleteUser|createUser|saveLibraryItem|deleteLibraryItem|saveInboxItem|deleteInboxItem|toggleUserDisabled|toggleViewOnly|adminChangePassword|removeLineItem|addSection|removeSection|changeGroup|logFollowUp|startEditFuLog|saveFuLog|deleteFuLog|savePurchase|deletePurchase|addLineItem|openNewProposal|openBidModal|openEditUser|openNewItemForm)\b/;
+        var writePattern=/\b(saveBid|saveProposal|saveUser|deleteUser|createUser|saveLibraryItem|deleteLibraryItem|saveInboxItem|deleteInboxItem|toggleUserDisabled|toggleViewOnly|adminChangePassword|removeLineItem|addSection|removeSection|changeGroup|logFollowUp|quickSetGcStatus|startEditFuLog|saveFuLog|deleteFuLog|savePurchase|deletePurchase|addLineItem|openNewProposal|openBidModal|openEditUser|openNewItemForm)\b/;
         if(writePattern.test(onclick)){
           e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();
           voNotify('View Only mode — you cannot make changes.');
@@ -1587,7 +1592,8 @@ function exportTableToExcel(tbodyId,sheetName,fileBase){
     var tds=tr.querySelectorAll('td');
     if(!tds.length||tds[0].hasAttribute('colspan'))return; // loading / empty rows
     var row=keep.map(function(i,k){
-      var raw=((tds[i]&&tds[i].textContent)||'').replace(/\s+/g,' ').trim();
+      var sel=tds[i]&&tds[i].querySelector('select');
+      var raw=(sel?(sel.options[sel.selectedIndex]||{}).text||'':((tds[i]&&tds[i].textContent)||'')).replace(/\s+/g,' ').trim();
       if(raw==='—'||raw==='-')return '';
       if(/^-?\$[\d,]+(\.\d+)?$/.test(raw)){
         if(moneyCols.indexOf(k)<0)moneyCols.push(k);
@@ -1621,7 +1627,7 @@ async function renderBids(){
     </div>
     <div id="bid-kpis" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px"></div>
     <div class="toolbar">
-      <input autocomplete="off" type="text" id="bid-search" placeholder="Search project, GC, ref..." oninput="filterBids()" style="flex:1;min-width:180px">
+      <input autocomplete="off" type="text" id="bid-search" placeholder="Search project, GC, ref, TDLR, address..." oninput="filterBids()" style="flex:1;min-width:180px">
       <button class="btn" onclick="exportTableToExcel('bid-body','Bid Opportunities','Bid_Opportunities')" title="Download the table you see as Excel" style="padding:8px 14px;border:1px solid #1D9E75;color:#1D9E75;background:#fff;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">⬇ Export Excel</button>
       <div id="bid-scope-toggle" style="display:flex;border:1px solid #e0e6f0;border-radius:8px;overflow:hidden;font-size:13px">
         <button id="btn-my-bids" onclick="setBidScope('mine')" style="padding:8px 14px;border:none;cursor:pointer;background:#1B5E9B;color:#fff;font-weight:600">My Bids</button>
@@ -1637,6 +1643,14 @@ async function renderBids(){
   <option value="due_overdue">⚠️ Bids Overdue</option>
   <option value="fu_today">📧 Email Follow-Up Due</option>
   <option value="fu_overdue">📞 Phone Follow-Up Due</option>
+  <optgroup label="── By GC Status ──">
+    <option value="gcs_Not Checked Yet">Not Checked Yet</option>
+    <option value="gcs_Waiting on City Callback">Waiting on City Callback</option>
+    <option value="gcs_GC Unknown Yet">GC Unknown Yet</option>
+    <option value="gcs_Still in Bidding">Still in Bidding</option>
+    <option value="gcs_GC Awarded">GC Awarded</option>
+    <option value="gcs_Project On Hold / Cancelled">Project On Hold / Cancelled</option>
+  </optgroup>
   <optgroup label="── By Scope ──">
     <option value="scope_comm">📡 Comm / Data Cabling (GC26-22-xx)</option>
     <option value="scope_av">📺 AV (GC26-23-xx)</option>
@@ -1647,8 +1661,8 @@ async function renderBids(){
 </select>
     </div>
     <div class="tbl-wrap" style="overflow-x:auto">
-      <table><thead><tr><th>Ref #</th><th>Project</th><th>GC</th><th>Bid Due</th><th>Status</th><th>Follow-Up</th><th>Price</th><th>Profit</th><th>Last Ping</th><th>Last Note</th><th>Employee</th><th></th></tr></thead>
-      <tbody id="bid-body"><tr><td colspan="12" class="loading"><span class="spinner"></span></td></tr></tbody></table>
+      <table><thead><tr><th>Ref #</th><th>Project</th><th>GC</th><th>GC Status</th><th>Bid Due</th><th>Status</th><th>Follow-Up</th><th>Price</th><th>Profit</th><th>Last Ping</th><th>Last Note</th><th>Employee</th><th></th></tr></thead>
+      <tbody id="bid-body"><tr><td colspan="13" class="loading"><span class="spinner"></span></td></tr></tbody></table>
     </div>`;
   await loadBids();
 }
@@ -1742,6 +1756,30 @@ function setBidScope(scope){
   document.getElementById('btn-all-bids').style.color=scope==='all'?'#fff':'#555';
   filterBids();
 }
+var GC_STATUS_STYLE={'Not Checked Yet':['#f1f3f6','#6b7280'],'Waiting on City Callback':['#FFF4DB','#8A5A00'],'GC Unknown Yet':['#FDE8D4','#9A4A00'],'Still in Bidding':['#E3EEFB','#0C447C'],'GC Awarded':['#DDF3E8','#0F6E4A'],'Project On Hold / Cancelled':['#FBE3E3','#A32D2D']};
+function gcStatusCell(r){
+  // Decided bids (Win/Lost) with no GC status set don't need one
+  if(!r.gc_status&&(r.status==='Win'||r.status==='Lost')) return '<span style="color:#ccc">—</span>';
+  var cur=r.gc_status||'Not Checked Yet';
+  var c=GC_STATUS_STYLE[cur]||GC_STATUS_STYLE['Not Checked Yet'];
+  var opts=Object.keys(GC_STATUS_STYLE).map(function(k){return '<option value="'+k+'"'+(k===cur?' selected':'')+'>'+k+'</option>';}).join('');
+  return '<select autocomplete="off" onchange="quickSetGcStatus(\''+r.id+'\',this.value)" title="Update GC Status" style="font-size:11px;font-weight:600;padding:4px 6px;border:1px solid '+c[1]+'33;border-radius:12px;background:'+c[0]+';color:'+c[1]+';cursor:pointer;max-width:170px">'+opts+'</select>';
+}
+async function quickSetGcStatus(id,val){
+  if(!guardWrite('You cannot change bids in view-only mode.')){filterBids();return;}
+  var now=new Date().toISOString();
+  var res=await sb.from('bids').update({gc_status:val,gc_status_updated:now,updated_by:CU.id,updated_at:now}).eq('id',id);
+  if(res.error){showToast('Could not update: '+res.error.message);await loadBids();return;}
+  var b=_bids.find(function(x){return x.id===id;});
+  if(b){b.gc_status=val;b.gc_status_updated=now;}
+  filterBids();
+  // Once the GC is known, jump straight to the GC field so the salesperson can enter who it is
+  if(val==='GC Awarded'&&b&&!(b.gc||'').trim()){
+    showToast('GC Awarded — add the GC name now');
+    await editBid(id);
+    setTimeout(function(){var el=document.getElementById('bm-gc');if(el)el.focus();},150);
+  } else showToast('GC Status updated');
+}
 function filterBids(){
   try{
     const search=(document.getElementById('bid-search')?.value||'').toLowerCase();
@@ -1765,8 +1803,9 @@ function filterBids(){
     else if(filter==='scope_sec') rows=rows.filter(function(r){return (r.ref||'').includes('-24-')||(r.scope||'').toLowerCase().includes('sec');});
     else if(filter==='scope_net') rows=rows.filter(function(r){return (r.scope||'').toLowerCase().includes('network');});
     else if(filter==='scope_wireless') rows=rows.filter(function(r){return (r.scope||'').toLowerCase().includes('wireless');});
+    else if(filter.indexOf('gcs_')===0) rows=rows.filter(function(r){return (r.gc_status||'')===filter.slice(4);});
     else if(filter) rows=rows.filter(function(r){return r.status===filter;});
-    if(search) rows=rows.filter(function(r){return ((r.project||'')+(r.gc||'')+(r.ref||'')+(r.poc||'')).toLowerCase().indexOf(search)>=0;});
+    if(search) rows=rows.filter(function(r){return ((r.project||'')+(r.gc||'')+(r.ref||'')+(r.poc||'')+(r.tdlr_no||'')+(r.address||'')+(r.city||'')).toLowerCase().indexOf(search)>=0;});
     // Sort by ref# descending (newest/highest ref on top)
     rows.sort(function(a,b){
       var ra=a.ref||'';var rb=b.ref||'';
@@ -1777,7 +1816,7 @@ function filterBids(){
     });
     const tbody=document.getElementById('bid-body');
     if(!tbody) return;
-    if(rows.length===0){tbody.innerHTML='<tr><td colspan="12" style="text-align:center;padding:2rem;color:#bbb">No bids found.</td></tr>';return;}
+    if(rows.length===0){tbody.innerHTML='<tr><td colspan="13" style="text-align:center;padding:2rem;color:#bbb">No bids found.</td></tr>';return;}
     var html='';
     for(var i=0;i<rows.length;i++){
       var r=rows[i];
@@ -1801,6 +1840,7 @@ function filterBids(){
       }
       var dueFmt = dueDateStr ? fmtD(dueDateStr) : '—';
       html+='<td style="font-size:12px">'+gc+'</td>';
+      html+='<td>'+gcStatusCell(r)+'</td>';
       html+='<td style="'+dueCellStyle+'">'+dueFmt+'</td>';
       html+='<td>'+statusBadge(r.status)+'</td>';
       html+='<td>'+fuBadge(r)+'</td>';
@@ -1822,10 +1862,12 @@ function filterBids(){
     if(tbody) tbody.innerHTML='<tr><td colspan="12" style="text-align:center;padding:2rem;color:red">Error loading bids: '+err.message+'</td></tr>';
   }
 }
-async function openBidModal(){editBidId=null;document.getElementById('bid-modal-title').textContent='New Bid';['ref','project','gc','poc','email','phone','notes','scope'].forEach(f=>document.getElementById('bm-'+f).value='');['price','cost'].forEach(f=>document.getElementById('bm-'+f).value='0');['due','ping'].forEach(f=>document.getElementById('bm-'+f).value='');document.getElementById('bm-source').value='PlanHub';document.getElementById('bm-status').value='Under Review';await loadUsersDropdown('bm-assigned',null);document.getElementById('bid-modal').classList.add('open');}
+var _origGcStatus=null;
+async function openBidModal(){editBidId=null;document.getElementById('bid-modal-title').textContent='New Bid';['ref','project','gc','poc','email','phone','notes','scope','tdlr','address','city','state'].forEach(f=>document.getElementById('bm-'+f).value='');document.getElementById('bm-gcstatus').value='Not Checked Yet';_origGcStatus=null;['price','cost'].forEach(f=>document.getElementById('bm-'+f).value='0');['due','ping'].forEach(f=>document.getElementById('bm-'+f).value='');document.getElementById('bm-source').value='PlanHub';document.getElementById('bm-status').value='Under Review';await loadUsersDropdown('bm-assigned',null);document.getElementById('bid-modal').classList.add('open');}
 async function editBid(id){const {data:r}=await sb.from('bids').select('*').eq('id',id).single();if(!r)return;editBidId=id;document.getElementById('bid-modal-title').textContent='Edit Bid';var statusMap={'Submitted':'Bid Sent','Won':'Win','WON':'Win','LOST':'Lost','Replied':'Bid Sent','Did Not replay':'Under Review'};var cleanStatus=statusMap[r.status]||r.status||'Under Review';document.getElementById('bm-ref').value=r.ref||'';document.getElementById('bm-source').value=r.source||'PlanHub';document.getElementById('bm-project').value=r.project||'';document.getElementById('bm-status').value=cleanStatus;// Force the select to reflect value
-var statusEl=document.getElementById('bm-status');var statusValid=['Under Review','Bid Sent','Win','Lost'];if(!statusValid.includes(statusEl.value))statusEl.value='Under Review';document.getElementById('bm-gc').value=r.gc||'';document.getElementById('bm-poc').value=r.poc||'';document.getElementById('bm-email').value=r.email||'';document.getElementById('bm-phone').value=r.phone||'';document.getElementById('bm-price').value=r.price||0;document.getElementById('bm-cost').value=r.cost||0;document.getElementById('bm-due').value=r.due_date||'';document.getElementById('bm-ping').value=r.last_ping||'';document.getElementById('bm-notes').value=r.notes||'';document.getElementById('bm-scope').value=r.scope||'';await loadUsersDropdown('bm-assigned',r.assigned_to||null);document.getElementById('bid-modal').classList.add('open');}
-async function saveBid(){if(!guardWrite('You cannot save bids in view-only mode.'))return;const price=parseFloat(document.getElementById('bm-price').value)||0;const cost=parseFloat(document.getElementById('bm-cost').value)||0;const statusVal=document.getElementById('bm-status').value;const obj={ref:document.getElementById('bm-ref').value,source:document.getElementById('bm-source').value,project:document.getElementById('bm-project').value,status:statusVal,gc:document.getElementById('bm-gc').value,poc:document.getElementById('bm-poc').value,email:document.getElementById('bm-email').value,phone:document.getElementById('bm-phone').value,price,cost,profit:price-cost,due_date:document.getElementById('bm-due').value||null,last_ping:document.getElementById('bm-ping').value||null,notes:document.getElementById('bm-notes').value,scope:document.getElementById('bm-scope').value,assigned_to:document.getElementById('bm-assigned').value||null,updated_by:CU.id,updated_at:new Date().toISOString()};if(editBidId){
+var statusEl=document.getElementById('bm-status');var statusValid=['Under Review','Bid Sent','Win','Lost'];if(!statusValid.includes(statusEl.value))statusEl.value='Under Review';document.getElementById('bm-gc').value=r.gc||'';document.getElementById('bm-tdlr').value=r.tdlr_no||'';document.getElementById('bm-address').value=r.address||'';document.getElementById('bm-city').value=r.city||'';document.getElementById('bm-state').value=r.state||'';document.getElementById('bm-gcstatus').value=r.gc_status||'Not Checked Yet';_origGcStatus=r.gc_status||null;document.getElementById('bm-poc').value=r.poc||'';document.getElementById('bm-email').value=r.email||'';document.getElementById('bm-phone').value=r.phone||'';document.getElementById('bm-price').value=r.price||0;document.getElementById('bm-cost').value=r.cost||0;document.getElementById('bm-due').value=r.due_date||'';document.getElementById('bm-ping').value=r.last_ping||'';document.getElementById('bm-notes').value=r.notes||'';document.getElementById('bm-scope').value=r.scope||'';await loadUsersDropdown('bm-assigned',r.assigned_to||null);document.getElementById('bid-modal').classList.add('open');}
+async function saveBid(){if(!guardWrite('You cannot save bids in view-only mode.'))return;const price=parseFloat(document.getElementById('bm-price').value)||0;const cost=parseFloat(document.getElementById('bm-cost').value)||0;const statusVal=document.getElementById('bm-status').value;const obj={ref:document.getElementById('bm-ref').value,source:document.getElementById('bm-source').value,project:document.getElementById('bm-project').value,status:statusVal,gc:document.getElementById('bm-gc').value,poc:document.getElementById('bm-poc').value,email:document.getElementById('bm-email').value,phone:document.getElementById('bm-phone').value,price,cost,profit:price-cost,due_date:document.getElementById('bm-due').value||null,last_ping:document.getElementById('bm-ping').value||null,notes:document.getElementById('bm-notes').value,scope:document.getElementById('bm-scope').value,tdlr_no:document.getElementById('bm-tdlr').value.trim()||null,address:document.getElementById('bm-address').value.trim()||null,city:document.getElementById('bm-city').value.trim()||null,state:(document.getElementById('bm-state').value.trim().toUpperCase())||null,gc_status:document.getElementById('bm-gcstatus').value,assigned_to:document.getElementById('bm-assigned').value||null,updated_by:CU.id,updated_at:new Date().toISOString()};if(document.getElementById('bm-gcstatus').value!==_origGcStatus)obj.gc_status_updated=new Date().toISOString();
+  if(editBidId){
     const {data:updatedRow,error:upErr}=await sb.from('bids').update(obj).eq('id',editBidId).select().single();
     if(upErr){console.error('Save bid error:',upErr);alert('Error saving bid: '+upErr.message);return;}
     await logAct('Updated bid','bids',editBidId,`Updated ${obj.ref}`);
