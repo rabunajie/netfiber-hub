@@ -1160,7 +1160,7 @@ async function initApp(user){
       var writeFns=['saveBid','saveProposal','saveUser','deleteUser','createUser',
         'saveLibraryItem','deleteLibraryItem','saveInboxItem','deleteInboxItem',
         'toggleUserDisabled','toggleViewOnly','adminChangePassword','removeLineItem',
-        'logFollowUp','quickSetGcStatus','startEditFuLog','saveFuLog','deleteFuLog','addSection','removeSection',
+        'logFollowUp','quickSetGcStatus','deleteSelectedBids','startEditFuLog','saveFuLog','deleteFuLog','addSection','removeSection',
         'changeGroup','savePurchase','deletePurchase','openNewItemForm'];
       window._origWriteFns=window._origWriteFns||{};
       writeFns.forEach(function(fn){
@@ -1179,7 +1179,7 @@ async function initApp(user){
         if(!btn)return;
         var onclick=btn.getAttribute('onclick')||'';
         // Only block known write functions — not navigation or filter buttons
-        var writePattern=/\b(saveBid|saveProposal|saveUser|deleteUser|createUser|saveLibraryItem|deleteLibraryItem|saveInboxItem|deleteInboxItem|toggleUserDisabled|toggleViewOnly|adminChangePassword|removeLineItem|addSection|removeSection|changeGroup|logFollowUp|quickSetGcStatus|startEditFuLog|saveFuLog|deleteFuLog|savePurchase|deletePurchase|addLineItem|openNewProposal|openBidModal|openEditUser|openNewItemForm)\b/;
+        var writePattern=/\b(saveBid|deleteSelectedBids|saveProposal|saveUser|deleteUser|createUser|saveLibraryItem|deleteLibraryItem|saveInboxItem|deleteInboxItem|toggleUserDisabled|toggleViewOnly|adminChangePassword|removeLineItem|addSection|removeSection|changeGroup|logFollowUp|quickSetGcStatus|startEditFuLog|saveFuLog|deleteFuLog|savePurchase|deletePurchase|addLineItem|openNewProposal|openBidModal|openEditUser|openNewItemForm)\b/;
         if(writePattern.test(onclick)){
           e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();
           voNotify('View Only mode — you cannot make changes.');
@@ -1689,6 +1689,7 @@ async function renderBids(){
     <div class="bt-selbar" id="bid-selbar">
       <span id="bid-selcount"></span>
       <button class="bt-btn" onclick="exportTableToExcel('bid-body','Bid Opportunities','Bid_Opportunities_selected',true)">⬇ Export selected</button>
+      <button class="bt-btn" style="color:#c0392b;border-color:#e6b0aa" onclick="deleteSelectedBids()">🗑 Delete selected</button>
       <button class="bt-btn" onclick="clearBidSel()">Clear selection</button>
     </div>
     <div class="tbl-wrap bt-wrap" id="bid-tbl-wrap">
@@ -1919,6 +1920,18 @@ function toggleBidSelAll(on){
   _bidShownIds.forEach(function(id){if(on)_bidSel[id]=true;else delete _bidSel[id];});
   document.querySelectorAll('.bid-chk').forEach(function(cb){cb.checked=on;cb.closest('tr').classList.toggle('bt-sel',on);});
   updateBidSelUI();
+}
+async function deleteSelectedBids(){
+  if(!guardWrite('You cannot delete bids in view-only mode.'))return;
+  var ids=Object.keys(_bidSel);if(!ids.length)return;
+  if(!confirm('Delete '+ids.length+' selected bid'+(ids.length>1?'s':'')+'?\n\nThis cannot be undone.'))return;
+  var failed=0;
+  for(var i=0;i<ids.length;i++){
+    try{await logDeletionSnapshot('bids',ids[i],'Deleted bid',null);var r=await sb.from('bids').delete().eq('id',ids[i]);if(r&&r.error)failed++;}catch(e){failed++;}
+  }
+  _bidSel={};
+  await loadBids();
+  if(failed)alert(failed+' bid(s) could not be deleted (permission or network issue).');
 }
 function clearBidSel(){_bidSel={};document.querySelectorAll('.bid-chk').forEach(function(cb){cb.checked=false;cb.closest('tr').classList.remove('bt-sel');});updateBidSelUI();}
 function getSelectedBidIds(){return Object.keys(_bidSel);}
