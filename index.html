@@ -110,13 +110,18 @@ body.view-only .app{height:calc(100vh - 44px);margin-top:44px}
 
 /* TABLE */
 .tbl-wrap{background:#fff;border-radius:12px;border:0.5px solid #e4e8f0;overflow:hidden}
-#bid-toolbar{margin-bottom:8px}
-#bid-toolbar>*{height:38px;box-sizing:border-box}
-#bid-toolbar input,#bid-toolbar select,#bid-toolbar>button{height:38px;box-sizing:border-box;font-size:13px;line-height:1.2;margin:0}
-#bid-toolbar>button{display:inline-flex;align-items:center;justify-content:center;padding-top:0!important;padding-bottom:0!important}
-#bid-scope-toggle{display:flex!important;align-items:stretch}
-#bid-scope-toggle button{height:100%;padding-top:0!important;padding-bottom:0!important;display:inline-flex;align-items:center}
-.bt-wrap{overflow:auto;max-height:calc(100vh - 215px)}
+#bid-toolbar{margin-bottom:8px;flex-wrap:nowrap;gap:8px;align-items:center}
+#bid-toolbar>*{height:34px;box-sizing:border-box;flex-shrink:0;margin:0}
+#bid-toolbar>.bt-btn,#bid-toolbar>select,#bid-toolbar>input{padding:0 12px;border:1px solid #d9e0ec;border-radius:8px;background:#fff;color:#444;font-size:12px;font-weight:600;line-height:1;font-family:inherit;display:inline-flex;align-items:center;justify-content:center;white-space:nowrap}
+#bid-toolbar>input{flex:1 1 160px;min-width:120px;justify-content:flex-start;font-weight:500;cursor:text}
+#bid-toolbar>input::placeholder{color:#9aa1ad;font-weight:500}
+#bid-toolbar>input:focus,#bid-toolbar>select:focus{outline:none;border-color:#1B5E9B}
+#bid-toolbar>select{display:inline-block;padding-right:8px;cursor:pointer;max-width:190px}
+#bid-scope-toggle{display:flex;align-items:stretch;border:1px solid #d9e0ec;border-radius:8px;overflow:hidden;background:#fff}
+#bid-scope-toggle button{height:100%;padding:0 12px;border:none;cursor:pointer;font-size:12px;font-weight:600;font-family:inherit;white-space:nowrap}
+#bid-scope-toggle button+button{border-left:1px solid #d9e0ec}
+@media (max-width:1000px){#bid-toolbar{flex-wrap:wrap}#bid-toolbar>input{flex:1 1 100%}}
+.bt-wrap{overflow:auto;max-height:calc(100vh - 205px)}
 .bt-wrap tbody tr.bt-sel td{background:#eaf3fd}
 .bt-chk{width:15px;height:15px;cursor:pointer;accent-color:#1B5E9B;vertical-align:middle}
 .bt-selbar{display:none;align-items:center;gap:10px;padding:7px 12px;margin-bottom:8px;background:#E6F1FB;border:1px solid #c5dcf3;border-radius:10px;font-size:13px;color:#0C447C;font-weight:600}
@@ -140,7 +145,7 @@ body.view-only .app{height:calc(100vh - 44px);margin-top:44px}
 .bt-wrap.bt-compact th{padding:6px 10px}
 .bt-btn{padding:6px 12px;border:1px solid #d9e0ec;border-radius:8px;background:#fff;color:#444;font-size:12px;font-weight:600;cursor:pointer}
 .bt-btn:hover{border-color:#1B5E9B;color:#1B5E9B}
-.bt-menu{position:absolute;right:0;top:36px;z-index:30;background:#fff;border:1px solid #e0e6f0;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.12);padding:10px 12px;min-width:220px;max-height:60vh;overflow:auto}
+.bt-menu{position:absolute;right:0;top:40px;z-index:30;background:#fff;border:1px solid #e0e6f0;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.12);padding:10px 12px;min-width:220px;max-height:60vh;overflow:auto}
 .bt-menu label{display:flex;align-items:center;gap:8px;padding:5px 2px;font-size:13px;cursor:pointer}
 .bt-menu .bt-sep{font-size:10px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin:8px 0 2px}
 .bt-menu .bt-reset{margin-top:8px;width:100%}
@@ -1657,21 +1662,21 @@ async function renderBids(){
   const mc=document.getElementById('main-content');
   mc.innerHTML=`
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:10px">
-      <div><div class="page-title">Bid Opportunities</div><div class="page-sub">All bids and follow-ups</div></div>
+      <div><div class="page-title">Bid Opportunities</div><div class="page-sub">All bids and follow-ups · <span id="bid-count"></span></div></div>
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
         <div id="bid-year-tabs" style="display:flex;gap:5px;flex-wrap:wrap"></div>
         <button class="btn btn-blue" onclick="openBidModal()">+ New Bid</button>
       </div>
     </div>
     <div id="bid-kpis" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:10px"></div>
-    <div class="toolbar" id="bid-toolbar">
+    <div class="toolbar" id="bid-toolbar" style="position:relative">
       <input autocomplete="off" type="text" id="bid-search" placeholder="Search project, GC, ref, TDLR, address..." oninput="filterBids()" style="flex:1;min-width:180px">
-      <button class="btn" onclick="exportTableToExcel('bid-body','Bid Opportunities','Bid_Opportunities')" title="Download the table you see as Excel" style="padding:8px 14px;border:1px solid #1D9E75;color:#1D9E75;background:#fff;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">⬇ Export Excel</button>
-      <div id="bid-scope-toggle" style="display:flex;border:1px solid #e0e6f0;border-radius:8px;overflow:hidden;font-size:13px">
-        <button id="btn-my-bids" onclick="setBidScope('mine')" style="padding:8px 14px;border:none;cursor:pointer;background:#1B5E9B;color:#fff;font-weight:600">My Bids</button>
-        <button id="btn-all-bids" onclick="setBidScope('all')" style="padding:8px 14px;border:none;cursor:pointer;background:#fff;color:#555;font-weight:500">All Bids</button>
+      <button class="bt-btn" onclick="exportTableToExcel('bid-body','Bid Opportunities','Bid_Opportunities')" title="Download the table you see as Excel">⬇ Export Excel</button>
+      <div id="bid-scope-toggle">
+        <button id="btn-my-bids" onclick="setBidScope('mine')" style="background:#1B5E9B;color:#fff">My Bids</button>
+        <button id="btn-all-bids" onclick="setBidScope('all')" style="background:#fff;color:#444">All Bids</button>
       </div>
-      <select autocomplete="off" id="bid-filter" onchange="filterBids()" style="padding:8px 12px;border:1px solid #e0e6f0;border-radius:8px;font-size:13px;background:#fff;cursor:pointer">
+      <select autocomplete="off" id="bid-filter" onchange="filterBids()" class="bt-btn">
   <option value="">All Bids</option>
   <option value="Under Review">Under Review</option>
   <option value="Bid Sent">Bid Sent</option>
@@ -1697,13 +1702,8 @@ async function renderBids(){
     <option value="scope_wireless">📶 Wireless</option>
   </optgroup>
 </select>
-    </div>
-    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;position:relative">
-      <div id="bid-count" style="font-size:12px;color:#888;font-weight:600"></div>
-      <div style="display:flex;align-items:center;gap:8px">
-        <button class="bt-btn" id="bid-density-btn" onclick="toggleBidDensity()" title="Row spacing">↕ Comfortable</button>
-        <button class="bt-btn" onclick="toggleBidColMenu(event)">☰ Columns</button>
-      </div>
+      <button class="bt-btn" id="bid-density-btn" onclick="toggleBidDensity()" title="Row spacing">↕ Comfortable</button>
+      <button class="bt-btn" onclick="toggleBidColMenu(event)">☰ Columns</button>
       <div id="bid-col-menu" class="bt-menu" style="display:none"></div>
     </div>
     <div class="bt-selbar" id="bid-selbar">
@@ -1750,10 +1750,10 @@ function setBidYear(year){
 }
 
 function bidKpi(icon,label,sub,val,color,filter){
-  return '<div onclick="document.getElementById(\'bid-filter\').value=\''+filter+'\';filterBids()" title="Click to filter" style="cursor:pointer;background:#fff;border:0.5px solid #eaedf2;border-left:3px solid '+color+';border-radius:10px;padding:8px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px">'
-    +'<div style="min-width:0"><div style="font-size:11px;font-weight:700;color:#8a8f98;text-transform:uppercase;letter-spacing:0.4px;white-space:nowrap">'+icon+' '+label+'</div>'
-    +'<div style="font-size:10.5px;color:#b5b9c0;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+sub+'</div></div>'
-    +'<div style="font-size:22px;font-weight:800;line-height:1;color:'+color+'">'+val+'</div>'
+  return '<div onclick="document.getElementById(\'bid-filter\').value=\''+filter+'\';filterBids()" title="Click to filter" style="cursor:pointer;background:#fff;border:0.5px solid #eaedf2;border-top:3px solid '+color+';border-radius:10px;padding:9px 14px 10px">'
+    +'<div style="font-size:11px;font-weight:700;color:#8a8f98;text-transform:uppercase;letter-spacing:0.4px;white-space:nowrap">'+icon+' '+label+'</div>'
+    +'<div style="font-size:24px;font-weight:800;line-height:1.15;margin:2px 0 1px;color:'+color+'">'+val+'</div>'
+    +'<div style="font-size:11px;color:#b5b9c0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+sub+'</div>'
     +'</div>';
 }
 async function loadBids(){
