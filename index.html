@@ -110,7 +110,25 @@ body.view-only .app{height:calc(100vh - 44px);margin-top:44px}
 
 /* TABLE */
 .tbl-wrap{background:#fff;border-radius:12px;border:0.5px solid #e4e8f0;overflow:hidden}
-.bt-wrap{overflow:auto;max-height:calc(100vh - 250px)}
+#bid-toolbar{margin-bottom:8px}
+#bid-toolbar>*{height:38px;box-sizing:border-box}
+#bid-toolbar input,#bid-toolbar select,#bid-toolbar>button{height:38px;box-sizing:border-box;font-size:13px;line-height:1.2;margin:0}
+#bid-toolbar>button{display:inline-flex;align-items:center;justify-content:center;padding-top:0!important;padding-bottom:0!important}
+#bid-scope-toggle{display:flex!important;align-items:stretch}
+#bid-scope-toggle button{height:100%;padding-top:0!important;padding-bottom:0!important;display:inline-flex;align-items:center}
+.bt-wrap{overflow:auto;max-height:calc(100vh - 215px)}
+.bt-wrap tbody tr.bt-sel td{background:#eaf3fd}
+.bt-chk{width:15px;height:15px;cursor:pointer;accent-color:#1B5E9B;vertical-align:middle}
+.bt-selbar{display:none;align-items:center;gap:10px;padding:7px 12px;margin-bottom:8px;background:#E6F1FB;border:1px solid #c5dcf3;border-radius:10px;font-size:13px;color:#0C447C;font-weight:600}
+/* collapsible / resizable sidebar */
+.sidebar{position:relative;transition:width .15s ease}
+.sidebar.sb-dragging{transition:none}
+.sidebar.sb-collapsed{width:0!important;border-right:0;overflow:hidden}
+#sb-resizer{width:5px;margin-left:-3px;cursor:col-resize;flex-shrink:0;background:transparent;z-index:6;transition:background .1s}
+#sb-resizer:hover,#sb-resizer.on{background:rgba(27,94,155,.25)}
+#sb-resizer.sb-collapsed{display:none}
+.tb-menu{background:rgba(255,255,255,.12);border:0;color:#fff;font-size:18px;line-height:1;width:34px;height:34px;border-radius:8px;cursor:pointer;margin-right:12px;display:flex;align-items:center;justify-content:center}
+.tb-menu:hover{background:rgba(255,255,255,.25)}
 .bt-wrap table{border-collapse:separate;border-spacing:0}
 .bt-wrap thead th{position:sticky;top:0;z-index:5;background:#f9fafb;box-shadow:0 1px 0 #e4e8f0}
 .bt-wrap th.bt-sort{cursor:pointer;user-select:none}
@@ -519,6 +537,7 @@ body.view-only button[onclick*="Remove"]{
 </div>
 <div class="app" id="app">
   <div class="topbar">
+    <button class="tb-menu" id="sb-toggle" onclick="toggleSidebar()" title="Show / hide menu">☰</button>
     <div class="tb-logo">NETFIBER</div>
     <div class="tb-right">
       <div class="tb-time" id="tb-time"></div>
@@ -564,6 +583,7 @@ body.view-only button[onclick*="Remove"]{
       </div>
     </div>
 
+    <div id="sb-resizer" title="Drag to resize · double-click to reset"></div>
     <div class="main" id="main-content">
       <!-- Pages injected here -->
     </div>
@@ -1591,7 +1611,7 @@ function _xlsxDownload(aoa,sheetName,fileBase,numCols){
 }
 // Exports the currently visible rows of a table (respects search/filters). Columns with an
 // empty header (action buttons) and the ⭐ column are skipped.
-function exportTableToExcel(tbodyId,sheetName,fileBase){
+function exportTableToExcel(tbodyId,sheetName,fileBase,selectedOnly){
   var tb=document.getElementById(tbodyId);
   if(!tb){showToast('Nothing to export');return;}
   var table=tb.closest('table');
@@ -1605,6 +1625,7 @@ function exportTableToExcel(tbodyId,sheetName,fileBase){
   var aoa=[head];var moneyCols=[];
   [].slice.call(tb.querySelectorAll('tr')).forEach(function(tr){
     if(tr.style.display==='none')return;
+    if(selectedOnly&&!tr.querySelector('.bid-chk:checked'))return;
     var tds=tr.querySelectorAll('td');
     if(!tds.length||tds[0].hasAttribute('colspan'))return; // loading / empty rows
     var row=keep.map(function(i,k){
@@ -1632,18 +1653,18 @@ function exportPurchasesToExcel(){
   _xlsxDownload(aoa,'Purchases','Purchases',[4,5,6,7,8,9,10]);
 }
 async function renderBids(){
-  _bidPrefs=null;_bidSort={key:null,dir:1};
+  _bidPrefs=null;_bidSort={key:null,dir:1};_bidSel={};
   const mc=document.getElementById('main-content');
   mc.innerHTML=`
-    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:10px">
       <div><div class="page-title">Bid Opportunities</div><div class="page-sub">All bids and follow-ups</div></div>
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
         <div id="bid-year-tabs" style="display:flex;gap:5px;flex-wrap:wrap"></div>
         <button class="btn btn-blue" onclick="openBidModal()">+ New Bid</button>
       </div>
     </div>
-    <div id="bid-kpis" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px"></div>
-    <div class="toolbar">
+    <div id="bid-kpis" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:10px"></div>
+    <div class="toolbar" id="bid-toolbar">
       <input autocomplete="off" type="text" id="bid-search" placeholder="Search project, GC, ref, TDLR, address..." oninput="filterBids()" style="flex:1;min-width:180px">
       <button class="btn" onclick="exportTableToExcel('bid-body','Bid Opportunities','Bid_Opportunities')" title="Download the table you see as Excel" style="padding:8px 14px;border:1px solid #1D9E75;color:#1D9E75;background:#fff;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">⬇ Export Excel</button>
       <div id="bid-scope-toggle" style="display:flex;border:1px solid #e0e6f0;border-radius:8px;overflow:hidden;font-size:13px">
@@ -1685,6 +1706,11 @@ async function renderBids(){
       </div>
       <div id="bid-col-menu" class="bt-menu" style="display:none"></div>
     </div>
+    <div class="bt-selbar" id="bid-selbar">
+      <span id="bid-selcount"></span>
+      <button class="bt-btn" onclick="exportTableToExcel('bid-body','Bid Opportunities','Bid_Opportunities_selected',true)">⬇ Export selected</button>
+      <button class="bt-btn" onclick="clearBidSel()">Clear selection</button>
+    </div>
     <div class="tbl-wrap bt-wrap" id="bid-tbl-wrap">
       <table id="bid-table"><thead id="bid-head"></thead>
       <tbody id="bid-body"><tr><td colspan="13" class="loading"><span class="spinner"></span></td></tr></tbody></table>
@@ -1724,10 +1750,10 @@ function setBidYear(year){
 }
 
 function bidKpi(icon,label,sub,val,color,filter){
-  return '<div onclick="document.getElementById(\'bid-filter\').value=\''+filter+'\';filterBids()" style="cursor:pointer;background:#fff;border:0.5px solid #eaedf2;border-top:3px solid '+color+';border-radius:10px;padding:14px 16px">'
-    +'<div style="font-size:11px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px">'+icon+' '+label+'</div>'
-    +'<div style="font-size:26px;font-weight:800;color:'+color+'">'+val+'</div>'
-    +'<div style="font-size:11px;color:#bbb;margin-top:3px">'+sub+'</div>'
+  return '<div onclick="document.getElementById(\'bid-filter\').value=\''+filter+'\';filterBids()" title="Click to filter" style="cursor:pointer;background:#fff;border:0.5px solid #eaedf2;border-left:3px solid '+color+';border-radius:10px;padding:8px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px">'
+    +'<div style="min-width:0"><div style="font-size:11px;font-weight:700;color:#8a8f98;text-transform:uppercase;letter-spacing:0.4px;white-space:nowrap">'+icon+' '+label+'</div>'
+    +'<div style="font-size:10.5px;color:#b5b9c0;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+sub+'</div></div>'
+    +'<div style="font-size:22px;font-weight:800;line-height:1;color:'+color+'">'+val+'</div>'
     +'</div>';
 }
 async function loadBids(){
@@ -1741,6 +1767,8 @@ async function loadBids(){
     if(b.assigned_to && profMap[b.assigned_to]) b.assigned_name=profMap[b.assigned_to];
     return b;
   });
+  // drop selections for bids that no longer exist
+  var _ids={};_bids.forEach(function(b){_ids[b.id]=1;});Object.keys(_bidSel).forEach(function(k){if(!_ids[k])delete _bidSel[k];});
   // KPI boxes
   var kEl=document.getElementById('bid-kpis');
   if(kEl){
@@ -1787,7 +1815,7 @@ function setBidScope(scope){
 function _bidEsc(t){return String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 var BID_COLS=[
   {key:'ref',label:'Ref #',def:1,sort:function(r){return parseInt(((r.ref||'').match(/(\d+)$/)||[0,0])[1]||0);},
-    td:function(r){return '<td style="font-weight:700;font-size:12px;color:#1B5E9B">'+_bidEsc(r.ref||'')+'</td>';}},
+    td:function(r){return '<td style="font-weight:700;font-size:12px;color:#1B5E9B;white-space:nowrap">'+_bidEsc(r.ref||'')+'</td>';}},
   {key:'project',label:'Project',def:1,sort:function(r){return (r.project||'').toLowerCase();},
     td:function(r){return '<td><div style="font-weight:600;font-size:13px">'+_bidEsc(r.project||'')+'</div><div style="font-size:11px;color:#aaa">'+_bidEsc(r.source||'')+'</div></td>';}},
   {key:'gc',label:'GC',def:1,sort:function(r){return (r.gc||'').toLowerCase();},
@@ -1852,7 +1880,7 @@ function sortBidRows(rows){
 function renderBidHead(){
   var h=document.getElementById('bid-head');if(!h)return;
   var cols=visibleBidCols();
-  h.innerHTML='<tr>'+cols.map(function(c){
+  h.innerHTML='<tr><th style="width:34px;text-align:center"><input type="checkbox" class="bt-chk" id="bid-chk-all" title="Select all shown" onchange="toggleBidSelAll(this.checked)"></th>'+cols.map(function(c){
     var arrow=_bidSort.key===c.key?(_bidSort.dir===1?'▲':'▼'):'';
     return '<th class="bt-sort" data-label="'+c.label+'" onclick="setBidSort(\''+c.key+'\')" title="Click to sort">'+c.label+'<span class="bt-arrow">'+arrow+'</span></th>';
   }).join('')+'<th></th></tr>';
@@ -1903,6 +1931,50 @@ function resetBidCols(){
   saveBidPrefs();renderBidHead();filterBids();
   var m=document.getElementById('bid-col-menu');if(m){m.style.display='none';toggleBidColMenu();}
 }
+
+// ---------- Row selection (checkbox column) ----------
+var _bidSel={};var _bidShownIds=[];
+function toggleBidSel(id,on){if(on)_bidSel[id]=true;else delete _bidSel[id];var tr=document.querySelector('.bid-chk[data-id="'+id+'"]');if(tr&&tr.closest('tr'))tr.closest('tr').classList.toggle('bt-sel',!!on);updateBidSelUI();}
+function toggleBidSelAll(on){
+  _bidShownIds.forEach(function(id){if(on)_bidSel[id]=true;else delete _bidSel[id];});
+  document.querySelectorAll('.bid-chk').forEach(function(cb){cb.checked=on;cb.closest('tr').classList.toggle('bt-sel',on);});
+  updateBidSelUI();
+}
+function clearBidSel(){_bidSel={};document.querySelectorAll('.bid-chk').forEach(function(cb){cb.checked=false;cb.closest('tr').classList.remove('bt-sel');});updateBidSelUI();}
+function getSelectedBidIds(){return Object.keys(_bidSel);}
+function updateBidSelUI(){
+  var n=Object.keys(_bidSel).length;
+  var bar=document.getElementById('bid-selbar'),cnt=document.getElementById('bid-selcount');
+  if(bar)bar.style.display=n?'flex':'none';
+  if(cnt)cnt.textContent=n+' selected';
+  var all=document.getElementById('bid-chk-all');
+  if(all){
+    var shownSel=_bidShownIds.filter(function(id){return _bidSel[id];}).length;
+    all.checked=_bidShownIds.length>0&&shownSel===_bidShownIds.length;
+    all.indeterminate=shownSel>0&&shownSel<_bidShownIds.length;
+  }
+}
+
+// ---------- Sidebar: collapse + drag-to-resize (remembered in this browser) ----------
+(function(){
+  var KEY='vantage_sidebar',MIN=160,MAX=380,DEF=205;
+  var sb=document.getElementById('sidebar'),rz=document.getElementById('sb-resizer');
+  if(!sb||!rz)return;
+  var st={w:DEF,collapsed:false};
+  try{var p=JSON.parse(localStorage.getItem(KEY)||'null');if(p){st.w=Math.min(MAX,Math.max(MIN,p.w||DEF));st.collapsed=!!p.collapsed;}}catch(e){}
+  function save(){try{localStorage.setItem(KEY,JSON.stringify(st));}catch(e){}}
+  function apply(){sb.style.width=st.w+'px';sb.classList.toggle('sb-collapsed',st.collapsed);rz.classList.toggle('sb-collapsed',st.collapsed);}
+  window.toggleSidebar=function(){st.collapsed=!st.collapsed;apply();save();};
+  rz.addEventListener('dblclick',function(){st.w=DEF;apply();save();});
+  rz.addEventListener('mousedown',function(e){
+    e.preventDefault();var startX=e.clientX,startW=st.w;
+    sb.classList.add('sb-dragging');rz.classList.add('on');document.body.style.userSelect='none';document.body.style.cursor='col-resize';
+    function mv(ev){st.w=Math.min(MAX,Math.max(MIN,startW+ev.clientX-startX));sb.style.width=st.w+'px';}
+    function up(){document.removeEventListener('mousemove',mv);document.removeEventListener('mouseup',up);sb.classList.remove('sb-dragging');rz.classList.remove('on');document.body.style.userSelect='';document.body.style.cursor='';save();}
+    document.addEventListener('mousemove',mv);document.addEventListener('mouseup',up);
+  });
+  apply();
+})();
 var GC_STATUS_STYLE={'Not Checked Yet':['#f1f3f6','#6b7280'],'Waiting on City Callback':['#FFF4DB','#8A5A00'],'GC Unknown Yet':['#FDE8D4','#9A4A00'],'Still in Bidding':['#E3EEFB','#0C447C'],'GC Awarded':['#DDF3E8','#0F6E4A'],'Project On Hold / Cancelled':['#FBE3E3','#A32D2D']};
 function gcStatusCell(r){
   // Decided bids (Win/Lost) with no GC status set don't need one
@@ -1957,14 +2029,16 @@ function filterBids(){
     const tbody=document.getElementById('bid-body');
     if(!tbody) return;
     var _cnt=document.getElementById('bid-count');if(_cnt)_cnt.textContent=rows.length+(rows.length===1?' bid':' bids');
-    if(rows.length===0){tbody.innerHTML='<tr><td colspan="'+(visibleBidCols().length+1)+'" style="text-align:center;padding:2rem;color:#bbb">No bids found.</td></tr>';return;}
+    if(rows.length===0){tbody.innerHTML='<tr><td colspan="'+(visibleBidCols().length+2)+'" style="text-align:center;padding:2rem;color:#bbb">No bids found.</td></tr>';_bidShownIds=[];updateBidSelUI();return;}
     var cols=visibleBidCols();
     var html='';
     for(var i=0;i<rows.length;i++){
       var r=rows[i];
       var rid=r.id;
       var pname=(r.project||'').replace(/'/g,'`').replace(/\\/g,'');
-      html+='<tr class="'+rowCls(r)+'">';
+      var isSel=_bidSel[rid]?true:false;
+      html+='<tr class="'+rowCls(r)+(isSel?' bt-sel':'')+'">';
+      html+='<td style="width:34px;text-align:center"><input type="checkbox" class="bt-chk bid-chk" data-id="'+rid+'" '+(isSel?'checked':'')+' onchange="toggleBidSel(\''+rid+'\',this.checked)"></td>';
       for(var c=0;c<cols.length;c++) html+=cols[c].td(r);
       html+='<td style="white-space:nowrap"><div style="display:flex;gap:4px">';
       html+='<button class="btn-sm" onclick="editBid(&quot;'+rid+'&quot;)">Edit</button>';
@@ -1973,6 +2047,8 @@ function filterBids(){
       html+='</tr>';
     }
     tbody.innerHTML=html;
+    _bidShownIds=rows.map(function(r){return r.id;});
+    updateBidSelUI();
   }catch(err){
     console.error('filterBids error:',err);
     var tbody=document.getElementById('bid-body');
