@@ -494,6 +494,38 @@ tr:hover td{background:#fafcff}
 .print-scope p{font-size:12px;color:#333;line-height:1.7}
 .print-thank{text-align:center;font-size:13px;font-weight:700;color:#1B5E9B;line-height:1.8}
 
+
+/* INVOICE (professional layout) */
+.inv,.inv *{-webkit-print-color-adjust:exact;print-color-adjust:exact;box-sizing:border-box}
+.inv{font-family:Arial,Helvetica,sans-serif;color:#1a2433;font-size:11.5px;display:flex;flex-direction:column;padding:0 4px}
+.inv-top{display:flex;justify-content:space-between;align-items:flex-start;gap:24px}
+.inv-brand{display:flex;align-items:center;gap:12px}.inv-logo{width:72px;height:auto;display:block;flex-shrink:0}.inv-logo-t{font-size:24px;font-weight:900;letter-spacing:3px;color:#1B5E9B;margin-bottom:8px}
+.inv-co{font-size:13px;font-weight:700;color:#12304f}.inv-ad{font-size:10.5px;color:#556;line-height:1.6;margin-top:3px}
+.inv-title{text-align:right}.inv-word{font-size:34px;font-weight:800;letter-spacing:3px;color:#1B5E9B;line-height:1;margin-bottom:12px}
+.inv-meta{margin-left:auto;border-collapse:collapse;font-size:11px}.inv-meta td{padding:3px 0 3px 18px;text-align:right}.inv-meta td:first-child{color:#778;font-weight:600}.inv-meta td:last-child{font-weight:700;color:#12304f}
+.inv-rule{height:3px;background:linear-gradient(90deg,#1B5E9B,#2aa6b8);margin:12px 0 12px;border-radius:2px}
+.inv-parties{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:12px}
+.inv-box{background:#F3F7FC;border:1px solid #dbe6f3;border-radius:6px;padding:11px 14px}
+.inv-lbl{font-size:9px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:#1B5E9B;margin-bottom:5px}
+.inv-bn{font-size:12.5px;font-weight:700;color:#12304f;margin-bottom:2px}.inv-bt{font-size:11px;color:#445;line-height:1.55}
+.inv-h{font-size:10px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:#12304f;margin:6px 0 6px}
+.inv-t{width:100%;border-collapse:collapse;margin-bottom:10px;font-size:11px}
+.inv-t th{background:#12304f;color:#fff;text-align:left;font-size:9.5px;letter-spacing:.8px;text-transform:uppercase;padding:7px 10px;font-weight:700}
+.inv-t td{padding:3px 10px;border-bottom:1px solid #e6ebf2}.inv-t tbody tr:nth-child(even) td{background:#fafbfd}
+.inv-t .n{width:34px;color:#889;text-align:center}.inv-t th.n{text-align:center}.inv-t .st{width:120px;text-align:right}.inv-t .r{text-align:right;width:130px;font-weight:600}
+.inv-t tr{page-break-inside:avoid}
+.inv-ok{color:#14804f;font-weight:700;font-size:10.5px}
+.inv-t tr.cur td{background:#E6F3EC!important;font-weight:700;border-bottom:1px solid #b9dcc8}
+.inv-tag{display:inline-block;background:#14804f;color:#fff;font-size:8.5px;font-weight:800;letter-spacing:.6px;padding:2px 6px;border-radius:3px;margin-left:6px;vertical-align:1px}
+.inv-prev{color:#889;font-size:10px;font-weight:400;margin-left:6px}
+.inv-bottom{display:flex;justify-content:space-between;gap:28px;margin-top:6px;page-break-inside:avoid}
+.inv-note{flex:1;font-size:10.5px;color:#556;line-height:1.6;padding-top:4px}
+.inv-sum{width:300px}.inv-sr{display:flex;justify-content:space-between;padding:4px 2px;border-bottom:1px solid #e6ebf2;font-size:11.5px}
+.inv-sr.dim{color:#778;font-size:10.5px;border-bottom:0;padding-top:8px}
+.inv-due{display:flex;justify-content:space-between;align-items:center;background:#1B5E9B;color:#fff;font-size:15px;font-weight:800;padding:8px 12px;border-radius:5px;margin-top:6px}
+.inv-foot{margin-top:8px;padding-top:2px;text-align:center;font-size:12px;font-weight:700;color:#1B5E9B}
+.inv-fs{font-size:9.5px;font-weight:400;color:#889;margin-top:4px;border-top:1px solid #e6ebf2;padding-top:6px}
+
 /* INVOICE PRINT */
 .print-milestone-table{width:100%;border-collapse:collapse;margin-bottom:16px}
 .print-milestone-table th{background:#1B5E9B;color:#fff;padding:8px 10px;font-size:11px;font-weight:700;text-align:left}
@@ -5863,29 +5895,43 @@ async function printInvoice(){
   var curTotal=Math.round((curAmt+curTax)*100)/100;
   var fmtInvDate=new Date(invDate+'T00:00:00').toLocaleDateString('en-US',{month:'2-digit',day:'2-digit',year:'numeric'});
 
-  var workRows='';
+  var esc=function(x){return String(x==null?'':x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');};
   var filtered=invWorkItems.filter(function(w){return w.text;});
+  var workRows='';
   for(var i=0;i<filtered.length;i++){
-    workRows+='<div class="print-work-item"><span style="color:#aaa;width:20px">'+(i+1)+'</span><span>'+filtered[i].text+'</span><span style="margin-left:auto;color:#1D9E75;font-size:11px;font-weight:600">Completed</span></div>';
+    workRows+='<tr><td class="n">'+(i+1)+'</td><td>'+esc(filtered[i].text)+'</td><td class="st"><span class="inv-ok">&#10003; Completed</span></td></tr>';
   }
+  if(!workRows)workRows='<tr><td colspan="3" style="color:#999;text-align:center">No work items listed</td></tr>';
+  var billedToDate=0;for(var k=0;k<m;k++)billedToDate+=amounts[k];
+  var balance=Math.round((total-billedToDate)*100)/100;
   var milestoneRows='';
-  for(var i=0;i<3;i++){
-    milestoneRows+='<tr '+(i+1===m?'style="background:#EAF3DE"':'')+'>'+
-      '<td>'+(i+1)+'</td><td>'+labels[i]+'</td>'+
-      '<td style="text-align:right;font-weight:'+(i+1===m?'700':'400')+'">'+fmt$(amounts[i])+'</td></tr>';
+  for(var q=0;q<3;q++){
+    var cur=(q+1===m);
+    milestoneRows+='<tr'+(cur?' class="cur"':'')+'><td class="n">'+(q+1)+'</td><td>'+labels[q]+(cur?' <span class="inv-tag">THIS INVOICE</span>':(q+1<m?' <span class="inv-prev">previously billed</span>':''))+'</td><td class="r">'+fmt$(amounts[q])+'</td></tr>';
   }
-
-  var doc='<div class="print-doc">'
-    +'<div class="print-header"><div><div class="print-co" style="font-size:11px;font-weight:700">INVOICE</div><div class="print-co">NETFIBER NETWORK CABLING SOLUTIONS LLC</div><div style="font-size:11px;color:#555;margin-top:2px">4840 North Shepherd Dr #4303, Houston, TX 77018</div></div>'
-    +'<div class="print-contact">mabunajie@netfibernetwork.com<br>+1 (214) 542-7839<br>https://www.netfibernetwork.com/</div></div>'
-    +'<div class="print-bill-row"><div class="print-bill-box"><div class="print-bill-label">Bill To</div><div class="print-bill-content"><strong>'+(invProposal.bill_to_company||'')+'</strong><br>'+(invProposal.bill_to_address||'')+'</div></div>'
-    +'<div class="print-bill-box"><div class="print-bill-label">Project</div><div class="print-bill-content"><strong>'+(invProposal.project_name||'')+'</strong><br>'+(invProposal.ship_to_address||'')+'</div></div></div>'
-    +'<div class="print-est-detail"><strong>Invoice #:</strong> '+invNo+' &nbsp;&nbsp;<strong>Invoice Date:</strong> '+fmtInvDate+' &nbsp;&nbsp;<strong>Terms:</strong> Progress Billing</div>'
-    +'<div class="print-scope"><h3>Work Completed To Date:</h3><div>'+workRows+'</div></div>'
-    +'<div class="print-scope"><h3>Progress Payment Schedule:</h3>'
-    +'<table class="print-table"><thead><tr><th>#</th><th>Milestone</th><th style="text-align:right">Amount</th></tr></thead><tbody>'+milestoneRows+'</tbody></table></div>'
-    +'<div class="print-totals"><div class="print-totals-box"><div class="print-total-row"><span>Sub-Total (Milestone '+m+')</span><span>'+fmt$(curAmt)+'</span></div><div class="print-total-row"><span>Tax ('+taxRate+'%)</span><span>'+fmt$(curTax)+'</span></div><div class="print-total-row bold"><span>Total Due</span><span>'+fmt$(curTotal)+'</span></div></div></div>'
-    +'<div class="print-thank">Thank you for your business!</div></div>';
+  var logo=(typeof NF_ICON_SMALL!=='undefined')?'<img src="'+NF_ICON_SMALL+'" class="inv-logo" alt="NetFiber">':'<div class="inv-logo-t">NETFIBER</div>';
+  var doc='<div class="print-doc inv">'
+    +'<div class="inv-top"><div class="inv-brand">'+logo
+      +'<div><div class="inv-co">NetFiber Network Cabling Solutions LLC</div>'
+      +'<div class="inv-ad">4840 North Shepherd Dr #4303, Houston, TX 77018<br>+1 (214) 542-7839<br>mabunajie@netfibernetwork.com<br>www.netfibernetwork.com</div></div></div>'
+    +'<div class="inv-title"><div class="inv-word">INVOICE</div>'
+      +'<table class="inv-meta"><tr><td>Invoice #</td><td>'+esc(invNo||'—')+'</td></tr><tr><td>Invoice date</td><td>'+fmtInvDate+'</td></tr><tr><td>Terms</td><td>Progress billing</td></tr>'
+      +(invProposal.estimate_no?'<tr><td>Estimate #</td><td>'+esc(invProposal.estimate_no)+'</td></tr>':'')
+      +'<tr><td>Milestone</td><td>'+m+' of 3</td></tr></table></div></div>'
+    +'<div class="inv-rule"></div>'
+    +'<div class="inv-parties"><div class="inv-box"><div class="inv-lbl">Bill to</div><div class="inv-bn">'+esc(invProposal.bill_to_company||'')+'</div><div class="inv-bt">'+esc(invProposal.bill_to_address||'').replace(/\n/g,'<br>')+'</div></div>'
+      +'<div class="inv-box"><div class="inv-lbl">Project</div><div class="inv-bn">'+esc(invProposal.project_name||'')+'</div><div class="inv-bt">'+esc(invProposal.ship_to_address||'').replace(/\n/g,'<br>')+'</div></div></div>'
+    +'<div class="inv-h">Work completed to date</div>'
+    +'<table class="inv-t"><thead><tr><th class="n">#</th><th>Description</th><th class="st">Status</th></tr></thead><tbody>'+workRows+'</tbody></table>'
+    +'<div class="inv-h">Progress payment schedule</div>'
+    +'<table class="inv-t"><thead><tr><th class="n">#</th><th>Milestone</th><th class="r">Amount</th></tr></thead><tbody>'+milestoneRows+'</tbody></table>'
+    +'<div class="inv-bottom"><div class="inv-note"><div class="inv-lbl">Payment</div>Please make payment to NetFiber Network Cabling Solutions LLC. Include the invoice number with your payment. Questions about this invoice? Contact mabunajie@netfibernetwork.com.</div>'
+      +'<div class="inv-sum"><div class="inv-sr"><span>Contract amount</span><span>'+fmt$(total)+'</span></div>'
+        +'<div class="inv-sr"><span>Milestone '+m+' amount</span><span>'+fmt$(curAmt)+'</span></div>'
+        +'<div class="inv-sr"><span>Sales tax ('+taxRate+'%)</span><span>'+fmt$(curTax)+'</span></div>'
+        +'<div class="inv-due"><span>Total due</span><span>'+fmt$(curTotal)+'</span></div>'
+        +'<div class="inv-sr dim"><span>Contract balance after this invoice</span><span>'+fmt$(balance)+'</span></div></div></div>'
+    +'<div class="inv-foot">Thank you for your business!<div class="inv-fs">NetFiber Network Cabling Solutions LLC &middot; 4840 North Shepherd Dr #4303, Houston, TX 77018 &middot; www.netfibernetwork.com</div></div></div>';
 
   var pa=document.getElementById('print-area');
   pa.innerHTML=doc; pa.style.display='block';
