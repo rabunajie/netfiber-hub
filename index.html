@@ -519,6 +519,8 @@ tr:hover td{background:#fafcff}
 .inv-tag{display:inline-block;background:#14804f;color:#fff;font-size:8.5px;font-weight:800;letter-spacing:.6px;padding:2px 6px;border-radius:3px;margin-left:6px;vertical-align:1px}
 .inv-prev{color:#889;font-size:10px;font-weight:400;margin-left:6px}
 .inv-bottom{display:flex;justify-content:space-between;gap:28px;margin-top:6px;page-break-inside:avoid}
+.inv-sec{margin-bottom:10px;page-break-inside:avoid}.inv-sect{font-size:10.5px;color:#445;line-height:1.55}
+.inv-pay{display:inline-block;background:#1B5E9B;color:#fff!important;text-decoration:none;font-weight:700;padding:7px 16px;border-radius:5px;font-size:11px;margin-top:4px}.inv-url{font-size:9px;color:#889;margin-top:3px;word-break:break-all}
 .inv-note{flex:1;font-size:10.5px;color:#556;line-height:1.6;padding-top:4px}
 .inv-sum{width:300px}.inv-sr{display:flex;justify-content:space-between;padding:4px 2px;border-bottom:1px solid #e6ebf2;font-size:11.5px}
 .inv-sr.dim{color:#778;font-size:10.5px;border-bottom:0;padding-top:8px}
@@ -1226,6 +1228,17 @@ body.view-only button[onclick*="Remove"]{
     <div class="ped-section">
       <div class="ped-section-title">Payment Schedule</div>
       <div id="inv-schedule" style="font-size:13px"></div>
+    </div>
+    <div class="ped-section">
+      <div class="ped-section-title">Notes, Payment Terms &amp; Payment Link</div>
+      <div style="font-size:11px;color:#888;margin-bottom:8px">Add any sections you want printed on the invoice. Payment terms and payment links are remembered for your next invoice.</div>
+      <div id="inv-sections"></div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">
+        <button class="btn-sm" onclick="invAddSec('note')">+ Note</button>
+        <button class="btn-sm" onclick="invAddSec('terms')">+ Payment terms</button>
+        <button class="btn-sm" onclick="invAddSec('payment')">+ Payment link</button>
+        <button class="btn-sm" onclick="invAddSec('custom')">+ Custom section</button>
+      </div>
     </div>
     <div style="padding:14px 16px;display:flex;gap:8px;justify-content:flex-end;background:#f9fafb;border-top:0.5px solid #eee">
       <button class="btn btn-sm" onclick="closeModal('invoice-modal')">Cancel</button>
@@ -4888,7 +4901,28 @@ var pedSections = [{id:'sec_default',header:'',items:[]}];
 var pedGCs = [];
 var invProposal = null;
 var invMs=[],invTax={on:true,rate:8.25,label:'Sales tax'};
-function invDefaults(){invMs=[{num:'1',name:'Installation Phase',pct:60},{num:'2',name:'After Testing & Certification',pct:30},{num:'3',name:'Final Completion & Punch List',pct:10}];var tr=invProposal&&invProposal.tax_rate;invTax={on:!(tr===0||tr==='0'),rate:(tr||tr===0)&&parseFloat(tr)>0?parseFloat(tr):8.25,label:'Sales tax'};}
+function invDefaults(){invSecs=invSecLoad();invRenderSecs();invMs=[{num:'1',name:'Installation Phase',pct:60},{num:'2',name:'After Testing & Certification',pct:30},{num:'3',name:'Final Completion & Punch List',pct:10}];var tr=invProposal&&invProposal.tax_rate;invTax={on:!(tr===0||tr==='0'),rate:(tr||tr===0)&&parseFloat(tr)>0?parseFloat(tr):8.25,label:'Sales tax'};}
+var invSecs=[];
+var INV_SEC_T={note:'Note',terms:'Payment terms',payment:'Pay online',custom:'Section'};
+function invSecLoad(){try{var v=JSON.parse(localStorage.getItem('nf_inv_secs')||'null');if(Array.isArray(v))return v;}catch(e){}return [{type:'terms',title:'Payment terms',text:'Please make payment to NetFiber Network Cabling Solutions LLC. Include the invoice number with your payment.',url:'',btn:''}];}
+function invSecSave(){try{localStorage.setItem('nf_inv_secs',JSON.stringify(invSecs.filter(function(x){return x.type!=='note';})));}catch(e){}}
+function invAddSec(t){invSecs.push({type:t,title:INV_SEC_T[t],text:'',url:'',btn:t==='payment'?'Pay this invoice online':''});invRenderSecs();}
+function invSecSet(i,k,v){invSecs[i][k]=v;}
+function invSecDel(i){invSecs.splice(i,1);invRenderSecs();}
+function invSecMove(i,d){var j=i+d;if(j<0||j>=invSecs.length)return;var t=invSecs[i];invSecs[i]=invSecs[j];invSecs[j]=t;invRenderSecs();}
+function invRenderSecs(){
+  var el=document.getElementById('inv-sections');if(!el)return;
+  var inp='padding:6px 8px;border:1px solid #e0e0e0;border-radius:6px;font-size:12.5px;outline:none;width:100%;box-sizing:border-box;font-family:inherit';
+  if(!invSecs.length){el.innerHTML='<div style="font-size:12px;color:#aaa;padding:8px 0">No extra sections. Use the buttons below to add one.</div>';return;}
+  el.innerHTML=invSecs.map(function(x,i){
+    return '<div style="border:1px solid #e3e9f1;border-radius:9px;padding:10px 12px;margin-bottom:8px;background:#fcfdff">'
+     +'<div style="display:flex;gap:6px;align-items:center;margin-bottom:6px"><span style="font-size:10px;font-weight:800;letter-spacing:.6px;color:#1B5E9B;text-transform:uppercase;min-width:74px">'+({note:'Note',terms:'Terms',payment:'Pay link',custom:'Custom'}[x.type]||'')+'</span>'
+     +'<input autocomplete="off" style="'+inp+'" value="'+invEsc(x.title)+'" placeholder="Section title" onchange="invSecSet('+i+',\'title\',this.value)">'
+     +'<button class="btn-sm" onclick="invSecMove('+i+',-1)" title="Move up">↑</button><button class="btn-sm" onclick="invSecMove('+i+',1)" title="Move down">↓</button><button class="btn-danger" onclick="invSecDel('+i+')">×</button></div>'
+     +'<textarea rows="'+(x.type==='payment'?2:3)+'" style="'+inp+';resize:vertical" placeholder="'+(x.type==='payment'?'Optional message, e.g. We accept ACH, credit card and check.':'Type here…')+'" onchange="invSecSet('+i+',\'text\',this.value)">'+invEsc(x.text)+'</textarea>'
+     +(x.type==='payment'?'<div style="display:flex;gap:6px;margin-top:6px"><input autocomplete="off" style="'+inp+'" value="'+invEsc(x.url)+'" placeholder="Payment link (https://…)" onchange="invSecSet('+i+',\'url\',this.value)"><input autocomplete="off" style="'+inp+';max-width:200px" value="'+invEsc(x.btn)+'" placeholder="Button text" onchange="invSecSet('+i+',\'btn\',this.value)"></div>':'')
+     +'</div>';}).join('');
+}
 function invAmounts(){var t=(invProposal&&invProposal.total)||0;return invMs.map(function(x){return Math.round(t*(parseFloat(x.pct)||0)/100*100)/100;});}
 var invWorkItems = [];
 
@@ -5920,6 +5954,15 @@ async function printInvoice(){
     var cur=(q+1===m);
     milestoneRows+='<tr'+(cur?' class="cur"':'')+'><td class="n">'+esc(invMs[q].num)+'</td><td>'+esc(labels[q])+(cur?' <span class="inv-tag">THIS INVOICE</span>':(q+1<m?' <span class="inv-prev">previously billed</span>':''))+'</td><td class="r">'+fmt$(amounts[q])+'</td></tr>';
   }
+  invSecSave();
+  var secHtml=invSecs.filter(function(x){return (x.text||'').trim()||(x.type==='payment'&&(x.url||'').trim());}).map(function(x){
+    var h='<div class="inv-sec"><div class="inv-lbl">'+esc(x.title||'')+'</div>';
+    if((x.text||'').trim())h+='<div class="inv-sect">'+esc(x.text).replace(/\n/g,'<br>')+'</div>';
+    if(x.type==='payment'&&(x.url||'').trim()){
+      var u=x.url.trim();if(!/^(https?:|mailto:)/i.test(u))u='https://'+u.replace(/^\/+/,'');
+      h+='<a class="inv-pay" href="'+esc(u).replace(/"/g,'&quot;')+'">'+esc(x.btn||'Pay online')+' &rsaquo;</a><div class="inv-url">'+esc(u)+'</div>';
+    }
+    return h+'</div>';}).join('');
   var logo=(typeof NF_ICON_SMALL!=='undefined')?'<img src="'+NF_ICON_SMALL+'" class="inv-logo" alt="NetFiber">':'<div class="inv-logo-t">NETFIBER</div>';
   var doc='<div class="print-doc inv">'
     +'<div class="inv-top"><div class="inv-brand">'+logo
@@ -5936,7 +5979,7 @@ async function printInvoice(){
     +'<table class="inv-t"><thead><tr><th class="n">#</th><th>Description</th><th class="st">Status</th></tr></thead><tbody>'+workRows+'</tbody></table>'
     +'<div class="inv-h">Progress payment schedule</div>'
     +'<table class="inv-t"><thead><tr><th class="n">#</th><th>Milestone</th><th class="r">Amount</th></tr></thead><tbody>'+milestoneRows+'</tbody></table>'
-    +'<div class="inv-bottom"><div class="inv-note"><div class="inv-lbl">Payment</div>Please make payment to NetFiber Network Cabling Solutions LLC. Include the invoice number with your payment. Questions about this invoice? Contact mabunajie@netfibernetwork.com.</div>'
+    +'<div class="inv-bottom"><div class="inv-note">'+secHtml+'</div>'
       +'<div class="inv-sum"><div class="inv-sr"><span>Contract amount</span><span>'+fmt$(total)+'</span></div>'
         +'<div class="inv-sr"><span>Milestone '+esc(invMs[m-1].num)+' amount</span><span>'+fmt$(curAmt)+'</span></div>'
         +(invTax.on?'<div class="inv-sr"><span>'+esc(invTax.label||'Tax')+' ('+taxRate+'%)</span><span>'+fmt$(curTax)+'</span></div>':'')
