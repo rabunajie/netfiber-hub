@@ -227,6 +227,60 @@ tr:hover td{background:#fafcff}
 .today-hdr{font-size:12px;font-weight:700;color:#A32D2D;margin-bottom:8px;display:flex;align-items:center;gap:7px}
 .dot-red{width:7px;height:7px;border-radius:50%;background:#E24B4A}
 
+/* TASKFLOW */
+.tf-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.tf-pills{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.tf-pill{display:inline-flex;align-items:center;gap:6px;padding:7px 16px;border-radius:999px;border:1px solid #d9dfe8;background:#fff;font-size:13px;font-weight:600;color:#444;cursor:pointer;transition:all .15s}
+.tf-pill:hover{background:#f5f8fc}
+.tf-pill.on{border:2px solid #1B5E9B;color:#1B5E9B;background:#f2f7fc;padding:6px 15px}
+.tf-sep{width:1px;height:22px;background:#dde3ec;margin:0 4px}
+.tf-search{padding:7px 14px;border:1px solid #d9dfe8;border-radius:999px;font-size:13px;outline:none;min-width:170px}
+.tf-search:focus{border-color:#1B5E9B}
+.tf-group{font-size:13px;font-weight:600;color:#555;display:flex;align-items:center;gap:6px}
+.tf-group select{border:none;background:transparent;font-size:13px;font-weight:700;color:#333;cursor:pointer;outline:none}
+.tf-add{background:#fff;border:0.5px solid #e4e8f0;border-left:4px solid #1B5E9B;border-radius:12px;padding:12px 14px;margin-bottom:18px}
+.tf-add-title{font-size:12px;font-weight:700;color:#1B5E9B;text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px}
+.tf-add-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.tf-in{padding:7px 10px;border:1px solid #e0e0e0;border-radius:8px;font-size:13px;outline:none;background:#fff}
+.tf-in:focus{border-color:#1B5E9B}
+.tf-grow{flex:1;min-width:220px}
+.tf-board{display:flex;gap:18px;overflow-x:auto;align-items:flex-start;padding-bottom:14px}
+.tf-col{flex:0 0 310px;min-width:270px;border-radius:12px;padding:4px;transition:background .15s}
+.tf-col.over{background:#eaf2fb}
+.tf-col-h{font-size:19px;font-weight:600;color:#222;padding:6px 4px 4px;display:flex;align-items:center;gap:8px}
+.tf-count{font-size:12px;font-weight:700;background:#eef1f6;color:#667;border-radius:999px;padding:2px 9px}
+.tf-quick{padding:8px 6px;font-size:13px;color:#888;cursor:pointer;border-radius:8px;margin-bottom:8px}
+.tf-quick:hover{background:#f0f4fa;color:#1B5E9B}
+.tf-quick.open{background:#fff;padding:6px}
+.tf-card{background:#fff;border:1px solid #e6eaf0;border-radius:10px;padding:12px 14px 10px;margin-bottom:12px;box-shadow:0 1px 3px rgba(20,40,80,.08);cursor:grab;transition:box-shadow .15s,transform .15s}
+.tf-card:hover{box-shadow:0 6px 16px rgba(20,40,80,.14)}
+.tf-card.drag{opacity:.4}
+.tf-card.is-done .tf-name{text-decoration:line-through;color:#999}
+.tf-tags{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px}
+.tf-tag{font-size:11px;font-weight:700;color:#fff;padding:3px 9px;border-radius:4px}
+.tf-title{display:flex;gap:10px;align-items:flex-start;font-size:14px;color:#222;line-height:1.35}
+.tf-name{word-break:break-word;overflow-wrap:anywhere;min-width:0}
+.tf-chk{flex:0 0 18px;width:18px;height:18px;border-radius:50%;border:1.6px solid #7a8599;margin-top:1px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.tf-chk:hover{border-color:#1D9E75}
+.tf-chk.on{background:#1D9E75;border-color:#1D9E75}
+.tf-chk.on::after{content:'';width:4px;height:8px;border:2px solid #fff;border-top:none;border-left:none;transform:rotate(45deg) translate(-1px,-1px)}
+.tf-notes{font-size:12.5px;color:#666;margin:8px 0 0 28px;line-height:1.45;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.tf-prog{display:flex;align-items:center;gap:6px;margin:10px 0 0 28px}
+.tf-prog-bar{flex:1;height:6px;background:#eef0f4;border-radius:3px;overflow:hidden}
+.tf-prog-bar div{height:100%;border-radius:3px}
+.tf-prog select{font-size:11px;border:none;background:transparent;color:#555;cursor:pointer;outline:none;padding:0}
+.tf-foot{display:flex;align-items:center;justify-content:space-between;margin-top:12px;padding-top:9px;border-top:1px solid #eef0f4}
+.tf-foot-r{display:flex;align-items:center;gap:8px}
+.tf-due{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:#555;padding:3px 8px;border-radius:5px}
+.tf-due.late{color:#B42318;background:#FDECEA;border:1px solid #F3B8B2}
+.tf-due.none{color:#b3b9c4}
+.tf-acts{display:none;gap:4px}
+.tf-card:hover .tf-acts{display:inline-flex}
+.tf-av{width:26px;height:26px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex:0 0 26px}
+.tf-empty{font-size:12px;color:#c0c6d0;text-align:center;padding:14px}
+.tf-gridwrap{background:#fff;border:0.5px solid #e4e8f0;border-radius:12px;overflow-x:auto}
+@media(max-width:700px){.tf-col{flex-basis:84vw}.tf-acts{display:inline-flex}#task-kpis{grid-template-columns:repeat(2,1fr)!important}.tf-search{min-width:0;flex:1}}
+
 /* ACTIVITY LOG */
 .log-item{display:flex;gap:12px;padding:10px 16px;border-bottom:0.5px solid #f5f5f5;align-items:flex-start}
 .log-item:last-child{border-bottom:none}
@@ -552,7 +606,7 @@ body.view-only button[onclick*="Remove"]{
       <div class="sb-sec">Operations</div>
       <div class="sb-item" data-page="proposals" data-groups="admin,sales" onclick="showPage('proposals')"><span class="sb-dot"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></span>Proposals</div>
       <div class="sb-item" data-page="purchases" data-groups="admin,sales" onclick="showPage('purchases')"><span class="sb-dot"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 001.99-1.85l1.38-9.14H6"/></svg></span>Purchases</div>
-      <div class="sb-item" data-page="tasks" data-groups="admin,sales,staff,field" onclick="showPage('tasks')"><span class="sb-dot"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="9,11 12,14 22,4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg></span>To-Do<span class="sb-badge" id="sb-tasks-due" style="background:#BA7517;display:none" title="Due today or overdue"></span>
+      <div class="sb-item" data-page="tasks" data-groups="admin,sales,staff,field" onclick="showPage('tasks')"><span class="sb-dot"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="9,11 12,14 22,4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg></span>Taskflow<span class="sb-badge" id="sb-tasks-due" style="background:#BA7517;display:none" title="Due today or overdue"></span>
         <span class="sb-badge" id="sb-tasks-high" style="background:#E24B4A;display:none" title="High priority"></span></div>
       <div class="sb-item" data-page="pipeline" data-groups="admin,sales" onclick="showPage('pipeline')"><span class="sb-dot"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="22,12 18,12 15,21 9,3 6,12 2,12"/></svg></span>Pipeline Report</div>
       <div class="sb-sec">Admin</div>
@@ -1492,7 +1546,7 @@ async function renderDashboard(){
         </div>`:''}
 
         ${canAccess('tasks')?`<div class="mod-btn" onclick="showPage('tasks')" style="border-top:3px solid #1D9E75">
-          <span class="mod-btn-name">To-Do</span>
+          <span class="mod-btn-name">Taskflow</span>
         </div>`:''}
         ${canAccess('log')?`<div class="mod-btn" onclick="showPage('log')" style="border-top:3px solid #E24B4A">
           <span class="mod-btn-name">Activity Log</span>
@@ -2560,105 +2614,156 @@ async function recalcProjectTotals(projId){
 }
 async function delMat(id){if(!confirm('Remove this item?'))return;await logDeletionSnapshot('purchase_materials',id,'Deleted purchase item',null);await sb.from('purchase_materials').delete().eq('id',id);await recalcProjectTotals(currentProjId);await loadMaterials(currentProjId);}
 
-// TASKS
+// TASKS  (Taskflow)
+var _tasks=[],_taskFilter='all',_taskUser='',_tfScope='all',_tfView='board',_tfGroup='status',_tfProfiles=[],_tfDragId=null;
+try{_tfView=localStorage.getItem('tf_view')||'board';_tfGroup=localStorage.getItem('tf_group')||'status';}catch(e){}
+function tfEsc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function tfStatus(t){return t.done?'done':((t.progress||0)>0?'prog':'todo');}
+var TF_STATUS=[{k:'todo',l:'Not started'},{k:'prog',l:'In progress'},{k:'done',l:'Completed'}];
+var TF_PRI=[{k:'high',l:'High'},{k:'medium',l:'Medium'},{k:'low',l:'Low'}];
+var TF_ICON_CAL='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>';
+function tfInit(n){var p=(n||'?').trim().split(/\s+/);return ((p[0]||'?')[0]+(p.length>1?p[p.length-1][0]:'')).toUpperCase();}
+function tfAvatar(n){if(!n)return'<span class="tf-av" style="background:#eef1f6;color:#99a" title="Unassigned">—</span>';var h=0;for(var i=0;i<n.length;i++)h=(h*31+n.charCodeAt(i))%360;return '<span class="tf-av" title="'+tfEsc(n)+'" style="background:hsl('+h+',55%,85%);color:hsl('+h+',45%,28%)">'+tfEsc(tfInit(n))+'</span>';}
+
 async function renderTasks(){
-  _taskFilter='all';_taskUser='';
+  _taskFilter='all';_taskUser='';_tfScope='all';
   const mc=document.getElementById('main-content');
   mc.innerHTML=`
     <div id="task-kpis" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px"></div>
-    <div class="page-hdr"><div><div class="page-title">To-Do</div><div class="page-sub">Daily tasks and long-term projects</div></div>
+    <div class="page-hdr"><div><div class="page-title">Taskflow</div><div class="page-sub">Daily tasks and long-term projects</div></div>
       ${(CP&&CP.group_name==='admin')?'<div style="display:flex;align-items:center;gap:8px"><span style="font-size:13px;color:#666;font-weight:600">👤 View user:</span><select autocomplete="off" id="task-user-filter" onchange="setTaskUser(this.value)" style="padding:8px 12px;border:1px solid #e0e6f0;border-radius:8px;font-size:13px;background:#fff;cursor:pointer;min-width:160px"><option value="">All users</option></select></div>':''}
     </div>
 
-    <!-- SECTION 1: Daily To-Do -->
-    <div style="background:#fff;border-radius:12px;border:0.5px solid #e4e8f0;margin-bottom:20px;overflow:hidden">
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:#f5f8fc;border-bottom:1px solid #e4e8f0">
-        <div style="font-size:14px;font-weight:700;color:#1B5E9B">📋 Daily To-Do</div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-          <input autocomplete="off" type="text" id="new-daily-task" placeholder="Add daily task..." onkeydown="if(event.key==='Enter')addTask('daily')" style="padding:6px 10px;border:1px solid #e0e0e0;border-radius:8px;font-size:13px;outline:none;flex:1;min-width:220px">
-          <select autocomplete="off" id="new-daily-pri" style="padding:6px 10px;border:1px solid #e0e0e0;border-radius:8px;font-size:13px;outline:none"><option value="high">High</option><option value="medium" selected>Medium</option><option value="low">Low</option></select>
-          <input autocomplete="off" type="date" id="new-daily-start" title="Start Day" style="padding:6px 10px;border:1px solid #e0e0e0;border-radius:8px;font-size:13px;outline:none">
-          <input autocomplete="off" type="date" id="new-daily-end" title="End Day" style="padding:6px 10px;border:1px solid #e0e0e0;border-radius:8px;font-size:13px;outline:none">
-          <select autocomplete="off" id="new-daily-assign" style="padding:6px 10px;border:1px solid #e0e0e0;border-radius:8px;font-size:13px;outline:none"><option value="">Assign to me</option></select>
-          <button class="btn btn-blue" style="padding:6px 14px" onclick="addTask('daily')">+ Add</button>
-        </div>
+    <div class="tf-bar">
+      <div class="tf-pills">
+        <button class="tf-pill" id="tf-v-grid" onclick="tfSetView('grid')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg>Grid</button>
+        <button class="tf-pill" id="tf-v-board" onclick="tfSetView('board')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="18" rx="1.5"/><rect x="14" y="3" width="7" height="11" rx="1.5"/></svg>Board</button>
+        <span class="tf-sep"></span>
+        <button class="tf-pill" id="tf-s-all" onclick="tfSetScope('all')">All</button>
+        <button class="tf-pill" id="tf-s-daily" onclick="tfSetScope('daily')">Daily</button>
+        <button class="tf-pill" id="tf-s-longterm" onclick="tfSetScope('longterm')">Long-term</button>
+        <button class="tf-pill" id="tf-s-mine" onclick="tfSetScope('mine')">Assigned to me</button>
+        <input autocomplete="off" type="text" id="task-search" class="tf-search" placeholder="🔍 Search tasks" oninput="filterTasks()">
       </div>
-      <div class="task-hdr" style="grid-template-columns:34px minmax(0,1fr) 88px 95px 95px 110px 88px 1fr 80px"><span></span><span>Task</span><span>Priority</span><span>Start Day</span><span>End Day</span><span>Assigned To</span><span>Status</span><span>Notes</span><span></span></div>
-      <div id="daily-task-list"></div>
+      <div class="tf-group" id="tf-group-wrap">Group by:
+        <select autocomplete="off" id="tf-group-sel" onchange="tfSetGroup(this.value)"><option value="status">Status</option><option value="priority">Priority</option><option value="assignee">Assigned to</option></select>
+      </div>
     </div>
 
-    <!-- SECTION 2: Long-Term Tasks -->
-    <div style="background:#fff;border-radius:12px;border:0.5px solid #e4e8f0;overflow:hidden">
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:#f5f8fc;border-bottom:1px solid #e4e8f0">
-        <div style="font-size:14px;font-weight:700;color:#533AB7">🎯 Long-Term Tasks</div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-          <input autocomplete="off" type="text" id="new-long-task" placeholder="Add long-term task..." onkeydown="if(event.key==='Enter')addTask('longterm')" style="padding:6px 10px;border:1px solid #e0e0e0;border-radius:8px;font-size:13px;outline:none;flex:1;min-width:220px">
-          <select autocomplete="off" id="new-long-pri" style="padding:6px 10px;border:1px solid #e0e0e0;border-radius:8px;font-size:13px;outline:none"><option value="high">High</option><option value="medium" selected>Medium</option><option value="low">Low</option></select>
-          <input autocomplete="off" type="date" id="new-long-start" title="Start Day" style="padding:6px 10px;border:1px solid #e0e0e0;border-radius:8px;font-size:13px;outline:none">
-          <input autocomplete="off" type="date" id="new-long-date" title="End Day" style="padding:6px 10px;border:1px solid #e0e0e0;border-radius:8px;font-size:13px;outline:none">
-          <select autocomplete="off" id="new-long-assign" style="padding:6px 10px;border:1px solid #e0e0e0;border-radius:8px;font-size:13px;outline:none"><option value="">Assign to me</option></select>
-          <button class="btn btn-blue" style="padding:6px 14px;background:#533AB7;border-color:#533AB7" onclick="addTask('longterm')">+ Add</button>
-        </div>
+    <div class="tf-add">
+      <div class="tf-add-title">＋ New task</div>
+      <div class="tf-add-row">
+        <input autocomplete="off" type="text" id="tf-name" placeholder="What needs to be done?" onkeydown="if(event.key==='Enter')tfAddFromBar()" class="tf-in tf-grow">
+        <select autocomplete="off" id="tf-type" class="tf-in" title="Task type"><option value="daily">Daily</option><option value="longterm">Long-term</option></select>
+        <select autocomplete="off" id="tf-pri" class="tf-in" title="Priority"><option value="high">High</option><option value="medium" selected>Medium</option><option value="low">Low</option></select>
+        <input autocomplete="off" type="date" id="tf-start" class="tf-in" title="Start Day">
+        <input autocomplete="off" type="date" id="tf-end" class="tf-in" title="End Day">
+        <select autocomplete="off" id="tf-assign" class="tf-in" title="Assign to"><option value="">Assign to me</option></select>
+        <button class="btn btn-blue" onclick="tfAddFromBar()">+ Add task</button>
       </div>
-      <div class="task-hdr" style="grid-template-columns:34px minmax(0,1fr) 80px 95px 95px 110px 80px 120px 1fr 80px"><span></span><span>Task</span><span>Priority</span><span>Start Day</span><span>End Day</span><span>Assigned To</span><span>Status</span><span>Progress</span><span>Notes</span><span></span></div>
-      <div id="longterm-task-list"></div>
-    </div>`;
-  await loadTasks();
-  // Load profiles for assign dropdown
+    </div>
+
+    <div id="tf-body"></div>`;
   var pRes=await sb.from('profiles').select('full_name').order('full_name');
-  var assignEl=document.getElementById('new-assign');
+  _tfProfiles=(pRes.data||[]).map(function(p){return p.full_name;}).filter(Boolean);
   var tuf=document.getElementById('task-user-filter');
-  if(tuf&&pRes.data){pRes.data.forEach(function(p){if(p.full_name){var o=document.createElement('option');o.value=p.full_name;o.textContent=p.full_name;tuf.appendChild(o);}});}
-  ['new-daily-assign','new-long-assign'].forEach(function(elId){
-    var el=document.getElementById(elId);
-    if(el&&pRes.data){
-      pRes.data.forEach(function(p){
-        if(p.full_name){var opt=document.createElement('option');opt.value=p.full_name;opt.textContent=p.full_name;el.appendChild(opt);}
-      });
-    }
-  });
+  if(tuf)_tfProfiles.forEach(function(n){var o=document.createElement('option');o.value=n;o.textContent=n;tuf.appendChild(o);});
+  var as=document.getElementById('tf-assign');
+  _tfProfiles.forEach(function(n){var o=document.createElement('option');o.value=n;o.textContent=n;as.appendChild(o);});
+  document.getElementById('tf-group-sel').value=_tfGroup;
+  await loadTasks();
 }
-var _tasks=[];
 async function loadTasks(){
   var {data:rows,error}=await sb.from('tasks').select('*').order('created_at',{ascending:false});
   if(error){console.error('Tasks error:',error);return;}
-  // Show only tasks created by or assigned to current user (admins see all)
   _tasks=filterMyTasks(rows||[]);
   filterTasks();
 }
-var _taskFilter='all';
-var _taskUser='';
 function setTaskUser(v){_taskUser=v||'';filterTasks();}
-function setTaskFilter(val){
-  _taskFilter=(_taskFilter===val)?'all':val;
-  filterTasks();
-}
+function setTaskFilter(val){_taskFilter=(_taskFilter===val)?'all':val;filterTasks();}
+function tfSetView(v){_tfView=v;try{localStorage.setItem('tf_view',v);}catch(e){}filterTasks();}
+function tfSetScope(s){_tfScope=s;filterTasks();}
+function tfSetGroup(g){_tfGroup=g;try{localStorage.setItem('tf_group',g);}catch(e){}filterTasks();}
 function taskKpi(label,color,val,sub,filterVal){
   var active=_taskFilter===filterVal;
   return '<div onclick="setTaskFilter(&quot;'+filterVal+'&quot;)" style="cursor:pointer;background:'+(active?'#f5f8fc':'#fff')+';border:0.5px solid '+(active?color:'#eaedf2')+';border-top:3px solid '+color+';border-radius:10px;padding:14px 16px;transition:background 0.15s"><div style="font-size:11px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px">'+label+'</div><div style="font-size:26px;font-weight:800;color:'+color+'">'+val+'</div><div style="font-size:11px;color:#bbb;margin-top:3px">'+sub+'</div></div>';
 }
-function renderDailyRow(t){
+
+function tfDue(t){
+  var d=t.deadline;if(!d)return'';
+  var late=!t.done&&ddiff(d)<0;
+  return '<span class="tf-due'+(late?' late':'')+'">'+TF_ICON_CAL+(late?Math.abs(ddiff(d))+'d late · ':'')+fmtD(d)+'</span>';
+}
+function tfCard(t){
+  var typeTag=t.task_type==='longterm'?'<span class="tf-tag" style="background:#6B2A8B">Long-term</span>':'<span class="tf-tag" style="background:#2BA6B5">Daily</span>';
+  var pc={high:'#D9480F',medium:'#E8A317',low:'#3B9A2B'}[t.priority||'medium'];
+  var priTag='<span class="tf-tag" style="background:'+pc+'">'+tfEsc((t.priority||'medium').charAt(0).toUpperCase()+(t.priority||'medium').slice(1))+'</span>';
   var pct=t.done?100:(t.progress||0);
-  return`<div class="task-row done-row-check" style="grid-template-columns:34px minmax(0,1fr) 88px 110px 88px 80px;${t.done?'opacity:0.45':''}">
-    <div class="chk ${t.done?'on':''}" onclick="toggleTask('${t.id}',${t.done})"></div>
-    <div class="tname" style="font-size:13px;${t.done?'text-decoration:line-through':''}">${t.name}</div>
-    <div><span class="tbadge ${t.priority==='high'?'high':t.priority==='medium'?'medium':'low'}">${t.priority||'medium'}</span></div>
-    <div class="by-cell">${t.assigned_name||t.creator?.full_name||'—'}</div>
-    <div><span class="badge ${t.done?'b-win':'b-sent'}" style="cursor:pointer" onclick="toggleTask('${t.id}',${t.done})">${t.done?'Done':'Pending'}</span></div>
-    <div style="display:flex;gap:4px;flex-shrink:0"><button class="btn-sm" onclick="openEditTask('${t.id}')">Edit</button><button class="btn-danger" onclick="delTask('${t.id}','${t.name.replace(/'/g,'`')}')">×</button></div>
-  </div>`;
+  var prog=(t.task_type==='longterm')?'<div class="tf-prog"><div class="tf-prog-bar"><div style="width:'+pct+'%;background:'+(pct>=100?'#1D9E75':'#1B5E9B')+'"></div></div><select autocomplete="off" onchange="updateTaskProgress(\''+t.id+'\',this.value)">'+[0,10,20,30,40,50,60,70,80,90,100].map(function(v){return '<option value="'+v+'"'+(pct==v?' selected':'')+'>'+v+'%</option>';}).join('')+'</select></div>':'';
+  return '<div class="tf-card'+(t.done?' is-done':'')+'" draggable="true" ondragstart="tfDragStart(event,\''+t.id+'\')" ondragend="tfDragEnd()">'
+   +'<div class="tf-tags">'+typeTag+priTag+'</div>'
+   +'<div class="tf-title"><span class="tf-chk'+(t.done?' on':'')+'" onclick="toggleTask(\''+t.id+'\','+!!t.done+')"></span><span class="tf-name">'+tfEsc(t.name)+(t.ai_generated?' 🤖':'')+'</span></div>'
+   +(t.notes?'<div class="tf-notes">'+tfEsc(t.notes)+'</div>':'')
+   +prog
+   +'<div class="tf-foot">'+(tfDue(t)||'<span class="tf-due none">'+TF_ICON_CAL+'No date</span>')+'<span class="tf-foot-r"><span class="tf-acts"><button class="btn-sm" onclick="openEditTask(\''+t.id+'\')">Edit</button><button class="btn-danger" onclick="delTask(\''+t.id+'\',\''+tfEsc(t.name).replace(/'/g,'`')+'\')">×</button></span>'+tfAvatar(t.assigned_name)+'</span></div>'
+  +'</div>';
+}
+function tfColumns(rows){
+  var cols=[];
+  if(_tfGroup==='priority'){cols=TF_PRI.map(function(p){return {k:p.k,l:p.l,rows:rows.filter(function(t){return (t.priority||'medium')===p.k;})};});}
+  else if(_tfGroup==='assignee'){
+    var names=[];rows.forEach(function(t){var n=t.assigned_name||'';if(names.indexOf(n)<0)names.push(n);});
+    if(CP&&CP.full_name&&names.indexOf(CP.full_name)<0)names.unshift(CP.full_name);
+    names.sort(function(a,b){return a===''?1:b===''?-1:a.localeCompare(b);});
+    cols=names.map(function(n){return {k:n,l:n||'Unassigned',rows:rows.filter(function(t){return (t.assigned_name||'')===n;})};});
+  }else{cols=TF_STATUS.map(function(s){return {k:s.k,l:s.l,rows:rows.filter(function(t){return tfStatus(t)===s.k;})};});}
+  return cols;
+}
+function tfBoard(rows){
+  var cols=tfColumns(rows);
+  return '<div class="tf-board">'+cols.map(function(c,ci){
+    return '<div class="tf-col" ondragover="event.preventDefault();this.classList.add(\'over\')" ondragleave="this.classList.remove(\'over\')" ondrop="tfDrop(event,'+ci+')">'
+     +'<div class="tf-col-h">'+tfEsc(c.l)+' <span class="tf-count">'+c.rows.length+'</span></div>'
+     +'<div class="tf-quick" onclick="tfQuick(this,'+ci+')">＋ Add task</div>'
+     +c.rows.map(tfCard).join('')
+     +(c.rows.length?'':'<div class="tf-empty">No tasks</div>')
+    +'</div>';}).join('')+'</div>';
+}
+function tfGrid(rows){
+  var tpl='34px minmax(160px,1.4fr) 84px 80px 90px 90px 110px 84px 120px minmax(120px,1fr) 100px';
+  var head='<div class="task-hdr" style="grid-template-columns:'+tpl+'"><span></span><span>Task</span><span>Type</span><span>Priority</span><span>Start Day</span><span>End Day</span><span>Assigned To</span><span>Status</span><span>Progress</span><span>Notes</span><span></span></div>';
+  var body=rows.length?rows.map(function(t){
+    var pct=t.done?100:(t.progress||0);
+    var st=tfStatus(t),stl={todo:'Not started',prog:'In progress',done:'Completed'}[st];
+    var d=t.deadline,diff=d?ddiff(d):999;
+    var dl=!d?'—':t.done?fmtD(d):diff<0?'<span class="dl-ov">'+Math.abs(diff)+'d overdue</span>':diff===0?'<span class="dl-tod">Today</span>':fmtD(d);
+    return '<div class="task-row '+(t.done?'done-row':'')+'" style="grid-template-columns:'+tpl+'">'
+     +'<div class="chk '+(t.done?'on':'')+'" onclick="toggleTask(\''+t.id+'\','+!!t.done+')"></div>'
+     +'<div class="tname" style="font-size:13px">'+tfEsc(t.name)+(t.ai_generated?' 🤖':'')+'</div>'
+     +'<div><span class="tbadge" style="background:'+(t.task_type==='longterm'?'#F1E6F8;color:#6B2A8B':'#DDF3F6;color:#17727E')+'">'+(t.task_type==='longterm'?'Long-term':'Daily')+'</span></div>'
+     +'<div><span class="tbadge '+(t.priority||'medium')+'">'+(t.priority||'medium')+'</span></div>'
+     +'<div style="font-size:12px;color:#888">'+(t.start_date?fmtD(t.start_date):'—')+'</div>'
+     +'<div style="font-size:12px;color:#888">'+dl+'</div>'
+     +'<div style="display:flex;align-items:center;gap:6px;min-width:0">'+tfAvatar(t.assigned_name)+'<span style="font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+tfEsc(t.assigned_name||'—')+'</span></div>'
+     +'<div><span class="badge '+(st==='done'?'b-win':st==='prog'?'b-sent':'b-pending')+'" style="'+(st==='todo'?'background:#f1f3f6;color:#666':'')+'">'+stl+'</span></div>'
+     +'<div>'+(t.task_type==='longterm'&&!t.done?'<div class="tf-prog"><div class="tf-prog-bar"><div style="width:'+pct+'%;background:'+(pct>=100?'#1D9E75':'#1B5E9B')+'"></div></div><select autocomplete="off" onchange="updateTaskProgress(\''+t.id+'\',this.value)">'+[0,10,20,30,40,50,60,70,80,90,100].map(function(v){return '<option value="'+v+'"'+(pct==v?' selected':'')+'>'+v+'%</option>';}).join('')+'</select></div>':'<span style="font-size:12px;color:#aaa">'+(t.done?'100%':'—')+'</span>')+'</div>'
+     +'<input autocomplete="off" type="text" value="'+tfEsc(t.notes||'')+'" placeholder="Add a note..." onchange="updateTaskNotes(\''+t.id+'\',this.value)" style="font-size:12px;padding:5px 7px;border:1px solid #e5e5e5;border-radius:6px;outline:none;min-width:0">'
+     +'<div style="display:flex;gap:4px;white-space:nowrap"><button class="btn-sm" onclick="openEditTask(\''+t.id+'\')">Edit</button><button class="btn-danger" onclick="delTask(\''+t.id+'\',\''+tfEsc(t.name).replace(/'/g,'`')+'\')">×</button></div>'
+    +'</div>';}).join(''):'<div style="padding:24px;text-align:center;color:#bbb;font-size:13px">No tasks — add one above</div>';
+  return '<div class="tf-gridwrap"><div style="min-width:1080px">'+head+body+'</div></div>';
 }
 
 function filterTasks(){
   const search=(document.getElementById('task-search')?.value||'').toLowerCase();
-  // Admin "View user" filter: narrows both the list and the KPI boxes to one person
   var baseTasks=_taskUser?_tasks.filter(function(t){return (t.assigned_name||'')===_taskUser;}):_tasks;
   let rows=[...baseTasks];
-  if(search) rows=rows.filter(t=>t.name.toLowerCase().includes(search));
+  if(search) rows=rows.filter(t=>(t.name||'').toLowerCase().includes(search));
+  if(_tfScope==='daily') rows=rows.filter(t=>!t.task_type||t.task_type==='daily');
+  else if(_tfScope==='longterm') rows=rows.filter(t=>t.task_type==='longterm');
+  else if(_tfScope==='mine') rows=rows.filter(t=>CP&&(t.assigned_name||'')===(CP.full_name||''));
   if(_taskFilter==='high') rows=rows.filter(t=>!t.done&&t.priority==='high');
   else if(_taskFilter==='due_today') rows=rows.filter(t=>!t.done&&t.deadline&&ddiff(t.deadline)<=0);
   else if(_taskFilter==='done') rows=rows.filter(t=>t.done);
-  // 'all' — no extra filtering
   var kEl=document.getElementById('task-kpis');
   if(kEl){
     var high=baseTasks.filter(function(t){return !t.done&&t.priority==='high';}).length;
@@ -2670,60 +2775,74 @@ function filterTasks(){
       taskKpi('Due Today','#854F0B',dueToday,'or overdue','due_today')+
       taskKpi('Completed','#1D9E75',done,'tasks done','done');
   }
-  rows.sort((a,b)=>{if(a.done!==b.done)return a.done?1:-1;const po={high:0,medium:1,low:2};if((po[a.priority]||1)!==(po[b.priority]||1))return(po[a.priority]||1)-(po[b.priority]||1);if(a.deadline&&b.deadline)return new Date(a.deadline)-new Date(b.deadline);if(a.deadline)return -1;if(b.deadline)return 1;return 0;});
+  var po={high:0,medium:1,low:2};
+  rows.sort((a,b)=>{if(a.done!==b.done)return a.done?1:-1;if((po[a.priority]||1)!==(po[b.priority]||1))return(po[a.priority]||1)-(po[b.priority]||1);if(a.deadline&&b.deadline)return new Date(a.deadline)-new Date(b.deadline);if(a.deadline)return -1;if(b.deadline)return 1;return 0;});
+  // pill states
+  ['grid','board'].forEach(function(v){var e=document.getElementById('tf-v-'+v);if(e)e.classList.toggle('on',_tfView===v);});
+  ['all','daily','longterm','mine'].forEach(function(s){var e=document.getElementById('tf-s-'+s);if(e)e.classList.toggle('on',_tfScope===s);});
+  var gw=document.getElementById('tf-group-wrap');if(gw)gw.style.display=_tfView==='board'?'':'none';
+  _tfRows=rows;
+  var body=document.getElementById('tf-body');
+  if(body)body.innerHTML=_tfView==='board'?tfBoard(rows):tfGrid(rows);
+}
+var _tfRows=[];
 
-  // Split into daily and long-term
-  var dailyRows=rows.filter(function(t){return !t.task_type||t.task_type==='daily';});
-  var longtermRows=rows.filter(function(t){return t.task_type==='longterm';});
+// ----- drag & drop between columns -----
+function tfDragStart(e,id){_tfDragId=id;try{e.dataTransfer.setData('text/plain',id);e.dataTransfer.effectAllowed='move';}catch(x){}e.target.classList.add('drag');}
+function tfDragEnd(){_tfDragId=null;document.querySelectorAll('.tf-card.drag').forEach(function(c){c.classList.remove('drag');});document.querySelectorAll('.tf-col.over').forEach(function(c){c.classList.remove('over');});}
+async function tfDrop(e,ci){
+  e.preventDefault();
+  var id=_tfDragId;tfDragEnd();if(!id)return;
+  var t=_tasks.find(function(x){return x.id===id;});if(!t)return;
+  var col=tfColumns(_tfRows)[ci];if(!col)return;
+  var upd={updated_by:CU.id,updated_at:new Date().toISOString()};
+  if(_tfGroup==='status'){
+    if(col.k==='done'){upd.done=true;}
+    else if(col.k==='prog'){upd.done=false;upd.progress=(t.progress&&t.progress>0)?t.progress:50;}
+    else{upd.done=false;upd.progress=0;}
+  }else if(_tfGroup==='priority'){upd.priority=col.k;}
+  else{upd.assigned_name=col.k||null;}
+  Object.assign(t,upd);filterTasks();
+  var r=await sb.from('tasks').update(upd).eq('id',id);
+  if(r.error){console.error(r.error);await loadTasks();}
+}
 
-  // Render daily — no progress bar, no deadline column
-  var dlEl=document.getElementById('daily-task-list');
-  if(dlEl){
-    dlEl.innerHTML=dailyRows.length?dailyRows.map(function(t){
-      return`<div class="task-row ${t.done?'done-row':''}" style="grid-template-columns:34px minmax(0,1fr) 88px 95px 95px 110px 88px 1fr 80px">
-        <div class="chk ${t.done?'on':''}" onclick="toggleTask('${t.id}',${t.done})"></div>
-        <div class="tname" style="font-size:13px">${t.name}${t.ai_generated?' <span title="Suggested by AI" style="font-size:11px">🤖</span>':''}</div>
-        <div><span class="tbadge ${t.priority==='high'?'high':t.priority==='medium'?'medium':'low'}">${t.priority||'medium'}</span></div>
-        <div style="font-size:12px;color:#888">${t.start_date?fmtD(t.start_date):'—'}</div>
-        <div style="font-size:12px;color:#888">${t.deadline?fmtD(t.deadline):'—'}</div>
-        <div class="by-cell">${t.assigned_name||'—'}</div>
-        <div><span class="badge ${t.done?'b-win':'b-sent'}" style="cursor:pointer" onclick="toggleTask('${t.id}',${t.done})">${t.done?'Done':'Pending'}</span></div>
-        <input autocomplete="off" type="text" value="${(t.notes||'').replace(/"/g,'&quot;')}" placeholder="Add a note..." onchange="updateTaskNotes('${t.id}',this.value)" style="font-size:12px;padding:5px 7px;border:1px solid #e5e5e5;border-radius:6px;outline:none;min-width:0">
-        <div style="display:flex;gap:4px;flex-shrink:0"><button class="btn-sm" onclick="openEditTask('${t.id}')">Edit</button><button class="btn-danger" onclick="delTask('${t.id}','${t.name.replace(/'/g,'`')}')">×</button></div>
-      </div>`;
-    }).join(''):'<div style="padding:20px;text-align:center;color:#bbb;font-size:13px">No daily tasks — add one above</div>';
-  }
-
-  // Render long-term — with deadline and progress bar
-  var ltEl=document.getElementById('longterm-task-list');
-  if(ltEl){
-    ltEl.innerHTML=longtermRows.length?longtermRows.map(function(t){
-      const d=t.deadline;const diff=d?ddiff(d):999;
-      const dlHtml=!d?'<span class="dl-ok">—</span>':t.done?`<span class="dl-ok">${fmtD(d)}</span>`:diff<0?`<span class="dl-ov">${Math.abs(diff)}d overdue</span>`:diff===0?`<span class="dl-tod">Today</span>`:diff===1?`<span class="dl-ok">Tomorrow</span>`:`<span class="dl-ok">${fmtD(d)}</span>`;
-      var pct=t.done?100:(t.progress||0);
-      var pctColor=pct>=100?'#1D9E75':pct>=60?'#1B5E9B':pct>=30?'#BA7517':'#e0e6f0';
-      var progressHtml=t.done?'':`<div style="display:flex;align-items:center;gap:6px">
-        <div style="flex:1;height:6px;background:#f0f0f0;border-radius:3px;overflow:hidden">
-          <div style="width:${pct}%;height:100%;background:${pctColor};border-radius:3px;transition:width 0.3s"></div>
-        </div>
-        <select autocomplete="off" onchange="updateTaskProgress('${t.id}',this.value)" style="font-size:11px;border:none;background:transparent;color:#555;cursor:pointer;padding:0;outline:none">
-          ${[0,10,20,30,40,50,60,70,80,90,100].map(v=>`<option value="${v}" ${pct==v?'selected':''}>${v}%</option>`).join('')}
-        </select>
-      </div>`;
-      return`<div class="task-row ${t.done?'done-row':''}" style="grid-template-columns:34px minmax(0,1fr) 80px 95px 95px 110px 80px 120px 1fr 80px">
-        <div class="chk ${t.done?'on':''}" onclick="toggleTask('${t.id}',${t.done})"></div>
-        <div class="tname" style="font-size:13px">${t.name}${t.ai_generated?' <span title="Suggested by AI" style="font-size:11px">🤖</span>':''}</div>
-        <div><span class="tbadge ${t.priority==='high'?'high':t.priority==='medium'?'medium':'low'}">${t.priority||'medium'}</span></div>
-        <div style="font-size:12px;color:#888">${t.start_date?fmtD(t.start_date):'—'}</div>
-        <div>${dlHtml}</div>
-        <div class="by-cell">${t.assigned_name||'—'}</div>
-        <div><span class="badge ${t.done?'b-win':'b-sent'}" style="cursor:pointer" onclick="toggleTask('${t.id}',${t.done})">${t.done?'Done':'Pending'}</span></div>
-        <div>${progressHtml}</div>
-        <input autocomplete="off" type="text" value="${(t.notes||'').replace(/"/g,'&quot;')}" placeholder="Add a note..." onchange="updateTaskNotes('${t.id}',this.value)" style="font-size:12px;padding:5px 7px;border:1px solid #e5e5e5;border-radius:6px;outline:none;min-width:0">
-        <div style="display:flex;gap:4px;flex-shrink:0;white-space:nowrap"><button class="btn-sm" onclick="openEditTask('${t.id}')">Edit</button><button class="btn-danger" onclick="delTask('${t.id}','${t.name.replace(/'/g,'`')}')">×</button></div>
-      </div>`;
-    }).join(''):'<div style="padding:20px;text-align:center;color:#bbb;font-size:13px">No long-term tasks — add one above</div>';
-  }
+// ----- create -----
+async function tfCreate(o){
+  if(!o.name){alert('Please enter a task description');return false;}
+  var assigned=o.assigned_name!==undefined?o.assigned_name:null;
+  if(!assigned&&CP&&o.assigned_name!==null)assigned=CP.full_name||null;
+  var obj={name:o.name,priority:o.priority||'medium',deadline:o.deadline||null,start_date:o.start_date||null,done:!!o.done,assigned_name:assigned,created_by:CU.id,task_type:o.task_type||'daily',updated_at:new Date().toISOString()};
+  if(o.progress!=null)obj.progress=o.progress;
+  var res=await sb.from('tasks').insert(obj).select().single();
+  if(res.error){console.error('Task error:',res.error);alert('Could not add task: '+res.error.message);return false;}
+  await logAct('Added task','tasks',res.data?res.data.id:null,'Added: '+o.name);
+  await loadTasks();return true;
+}
+async function tfAddFromBar(){
+  var g=function(i){var e=document.getElementById(i);return e?e.value:'';};
+  var name=g('tf-name').trim();
+  var ok=await tfCreate({name:name,task_type:g('tf-type')||'daily',priority:g('tf-pri')||'medium',start_date:g('tf-start')||null,deadline:g('tf-end')||null,assigned_name:g('tf-assign')||undefined});
+  if(ok){document.getElementById('tf-name').value='';}
+}
+function tfQuick(el,ci){
+  if(el.querySelector('input'))return;
+  el.classList.add('open');
+  el.innerHTML='<input autocomplete="off" type="text" placeholder="Task name, press Enter" class="tf-in" style="width:100%">';
+  var inp=el.querySelector('input');inp.focus();
+  inp.onclick=function(e){e.stopPropagation();};
+  inp.onkeydown=async function(e){
+    if(e.key==='Escape'){filterTasks();return;}
+    if(e.key!=='Enter')return;
+    var name=inp.value.trim();if(!name){filterTasks();return;}
+    var col=tfColumns(_tfRows)[ci];
+    var o={name:name,task_type:_tfScope==='longterm'?'longterm':'daily'};
+    if(_tfGroup==='status'){if(col.k==='done'){o.done=true;}else if(col.k==='prog'){o.progress=50;}}
+    else if(_tfGroup==='priority'){o.priority=col.k;}
+    else{o.assigned_name=col.k||null;}
+    await tfCreate(o);
+  };
+  inp.onblur=function(){setTimeout(function(){if(document.body.contains(el)&&!inp.value.trim())filterTasks();},150);};
 }
 
 async function updateTaskNotes(id,val){
@@ -2737,27 +2856,6 @@ async function updateTaskProgress(id,val){
   var t=_tasks.find(function(t){return t.id===id;});
   if(t) t.progress=pct;
   filterTasks();
-}
-
-async function addTask(type){
-  type=type||'daily';
-  var isDaily=type==='daily';
-  var prefix=isDaily?'new-daily-':'new-long-';
-  var nameEl=document.getElementById(prefix+'task');
-  var name=nameEl?nameEl.value.trim():'';
-  if(!name){alert('Please enter a task description');return;}
-  var pri=(document.getElementById(prefix+'pri')?.value)||'medium';
-  var dl=isDaily?(document.getElementById('new-daily-end')?.value||null):(document.getElementById('new-long-date')?.value||null);
-  var sd=isDaily?(document.getElementById('new-daily-start')?.value||null):(document.getElementById('new-long-start')?.value||null);
-  var assignEl=document.getElementById(prefix+'assign');
-  var assignedName=assignEl&&assignEl.value?assignEl.value:null;
-  if(!assignedName&&CP) assignedName=CP.full_name||null;
-  var obj={name:name,priority:pri,deadline:dl,start_date:sd,done:false,assigned_name:assignedName,created_by:CU.id,task_type:type,updated_at:new Date().toISOString()};
-  var res=await sb.from('tasks').insert(obj).select().single();
-  if(res.error){console.error('Task error:',res.error);return;}
-  await logAct('Added task','tasks',res.data?res.data.id:null,'Added: '+name);
-  if(nameEl) nameEl.value='';
-  await loadTasks();
 }
 
 async function toggleTask(id,wasDone){
@@ -4111,7 +4209,7 @@ function deleteCustomGroup(idx){
 
 
 var ALL_PAGES=['dashboard','bids','gc','retail','proposals','purchases','tasks','log','mgmt','pipeline','ai','inbox'];
-var PAGE_LABELS=['Dashboard','Bid Opp.','GC Contacts','Retail','Proposals','Purchases','To-Do','Activity Log','Management','Pipeline','AI Advisor','Quick Save'];
+var PAGE_LABELS=['Dashboard','Bid Opp.','GC Contacts','Retail','Proposals','Purchases','Taskflow','Activity Log','Management','Pipeline','AI Advisor','Quick Save'];
 
 function renderGroupPermsTable(){
   var el=document.getElementById('group-perms-table');
