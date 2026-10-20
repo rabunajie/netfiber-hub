@@ -281,6 +281,37 @@ tr:hover td{background:#fafcff}
 .tf-gridwrap{background:#fff;border:0.5px solid #e4e8f0;border-radius:12px;overflow-x:auto}
 @media(max-width:700px){.tf-col{flex-basis:84vw}.tf-acts{display:inline-flex}#task-kpis{grid-template-columns:repeat(2,1fr)!important}.tf-search{min-width:0;flex:1}}
 
+/* TASKFLOW WINDOW */
+.tfm-bg{display:none;position:fixed;inset:0;background:rgba(10,20,40,.5);z-index:600;align-items:center;justify-content:center;padding:16px}
+.tfm-bg.open{display:flex}
+.tfm{background:#fff;border-radius:12px;width:min(1020px,100%);max-height:92vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.35);overflow:hidden}
+.tfm-top{display:flex;align-items:center;justify-content:space-between;padding:14px 22px;border-bottom:1px solid #e8ebf1;font-size:13px;color:#555}
+.tfm-ref{font-weight:600}
+.tfm-x{border:none;background:none;font-size:18px;cursor:pointer;color:#555;padding:4px 8px;border-radius:6px}.tfm-x:hover{background:#f0f2f6}
+.tfm-main{display:grid;grid-template-columns:minmax(0,1fr) 320px;min-height:0;overflow:hidden}
+.tfm-left{padding:20px 26px 18px;overflow-y:auto;max-height:calc(92vh - 52px)}
+.tfm-right{border-left:1px solid #e8ebf1;padding:18px 18px;overflow-y:auto;background:#fafbfd}
+.tfm-titlerow{display:flex;align-items:center;gap:14px}
+.tfm-title{flex:1;font-size:21px;font-weight:600;border:1px solid transparent;border-radius:6px;padding:6px 8px;outline:none;color:#222;min-width:0}
+.tfm-title:hover{border-color:#e0e4ea}.tfm-title:focus{border-color:#1B5E9B}
+.tfm-meta{font-size:12px;color:#666;margin:6px 0 12px 32px}
+.tfm-tags{display:flex;gap:6px;margin:0 0 12px 32px}
+.tfm-assigned{display:flex;align-items:center;gap:8px;margin:0 0 20px 32px}
+.tfm-tab{margin-bottom:16px}.tfm-tab span{display:inline-block;background:#1B5E9B;color:#fff;font-size:13px;font-weight:600;padding:7px 16px;border-radius:999px}
+.tfm-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px 22px}
+.tfm label,.tfm-lbl{display:block;font-size:13px;color:#333;margin-bottom:5px}
+.tfm-lbl{margin-top:20px;font-size:15px;font-weight:600}
+.tfm select,.tfm input[type=date]{width:100%;padding:9px 10px;border:1px solid #c9cfd9;border-radius:6px;font-size:14px;background:#fff;outline:none}
+.tfm select:focus,.tfm input[type=date]:focus,.tfm textarea:focus{border-color:#1B5E9B}
+.tfm textarea{width:100%;min-height:110px;border:1px solid #c9cfd9;border-radius:6px;padding:10px;font-size:14px;font-family:inherit;outline:none;resize:vertical}
+.tfm-foot{display:flex;gap:10px;align-items:center;margin-top:20px;padding-top:14px;border-top:1px solid #eef0f4}
+.tfm-rh{font-size:14px;font-weight:700;margin-bottom:12px;color:#222}
+.tfm-ai{padding:9px 0;border-bottom:1px solid #eceff4}
+.tfm-ai-h{font-size:12px;font-weight:700;color:#333}.tfm-ai-h span{font-weight:400;color:#888}
+.tfm-ai-b{font-size:12.5px;color:#555;margin-top:2px}
+.tfm-empty{font-size:12.5px;color:#999;text-align:center;padding:30px 10px}
+@media(max-width:760px){.tfm-main{grid-template-columns:1fr}.tfm-right{display:none}.tfm-grid{grid-template-columns:1fr}.tfm-meta,.tfm-tags,.tfm-assigned{margin-left:0}}
+
 /* ACTIVITY LOG */
 .log-item{display:flex;gap:12px;padding:10px 16px;border-bottom:0.5px solid #f5f5f5;align-items:flex-start}
 .log-item:last-child{border-bottom:none}
@@ -2659,12 +2690,13 @@ async function renderTasks(){
         <input autocomplete="off" type="date" id="tf-start" class="tf-in" title="Start Day">
         <input autocomplete="off" type="date" id="tf-end" class="tf-in" title="End Day">
         <select autocomplete="off" id="tf-assign" class="tf-in" title="Assign to"><option value="">Assign to me</option></select>
-        <button class="btn btn-blue" onclick="tfAddFromBar()">+ Add task</button>
+        <button class="btn btn-blue" onclick="tfAddFromBar()">+ Add task</button><button class="btn-sm" style="padding:7px 12px" onclick="tfOpenFromBar()" title="Open the full form">More options…</button>
       </div>
     </div>
 
     <div id="tf-body"></div>`;
-  var pRes=await sb.from('profiles').select('full_name').order('full_name');
+  var pRes=await sb.from('profiles').select('id,full_name').order('full_name');
+  (pRes.data||[]).forEach(function(p){_tfProfMap[p.id]=p.full_name;});
   _tfProfiles=(pRes.data||[]).map(function(p){return p.full_name;}).filter(Boolean);
   var tuf=document.getElementById('task-user-filter');
   if(tuf)_tfProfiles.forEach(function(n){var o=document.createElement('option');o.value=n;o.textContent=n;tuf.appendChild(o);});
@@ -2700,7 +2732,7 @@ function tfCard(t){
   var priTag='<span class="tf-tag" style="background:'+pc+'">'+tfEsc((t.priority||'medium').charAt(0).toUpperCase()+(t.priority||'medium').slice(1))+'</span>';
   var pct=t.done?100:(t.progress||0);
   var prog=(t.task_type==='longterm')?'<div class="tf-prog"><div class="tf-prog-bar"><div style="width:'+pct+'%;background:'+(pct>=100?'#1D9E75':'#1B5E9B')+'"></div></div><select autocomplete="off" onchange="updateTaskProgress(\''+t.id+'\',this.value)">'+[0,10,20,30,40,50,60,70,80,90,100].map(function(v){return '<option value="'+v+'"'+(pct==v?' selected':'')+'>'+v+'%</option>';}).join('')+'</select></div>':'';
-  return '<div class="tf-card'+(t.done?' is-done':'')+'" draggable="true" ondragstart="tfDragStart(event,\''+t.id+'\')" ondragend="tfDragEnd()">'
+  return '<div class="tf-card'+(t.done?' is-done':'')+'" draggable="true" onclick="tfCardClick(event,\''+t.id+'\')" ondragstart="tfDragStart(event,\''+t.id+'\')" ondragend="tfDragEnd()">'
    +'<div class="tf-tags">'+typeTag+priTag+'</div>'
    +'<div class="tf-title"><span class="tf-chk'+(t.done?' on':'')+'" onclick="toggleTask(\''+t.id+'\','+!!t.done+')"></span><span class="tf-name">'+tfEsc(t.name)+(t.ai_generated?' 🤖':'')+'</span></div>'
    +(t.notes?'<div class="tf-notes">'+tfEsc(t.notes)+'</div>':'')
@@ -2739,7 +2771,7 @@ function tfGrid(rows){
     var dl=!d?'—':t.done?fmtD(d):diff<0?'<span class="dl-ov">'+Math.abs(diff)+'d overdue</span>':diff===0?'<span class="dl-tod">Today</span>':fmtD(d);
     return '<div class="task-row '+(t.done?'done-row':'')+'" style="grid-template-columns:'+tpl+'">'
      +'<div class="chk '+(t.done?'on':'')+'" onclick="toggleTask(\''+t.id+'\','+!!t.done+')"></div>'
-     +'<div class="tname" style="font-size:13px">'+tfEsc(t.name)+(t.ai_generated?' 🤖':'')+'</div>'
+     +'<div class="tname" style="font-size:13px;cursor:pointer;color:#1B5E9B" onclick="tfOpen(\''+t.id+'\')">'+tfEsc(t.name)+(t.ai_generated?' 🤖':'')+'</div>'
      +'<div><span class="tbadge" style="background:'+(t.task_type==='longterm'?'#F1E6F8;color:#6B2A8B':'#DDF3F6;color:#17727E')+'">'+(t.task_type==='longterm'?'Long-term':'Daily')+'</span></div>'
      +'<div><span class="tbadge '+(t.priority||'medium')+'">'+(t.priority||'medium')+'</span></div>'
      +'<div style="font-size:12px;color:#888">'+(t.start_date?fmtD(t.start_date):'—')+'</div>'
@@ -2807,6 +2839,106 @@ async function tfDrop(e,ci){
   if(r.error){console.error(r.error);await loadTasks();}
 }
 
+
+// ===== Taskflow: task window (edit + new) =====
+var _tfEditId=null,_tfProfMap={};
+function tfName(id){return _tfProfMap[id]||'';}
+function tfDT(s){if(!s)return'';try{return new Date(s).toLocaleDateString('en-US',{month:'short',day:'numeric'});}catch(e){return'';}}
+function tfCardClick(e,id){if(e.target.closest('.tf-chk,button,select,input,.tf-acts'))return;tfOpen(id);}
+function openEditTask(id){tfOpen(id);}
+function tfOptions(list,sel,blank){return (blank?'<option value="">'+blank+'</option>':'')+list.map(function(o){var k=o.k!==undefined?o.k:o,l=o.l!==undefined?o.l:o;return '<option value="'+tfEsc(k)+'"'+(String(k)===String(sel)?' selected':'')+'>'+tfEsc(l)+'</option>';}).join('');}
+async function tfOpen(id,pre){
+  var t=id?_tasks.find(function(x){return x.id===id;}):null;
+  if(id&&!t)return;
+  var isNew=!t;
+  if(isNew)t=Object.assign({task_type:'daily',priority:'medium',progress:0,done:false,assigned_name:(CP&&CP.full_name)||''},pre||{});
+  _tfEditId=id||null;
+  var m=document.getElementById('tf-modal');
+  if(!m){m=document.createElement('div');m.id='tf-modal';m.className='tfm-bg';m.onclick=function(e){if(e.target===m)tfClose();};document.body.appendChild(m);}
+  var st=tfStatus(t);
+  var people=_tfProfiles.slice();if(t.assigned_name&&people.indexOf(t.assigned_name)<0)people.push(t.assigned_name);
+  var pcol={high:'#D9480F',medium:'#3B9A2B',low:'#7a8599'};
+  var info=isNew?'New task':('Created '+(tfDT(t.created_at)||'')+(tfName(t.created_by)?' by '+tfEsc(tfName(t.created_by)):'')+(t.updated_at?' · Last changed '+tfDT(t.updated_at)+(tfName(t.updated_by)?' by '+tfEsc(tfName(t.updated_by)):''):''));
+  m.innerHTML='<div class="tfm">'
+   +'<div class="tfm-top"><div class="tfm-ref">'+(isNew?'New task':'Task')+'</div><div><button class="tfm-x" onclick="tfClose()" title="Close">✕</button></div></div>'
+   +'<div class="tfm-main"><div class="tfm-left">'
+     +'<div class="tfm-titlerow"><span class="tf-chk'+(st==='done'?' on':'')+'" id="tfm-chk" onclick="tfmToggleDone()"></span><input autocomplete="off" id="tfm-name" class="tfm-title" type="text" placeholder="Task name" value="'+tfEsc(t.name||'')+'"></div>'
+     +'<div class="tfm-meta">'+info+'</div>'
+     +'<div class="tfm-tags"><span class="tf-tag" id="tfm-ttag" style="background:'+(t.task_type==='longterm'?'#6B2A8B':'#2BA6B5')+'">'+(t.task_type==='longterm'?'Long-term':'Daily')+'</span><span class="tf-tag" id="tfm-ptag" style="background:'+({high:'#D9480F',medium:'#E8A317',low:'#3B9A2B'}[t.priority||'medium'])+'">'+((t.priority||'medium').charAt(0).toUpperCase()+(t.priority||'medium').slice(1))+'</span></div>'
+     +'<div class="tfm-assigned"><span id="tfm-av">'+tfAvatar(t.assigned_name||'')+'</span><span style="font-size:13px;color:#666" id="tfm-avn">'+tfEsc(t.assigned_name||'Unassigned')+'</span></div>'
+     +'<div class="tfm-tab"><span>Task details</span></div>'
+     +'<div class="tfm-grid">'
+       +'<div><label>Status</label><select autocomplete="off" id="tfm-status">'+tfOptions(TF_STATUS,st)+'</select></div>'
+       +'<div><label>Priority</label><select autocomplete="off" id="tfm-pri" onchange="tfmSync()">'+tfOptions(TF_PRI,t.priority||'medium')+'</select></div>'
+       +'<div><label>Start date</label><input autocomplete="off" id="tfm-start" type="date" value="'+tfEsc(t.start_date||'')+'"></div>'
+       +'<div><label>Due date</label><input autocomplete="off" id="tfm-end" type="date" value="'+tfEsc(t.deadline||'')+'"></div>'
+       +'<div><label>Type</label><select autocomplete="off" id="tfm-type" onchange="tfmSync()"><option value="daily"'+(t.task_type!=='longterm'?' selected':'')+'>Daily</option><option value="longterm"'+(t.task_type==='longterm'?' selected':'')+'>Long-term</option></select></div>'
+       +'<div><label>Assigned to</label><select autocomplete="off" id="tfm-assign" onchange="tfmSync()">'+tfOptions(people,t.assigned_name||'','Unassigned')+'</select></div>'
+       +'<div><label>Progress</label><select autocomplete="off" id="tfm-prog">'+[0,10,20,30,40,50,60,70,80,90,100].map(function(v){var cur=t.done?100:(t.progress||0);return '<option value="'+v+'"'+(cur==v?' selected':'')+'>'+v+'%</option>';}).join('')+'</select></div>'
+     +'</div>'
+     +'<label class="tfm-lbl">Notes</label><textarea autocomplete="off" id="tfm-notes" placeholder="Type a description or add notes here">'+tfEsc(t.notes||'')+'</textarea>'
+     +'<div class="tfm-foot">'+(isNew?'':'<button class="btn-danger" onclick="tfmDelete()">Delete</button>')+'<span style="flex:1"></span><button class="btn" style="background:#eef1f6;color:#444" onclick="tfClose()">Cancel</button><button class="btn btn-blue" onclick="tfmSave()">'+(isNew?'Add task':'Save')+'</button></div>'
+   +'</div>'
+   +'<div class="tfm-right"><div class="tfm-rh">Activity</div><div id="tfm-act" class="tfm-act">'+(isNew?'<div class="tfm-empty">Activity will show here once the task is created.</div>':'<div class="tfm-empty">Loading…</div>')+'</div></div>'
+   +'</div></div>';
+  m.classList.add('open');
+  var ni=document.getElementById('tfm-name');if(ni&&isNew)ni.focus();
+  if(!isNew)tfmLoadActivity(id);
+}
+function tfClose(){var m=document.getElementById('tf-modal');if(m)m.classList.remove('open');_tfEditId=null;}
+document.addEventListener('keydown',function(e){if(e.key==='Escape'){var m=document.getElementById('tf-modal');if(m&&m.classList.contains('open'))tfClose();}});
+function tfmSync(){
+  var p=document.getElementById('tfm-pri').value,ty=document.getElementById('tfm-type').value,a=document.getElementById('tfm-assign').value;
+  var pt=document.getElementById('tfm-ptag');pt.textContent=p.charAt(0).toUpperCase()+p.slice(1);pt.style.background={high:'#D9480F',medium:'#E8A317',low:'#3B9A2B'}[p];
+  var tt=document.getElementById('tfm-ttag');tt.textContent=ty==='longterm'?'Long-term':'Daily';tt.style.background=ty==='longterm'?'#6B2A8B':'#2BA6B5';
+  document.getElementById('tfm-av').innerHTML=tfAvatar(a);document.getElementById('tfm-avn').textContent=a||'Unassigned';
+}
+function tfmToggleDone(){
+  var s=document.getElementById('tfm-status'),c=document.getElementById('tfm-chk');
+  var done=s.value!=='done';s.value=done?'done':'todo';c.classList.toggle('on',done);
+  if(done)document.getElementById('tfm-prog').value='100';
+}
+async function tfmLoadActivity(id){
+  var el=document.getElementById('tfm-act');
+  try{
+    var r=await sb.from('activity_log').select('*').eq('table_name','tasks').eq('record_id',id).order('created_at',{ascending:false}).limit(25);
+    var rows=r.data||[];
+    if(!rows.length){el.innerHTML='<div class="tfm-empty">No activity yet.</div>';return;}
+    el.innerHTML=rows.map(function(a){
+      var d=a.details||'';if(d.charAt(0)==='{')d='';
+      return '<div class="tfm-ai"><div class="tfm-ai-h">'+tfEsc(a.user_name||'')+' <span>· '+tfDT(a.created_at)+'</span></div><div class="tfm-ai-b">'+tfEsc(a.action||'')+(d?' — '+tfEsc(String(d).slice(0,120)):'')+'</div></div>';
+    }).join('');
+  }catch(e){el.innerHTML='<div class="tfm-empty">Activity unavailable.</div>';}
+}
+async function tfmSave(){
+  var g=function(i){return document.getElementById(i).value;};
+  var name=g('tfm-name').trim();if(!name){alert('Task name required');document.getElementById('tfm-name').focus();return;}
+  var status=g('tfm-status'),prog=parseInt(g('tfm-prog'))||0,done=false;
+  if(status==='done'){done=true;prog=100;}
+  else if(status==='todo'){prog=prog>0?prog:0;if(prog>0)status='prog';}
+  else if(status==='prog'){if(prog<=0||prog>=100)prog=50;}
+  var o={name:name,priority:g('tfm-pri'),task_type:g('tfm-type'),start_date:g('tfm-start')||null,deadline:g('tfm-end')||null,assigned_name:g('tfm-assign')||null,notes:g('tfm-notes')||null,done:done,progress:prog};
+  if(_tfEditId){
+    var upd=Object.assign({},o,{updated_by:CU.id,updated_at:new Date().toISOString()});
+    var res=await sb.from('tasks').update(upd).eq('id',_tfEditId);
+    if(res.error){alert('Error: '+res.error.message);return;}
+    try{await logAct('Edited task','tasks',_tfEditId,'Edited: '+name);}catch(e){}
+    tfClose();await loadTasks();
+  }else{
+    var ok=await tfCreate(o);if(ok){tfClose();var b=document.getElementById('tf-name');if(b)b.value='';}
+  }
+}
+async function tfmDelete(){
+  var t=_tasks.find(function(x){return x.id===_tfEditId;});if(!t)return;
+  var id=_tfEditId;
+  await delTask(id,(t.name||'').replace(/'/g,'`'));
+  if(!_tasks.find(function(x){return x.id===id;}))tfClose();
+}
+function tfOpenFromBar(){
+  var g=function(i){var e=document.getElementById(i);return e?e.value:'';};
+  tfOpen(null,{name:g('tf-name').trim(),task_type:g('tf-type')||'daily',priority:g('tf-pri')||'medium',start_date:g('tf-start')||null,deadline:g('tf-end')||null,assigned_name:g('tf-assign')||((CP&&CP.full_name)||'')});
+}
+
 // ----- create -----
 async function tfCreate(o){
   if(!o.name){alert('Please enter a task description');return false;}
@@ -2814,6 +2946,7 @@ async function tfCreate(o){
   if(!assigned&&CP&&o.assigned_name!==null)assigned=CP.full_name||null;
   var obj={name:o.name,priority:o.priority||'medium',deadline:o.deadline||null,start_date:o.start_date||null,done:!!o.done,assigned_name:assigned,created_by:CU.id,task_type:o.task_type||'daily',updated_at:new Date().toISOString()};
   if(o.progress!=null)obj.progress=o.progress;
+  if(o.notes)obj.notes=o.notes;
   var res=await sb.from('tasks').insert(obj).select().single();
   if(res.error){console.error('Task error:',res.error);alert('Could not add task: '+res.error.message);return false;}
   await logAct('Added task','tasks',res.data?res.data.id:null,'Added: '+o.name);
@@ -3422,7 +3555,7 @@ async function logGCFollowUp(){
 }
 
 
-async function openEditTask(taskId){
+async function openEditTaskLegacy(taskId){
   var task=(_tasks||[]).find(function(t){return t.id===taskId;});
   if(!task)return;
   document.getElementById('et-id').value=task.id;
