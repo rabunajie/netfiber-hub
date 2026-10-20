@@ -1214,11 +1214,7 @@ body.view-only button[onclick*="Remove"]{
         <div class="ifield"><label>Invoice #</label><input autocomplete="off" id="inv-no" placeholder="25022-7303"></div>
         <div class="ifield"><label>Invoice Date</label><input autocomplete="off" id="inv-date" type="date"></div>
         <div class="ifield"><label>Milestone</label>
-          <select autocomplete="off" id="inv-milestone" onchange="updateInvAmounts()">
-            <option value="1">1 — 60% Installation Phase</option>
-            <option value="2">2 — 30% Testing & Certification</option>
-            <option value="3">3 — 10% Final Completion</option>
-          </select>
+          <select autocomplete="off" id="inv-milestone" onchange="updateInvAmounts()"></select>
         </div>
       </div>
     </div>
@@ -4891,6 +4887,9 @@ var pedItems = [];
 var pedSections = [{id:'sec_default',header:'',items:[]}];
 var pedGCs = [];
 var invProposal = null;
+var invMs=[],invTax={on:true,rate:8.25,label:'Sales tax'};
+function invDefaults(){invMs=[{num:'1',name:'Installation Phase',pct:60},{num:'2',name:'After Testing & Certification',pct:30},{num:'3',name:'Final Completion & Punch List',pct:10}];var tr=invProposal&&invProposal.tax_rate;invTax={on:!(tr===0||tr==='0'),rate:(tr||tr===0)&&parseFloat(tr)>0?parseFloat(tr):8.25,label:'Sales tax'};}
+function invAmounts(){var t=(invProposal&&invProposal.total)||0;return invMs.map(function(x){return Math.round(t*(parseFloat(x.pct)||0)/100*100)/100;});}
 var invWorkItems = [];
 
 async function renderProposals(){
@@ -5828,7 +5827,7 @@ async function openInvoice(id){
   invWorkItems=items.map(function(item,i){return {id:'wi_'+i,text:item.product_service||''};});
   document.getElementById('inv-no').value='';
   document.getElementById('inv-date').value=new Date().toISOString().split('T')[0];
-  document.getElementById('inv-milestone').value='1';
+  invDefaults();document.getElementById('inv-milestone').value='1';
   renderWorkItems();
   updateInvAmounts();
   document.getElementById('invoice-modal').classList.add('open');
@@ -5852,29 +5851,43 @@ function addWorkItem(){invWorkItems.push({id:'wi_'+Date.now(),text:''});renderWo
 function updateWorkItem(id,val){var w=invWorkItems.find(function(i){return i.id===id;});if(w)w.text=val;}
 function removeWorkItem(id){invWorkItems=invWorkItems.filter(function(i){return i.id!==id;});renderWorkItems();}
 
+function invEsc(x){return String(x==null?'':x).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');}
+function invSet(i,k,v){if(k==='pct'){v=parseFloat(v);if(isNaN(v)||v<0)v=0;}invMs[i][k]=v;updateInvAmounts();}
+function invAddMs(){invMs.push({num:String(invMs.length+1),name:'New milestone',pct:0});updateInvAmounts();}
+function invDelMs(i){if(invMs.length<2){return;}invMs.splice(i,1);var sel=document.getElementById('inv-milestone');if(sel&&parseInt(sel.value)>invMs.length)sel.value=String(invMs.length);updateInvAmounts();}
+function invSetTax(k,v){if(k==='on')invTax.on=!!v;else if(k==='rate'){v=parseFloat(v);invTax.rate=isNaN(v)||v<0?0:v;}else invTax[k]=v;updateInvAmounts();}
 function updateInvAmounts(){
   if(!invProposal) return;
-  var m=parseInt(document.getElementById('inv-milestone').value||1);
-  var total=invProposal.total||0;
-  var m1=Math.round(total*0.6*100)/100;
-  var m2=Math.round(total*0.3*100)/100;
-  var m3=Math.round((total-m1-m2)*100)/100;
-  var amounts=[m1,m2,m3];
-  var labels=['60% - Installation Phase','30% - After Testing & Certification','10% - Final Completion & Punch List'];
-  var taxRate=invProposal.tax_rate||8.25;
-  var curAmt=amounts[m-1];
+  var sel=document.getElementById('inv-milestone');
+  var m=Math.min(Math.max(parseInt(sel.value||1)||1,1),invMs.length);
+  sel.innerHTML=invMs.map(function(x,i){return '<option value="'+(i+1)+'">'+invEsc(x.num)+' — '+invEsc(x.pct)+'% '+invEsc(x.name)+'</option>';}).join('');
+  sel.value=String(m);
+  var amounts=invAmounts(),pctSum=invMs.reduce(function(a,x){return a+(parseFloat(x.pct)||0);},0);
+  var curAmt=amounts[m-1],taxRate=invTax.on?invTax.rate:0;
   var curTax=Math.round(curAmt*taxRate/100*100)/100;
   var curTotal=Math.round((curAmt+curTax)*100)/100;
   var sched=document.getElementById('inv-schedule');
   if(!sched) return;
-  var html='<table class="print-milestone-table" style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:10px"><thead><tr><th>#</th><th>Milestone</th><th style="text-align:right">Amount</th></tr></thead><tbody>';
-  for(var i=0;i<3;i++){
-    html+='<tr style="'+(i+1===m?'background:#EAF3DE;font-weight:700':'')+'"><td style="padding:7px 10px">'+(i+1)+'</td><td style="padding:7px 10px">'+labels[i]+'</td><td style="padding:7px 10px;text-align:right">'+fmt$(amounts[i])+'</td></tr>';
+  var inp='padding:5px 7px;border:1px solid #e0e0e0;border-radius:6px;font-size:12.5px;outline:none;width:100%;box-sizing:border-box';
+  var html='<div style="font-size:11px;color:#888;margin-bottom:6px">Edit the number, name and % of each milestone. Amounts are calculated from the contract total ('+fmt$(invProposal.total||0)+').</div>'
+   +'<table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:6px"><thead><tr style="background:#f4f7fb;font-size:11px;color:#667"><th style="padding:6px;text-align:left;width:56px">#</th><th style="padding:6px;text-align:left">Milestone name</th><th style="padding:6px;text-align:left;width:70px">%</th><th style="padding:6px;text-align:right;width:100px">Amount</th><th style="width:34px"></th></tr></thead><tbody>';
+  for(var i=0;i<invMs.length;i++){
+    html+='<tr style="'+(i+1===m?'background:#EAF3DE':'')+'"><td style="padding:4px 6px"><input autocomplete="off" style="'+inp+'" value="'+invEsc(invMs[i].num)+'" onchange="invSet('+i+',\'num\',this.value)"></td>'
+     +'<td style="padding:4px 6px"><input autocomplete="off" style="'+inp+'" value="'+invEsc(invMs[i].name)+'" onchange="invSet('+i+',\'name\',this.value)"></td>'
+     +'<td style="padding:4px 6px"><input autocomplete="off" type="number" min="0" max="100" step="0.5" style="'+inp+'" value="'+invEsc(invMs[i].pct)+'" onchange="invSet('+i+',\'pct\',this.value)"></td>'
+     +'<td style="padding:4px 10px;text-align:right;font-weight:'+(i+1===m?'700':'400')+'">'+fmt$(amounts[i])+'</td>'
+     +'<td style="padding:4px 2px"><button class="btn-danger" '+(invMs.length<2?'disabled style="opacity:.4"':'')+' onclick="invDelMs('+i+')">×</button></td></tr>';
   }
-  html+='<tr><td colspan="2" style="padding:7px 10px;text-align:right;font-weight:700">Current Invoice (Milestone '+m+'):</td><td style="padding:7px 10px;text-align:right;font-weight:700">'+fmt$(curAmt)+'</td></tr>';
-  html+='<tr><td colspan="2" style="padding:7px 10px;text-align:right;color:#888">Tax ('+taxRate+'%)</td><td style="padding:7px 10px;text-align:right;color:#888">'+fmt$(curTax)+'</td></tr>';
-  html+='<tr><td colspan="2" style="padding:7px 10px;text-align:right;font-weight:700;color:#1B5E9B">Total Due Now</td><td style="padding:7px 10px;text-align:right;font-weight:700;color:#1B5E9B">'+fmt$(curTotal)+'</td></tr>';
-  html+='</tbody></table>';
+  html+='</tbody></table><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px"><button class="btn-sm" onclick="invAddMs()">+ Add milestone</button>'
+   +'<span style="font-size:12px;font-weight:600;color:'+(Math.abs(pctSum-100)<0.01?'#1D9E75':'#BA7517')+'">Total '+(Math.round(pctSum*100)/100)+'%'+(Math.abs(pctSum-100)<0.01?' ✓':' — does not equal 100%')+'</span></div>'
+   +'<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 12px;background:#f9fafb;border:1px solid #eee;border-radius:8px;margin-bottom:10px">'
+   +'<label style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600"><input type="checkbox" '+(invTax.on?'checked':'')+' onchange="invSetTax(\'on\',this.checked)"> Charge tax</label>'
+   +'<input autocomplete="off" style="'+inp+';width:150px" value="'+invEsc(invTax.label)+'" onchange="invSetTax(\'label\',this.value)" '+(invTax.on?'':'disabled')+'>'
+   +'<input autocomplete="off" type="number" min="0" step="0.01" style="'+inp+';width:80px" value="'+invEsc(invTax.rate)+'" onchange="invSetTax(\'rate\',this.value)" '+(invTax.on?'':'disabled')+'><span style="font-size:13px">%</span></div>'
+   +'<table style="width:100%;border-collapse:collapse;font-size:13px"><tbody>'
+   +'<tr><td style="padding:5px 10px;text-align:right;font-weight:700">This invoice (milestone '+invEsc(invMs[m-1].num)+')</td><td style="padding:5px 10px;text-align:right;font-weight:700;width:110px">'+fmt$(curAmt)+'</td></tr>'
+   +(invTax.on?'<tr><td style="padding:5px 10px;text-align:right;color:#888">'+invEsc(invTax.label)+' ('+taxRate+'%)</td><td style="padding:5px 10px;text-align:right;color:#888">'+fmt$(curTax)+'</td></tr>':'')
+   +'<tr><td style="padding:5px 10px;text-align:right;font-weight:700;color:#1B5E9B">Total Due Now</td><td style="padding:5px 10px;text-align:right;font-weight:700;color:#1B5E9B">'+fmt$(curTotal)+'</td></tr></tbody></table>';
   sched.innerHTML=html;
 }
 
@@ -5884,12 +5897,10 @@ async function printInvoice(){
   var invNo=document.getElementById('inv-no').value||'';
   var invDate=document.getElementById('inv-date').value||new Date().toISOString().split('T')[0];
   var total=invProposal.total||0;
-  var m1=Math.round(total*0.6*100)/100;
-  var m2=Math.round(total*0.3*100)/100;
-  var m3=Math.round((total-m1-m2)*100)/100;
-  var amounts=[m1,m2,m3];
-  var labels=['60% - Installation Phase','30% - After Testing & Certification','10% - Final Completion & Punch List'];
-  var taxRate=invProposal.tax_rate||8.25;
+  var amounts=invAmounts();
+  var labels=invMs.map(function(x){return (parseFloat(x.pct)||0)+'% - '+x.name;});
+  m=Math.min(Math.max(m,1),invMs.length);
+  var taxRate=invTax.on?invTax.rate:0;
   var curAmt=amounts[m-1];
   var curTax=Math.round(curAmt*taxRate/100*100)/100;
   var curTotal=Math.round((curAmt+curTax)*100)/100;
@@ -5905,9 +5916,9 @@ async function printInvoice(){
   var billedToDate=0;for(var k=0;k<m;k++)billedToDate+=amounts[k];
   var balance=Math.round((total-billedToDate)*100)/100;
   var milestoneRows='';
-  for(var q=0;q<3;q++){
+  for(var q=0;q<invMs.length;q++){
     var cur=(q+1===m);
-    milestoneRows+='<tr'+(cur?' class="cur"':'')+'><td class="n">'+(q+1)+'</td><td>'+labels[q]+(cur?' <span class="inv-tag">THIS INVOICE</span>':(q+1<m?' <span class="inv-prev">previously billed</span>':''))+'</td><td class="r">'+fmt$(amounts[q])+'</td></tr>';
+    milestoneRows+='<tr'+(cur?' class="cur"':'')+'><td class="n">'+esc(invMs[q].num)+'</td><td>'+esc(labels[q])+(cur?' <span class="inv-tag">THIS INVOICE</span>':(q+1<m?' <span class="inv-prev">previously billed</span>':''))+'</td><td class="r">'+fmt$(amounts[q])+'</td></tr>';
   }
   var logo=(typeof NF_ICON_SMALL!=='undefined')?'<img src="'+NF_ICON_SMALL+'" class="inv-logo" alt="NetFiber">':'<div class="inv-logo-t">NETFIBER</div>';
   var doc='<div class="print-doc inv">'
@@ -5917,7 +5928,7 @@ async function printInvoice(){
     +'<div class="inv-title"><div class="inv-word">INVOICE</div>'
       +'<table class="inv-meta"><tr><td>Invoice #</td><td>'+esc(invNo||'—')+'</td></tr><tr><td>Invoice date</td><td>'+fmtInvDate+'</td></tr><tr><td>Terms</td><td>Progress billing</td></tr>'
       +(invProposal.estimate_no?'<tr><td>Estimate #</td><td>'+esc(invProposal.estimate_no)+'</td></tr>':'')
-      +'<tr><td>Milestone</td><td>'+m+' of 3</td></tr></table></div></div>'
+      +'<tr><td>Milestone</td><td>'+esc(invMs[m-1].num)+(invMs.length>1?' of '+invMs.length:'')+'</td></tr></table></div></div>'
     +'<div class="inv-rule"></div>'
     +'<div class="inv-parties"><div class="inv-box"><div class="inv-lbl">Bill to</div><div class="inv-bn">'+esc(invProposal.bill_to_company||'')+'</div><div class="inv-bt">'+esc(invProposal.bill_to_address||'').replace(/\n/g,'<br>')+'</div></div>'
       +'<div class="inv-box"><div class="inv-lbl">Project</div><div class="inv-bn">'+esc(invProposal.project_name||'')+'</div><div class="inv-bt">'+esc(invProposal.ship_to_address||'').replace(/\n/g,'<br>')+'</div></div></div>'
@@ -5927,8 +5938,8 @@ async function printInvoice(){
     +'<table class="inv-t"><thead><tr><th class="n">#</th><th>Milestone</th><th class="r">Amount</th></tr></thead><tbody>'+milestoneRows+'</tbody></table>'
     +'<div class="inv-bottom"><div class="inv-note"><div class="inv-lbl">Payment</div>Please make payment to NetFiber Network Cabling Solutions LLC. Include the invoice number with your payment. Questions about this invoice? Contact mabunajie@netfibernetwork.com.</div>'
       +'<div class="inv-sum"><div class="inv-sr"><span>Contract amount</span><span>'+fmt$(total)+'</span></div>'
-        +'<div class="inv-sr"><span>Milestone '+m+' amount</span><span>'+fmt$(curAmt)+'</span></div>'
-        +'<div class="inv-sr"><span>Sales tax ('+taxRate+'%)</span><span>'+fmt$(curTax)+'</span></div>'
+        +'<div class="inv-sr"><span>Milestone '+esc(invMs[m-1].num)+' amount</span><span>'+fmt$(curAmt)+'</span></div>'
+        +(invTax.on?'<div class="inv-sr"><span>'+esc(invTax.label||'Tax')+' ('+taxRate+'%)</span><span>'+fmt$(curTax)+'</span></div>':'')
         +'<div class="inv-due"><span>Total due</span><span>'+fmt$(curTotal)+'</span></div>'
         +'<div class="inv-sr dim"><span>Contract balance after this invoice</span><span>'+fmt$(balance)+'</span></div></div></div>'
     +'<div class="inv-foot">Thank you for your business!<div class="inv-fs">NetFiber Network Cabling Solutions LLC &middot; 4840 North Shepherd Dr #4303, Houston, TX 77018 &middot; www.netfibernetwork.com</div></div></div>';
