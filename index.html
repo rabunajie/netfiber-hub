@@ -312,6 +312,15 @@ tr:hover td{background:#fafcff}
 .tfm-empty{font-size:12.5px;color:#999;text-align:center;padding:30px 10px}
 @media(max-width:760px){.tfm-main{grid-template-columns:1fr}.tfm-right{display:none}.tfm-grid{grid-template-columns:1fr}.tfm-meta,.tfm-tags,.tfm-assigned{margin-left:0}}
 
+.tf-stack{display:inline-flex}.tf-stack .tf-av{margin-left:-7px;border:2px solid #fff}.tf-stack .tf-av:first-child{margin-left:0}
+.tf-more{background:#e4e8ef;color:#556}
+.tfm-assigned{display:flex;align-items:center;gap:10px}
+.tfm-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.tfm-chip{display:inline-flex;align-items:center;gap:6px;background:#f1f5fa;border:1px solid #dbe3ee;border-radius:999px;padding:3px 4px 3px 4px;font-size:13px}
+.tfm-chip .tf-av{width:22px;height:22px;flex-basis:22px;font-size:9px}
+.tfm-chip button{border:none;background:none;cursor:pointer;color:#888;font-size:15px;padding:0 8px 0 2px}.tfm-chip button:hover{color:#c33}
+.tfm-addrow{display:flex;gap:8px;flex-wrap:wrap}.tfm-addrow select{flex:1;min-width:160px}
+
 /* ACTIVITY LOG */
 .log-item{display:flex;gap:12px;padding:10px 16px;border-bottom:0.5px solid #f5f5f5;align-items:flex-start}
 .log-item:last-child{border-bottom:none}
@@ -1330,12 +1339,15 @@ function ddiff(d){if(!d)return 999;return Math.round((new Date(d+'T00:00:00')-to
 // they created themselves or that are assigned to them by name. Used by both the
 // To-Do page itself and the dashboard/sidebar badges, so counts always match what's
 // actually visible on the To-Do page.
+// A task can have several people: names are stored together in assigned_name, separated by "; ".
+function taskPeople(t){return String((t&&t.assigned_name)||'').split(/\s*;\s*/).filter(Boolean);}
+function hasPerson(t,n){return !!n&&taskPeople(t).indexOf(n)>=0;}
 function filterMyTasks(tasks){
   if(CP&&CP.group_name==='admin') return tasks||[];
   var myName=CP?CP.full_name||'':null;
   var myId=CU?CU.id:null;
   return (tasks||[]).filter(function(t){
-    return t.created_by===myId || t.assigned_name===myName;
+    return t.created_by===myId || hasPerson(t,myName);
   });
 }
 // GC Contacts shows only unclaimed GCs (no one has starred them yet).
@@ -2654,6 +2666,7 @@ var TF_STATUS=[{k:'todo',l:'Not started'},{k:'prog',l:'In progress'},{k:'done',l
 var TF_PRI=[{k:'high',l:'High'},{k:'medium',l:'Medium'},{k:'low',l:'Low'}];
 var TF_ICON_CAL='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>';
 function tfInit(n){var p=(n||'?').trim().split(/\s+/);return ((p[0]||'?')[0]+(p.length>1?p[p.length-1][0]:'')).toUpperCase();}
+function tfStack(t,max){var ps=Array.isArray(t)?t:taskPeople(t);if(!ps.length)return tfAvatar('');max=max||3;var h=ps.slice(0,max).map(tfAvatar).join('');if(ps.length>max)h+='<span class="tf-av tf-more" title="'+tfEsc(ps.slice(max).join(', '))+'">+'+(ps.length-max)+'</span>';return '<span class="tf-stack">'+h+'</span>';}
 function tfAvatar(n){if(!n)return'<span class="tf-av" style="background:#eef1f6;color:#99a" title="Unassigned">—</span>';var h=0;for(var i=0;i<n.length;i++)h=(h*31+n.charCodeAt(i))%360;return '<span class="tf-av" title="'+tfEsc(n)+'" style="background:hsl('+h+',55%,85%);color:hsl('+h+',45%,28%)">'+tfEsc(tfInit(n))+'</span>';}
 
 async function renderTasks(){
@@ -2695,8 +2708,8 @@ async function renderTasks(){
     </div>
 
     <div id="tf-body"></div>`;
-  var pRes=await sb.from('profiles').select('id,full_name').order('full_name');
-  (pRes.data||[]).forEach(function(p){_tfProfMap[p.id]=p.full_name;});
+  var pRes=await sb.from('profiles').select('id,full_name,group_name').order('full_name');
+  _tfGroups={};(pRes.data||[]).forEach(function(p){_tfProfMap[p.id]=p.full_name;if(p.full_name&&p.group_name){(_tfGroups[p.group_name]=_tfGroups[p.group_name]||[]).push(p.full_name);}});
   _tfProfiles=(pRes.data||[]).map(function(p){return p.full_name;}).filter(Boolean);
   var tuf=document.getElementById('task-user-filter');
   if(tuf)_tfProfiles.forEach(function(n){var o=document.createElement('option');o.value=n;o.textContent=n;tuf.appendChild(o);});
@@ -2729,25 +2742,26 @@ function tfDue(t){
 function tfCard(t){
   var typeTag=t.task_type==='longterm'?'<span class="tf-tag" style="background:#6B2A8B">Long-term</span>':'<span class="tf-tag" style="background:#2BA6B5">Daily</span>';
   var pc={high:'#D9480F',medium:'#E8A317',low:'#3B9A2B'}[t.priority||'medium'];
+  var aiTag=t.ai_generated?'<span class="tf-tag" style="background:#0A1F44" title="Assigned by Vantage AI (CEO)">🤖 Vantage AI</span>':'';
   var priTag='<span class="tf-tag" style="background:'+pc+'">'+tfEsc((t.priority||'medium').charAt(0).toUpperCase()+(t.priority||'medium').slice(1))+'</span>';
   var pct=t.done?100:(t.progress||0);
   var prog=(t.task_type==='longterm')?'<div class="tf-prog"><div class="tf-prog-bar"><div style="width:'+pct+'%;background:'+(pct>=100?'#1D9E75':'#1B5E9B')+'"></div></div><select autocomplete="off" onchange="updateTaskProgress(\''+t.id+'\',this.value)">'+[0,10,20,30,40,50,60,70,80,90,100].map(function(v){return '<option value="'+v+'"'+(pct==v?' selected':'')+'>'+v+'%</option>';}).join('')+'</select></div>':'';
   return '<div class="tf-card'+(t.done?' is-done':'')+'" draggable="true" onclick="tfCardClick(event,\''+t.id+'\')" ondragstart="tfDragStart(event,\''+t.id+'\')" ondragend="tfDragEnd()">'
-   +'<div class="tf-tags">'+typeTag+priTag+'</div>'
+   +'<div class="tf-tags">'+typeTag+priTag+aiTag+'</div>'
    +'<div class="tf-title"><span class="tf-chk'+(t.done?' on':'')+'" onclick="toggleTask(\''+t.id+'\','+!!t.done+')"></span><span class="tf-name">'+tfEsc(t.name)+(t.ai_generated?' 🤖':'')+'</span></div>'
    +(t.notes?'<div class="tf-notes">'+tfEsc(t.notes)+'</div>':'')
    +prog
-   +'<div class="tf-foot">'+(tfDue(t)||'<span class="tf-due none">'+TF_ICON_CAL+'No date</span>')+'<span class="tf-foot-r"><span class="tf-acts"><button class="btn-sm" onclick="openEditTask(\''+t.id+'\')">Edit</button><button class="btn-danger" onclick="delTask(\''+t.id+'\',\''+tfEsc(t.name).replace(/'/g,'`')+'\')">×</button></span>'+tfAvatar(t.assigned_name)+'</span></div>'
+   +'<div class="tf-foot">'+(tfDue(t)||'<span class="tf-due none">'+TF_ICON_CAL+'No date</span>')+'<span class="tf-foot-r"><span class="tf-acts"><button class="btn-sm" onclick="openEditTask(\''+t.id+'\')">Edit</button><button class="btn-danger" onclick="delTask(\''+t.id+'\',\''+tfEsc(t.name).replace(/'/g,'`')+'\')">×</button></span>'+tfStack(t)+'</span></div>'
   +'</div>';
 }
 function tfColumns(rows){
   var cols=[];
   if(_tfGroup==='priority'){cols=TF_PRI.map(function(p){return {k:p.k,l:p.l,rows:rows.filter(function(t){return (t.priority||'medium')===p.k;})};});}
   else if(_tfGroup==='assignee'){
-    var names=[];rows.forEach(function(t){var n=t.assigned_name||'';if(names.indexOf(n)<0)names.push(n);});
+    var names=[];rows.forEach(function(t){var ps=taskPeople(t);if(!ps.length)ps=[''];ps.forEach(function(n){if(names.indexOf(n)<0)names.push(n);});});
     if(CP&&CP.full_name&&names.indexOf(CP.full_name)<0)names.unshift(CP.full_name);
     names.sort(function(a,b){return a===''?1:b===''?-1:a.localeCompare(b);});
-    cols=names.map(function(n){return {k:n,l:n||'Unassigned',rows:rows.filter(function(t){return (t.assigned_name||'')===n;})};});
+    cols=names.map(function(n){return {k:n,l:n||'Unassigned',rows:rows.filter(function(t){return n===''?!taskPeople(t).length:hasPerson(t,n);})};});
   }else{cols=TF_STATUS.map(function(s){return {k:s.k,l:s.l,rows:rows.filter(function(t){return tfStatus(t)===s.k;})};});}
   return cols;
 }
@@ -2776,7 +2790,7 @@ function tfGrid(rows){
      +'<div><span class="tbadge '+(t.priority||'medium')+'">'+(t.priority||'medium')+'</span></div>'
      +'<div style="font-size:12px;color:#888">'+(t.start_date?fmtD(t.start_date):'—')+'</div>'
      +'<div style="font-size:12px;color:#888">'+dl+'</div>'
-     +'<div style="display:flex;align-items:center;gap:6px;min-width:0">'+tfAvatar(t.assigned_name)+'<span style="font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+tfEsc(t.assigned_name||'—')+'</span></div>'
+     +'<div style="display:flex;align-items:center;gap:6px;min-width:0">'+tfStack(t,2)+'<span style="font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+tfEsc(taskPeople(t).join(', '))+'">'+tfEsc(taskPeople(t).length>1?taskPeople(t).length+' people':(taskPeople(t)[0]||'—'))+'</span></div>'
      +'<div><span class="badge '+(st==='done'?'b-win':st==='prog'?'b-sent':'b-pending')+'" style="'+(st==='todo'?'background:#f1f3f6;color:#666':'')+'">'+stl+'</span></div>'
      +'<div>'+(t.task_type==='longterm'&&!t.done?'<div class="tf-prog"><div class="tf-prog-bar"><div style="width:'+pct+'%;background:'+(pct>=100?'#1D9E75':'#1B5E9B')+'"></div></div><select autocomplete="off" onchange="updateTaskProgress(\''+t.id+'\',this.value)">'+[0,10,20,30,40,50,60,70,80,90,100].map(function(v){return '<option value="'+v+'"'+(pct==v?' selected':'')+'>'+v+'%</option>';}).join('')+'</select></div>':'<span style="font-size:12px;color:#aaa">'+(t.done?'100%':'—')+'</span>')+'</div>'
      +'<input autocomplete="off" type="text" value="'+tfEsc(t.notes||'')+'" placeholder="Add a note..." onchange="updateTaskNotes(\''+t.id+'\',this.value)" style="font-size:12px;padding:5px 7px;border:1px solid #e5e5e5;border-radius:6px;outline:none;min-width:0">'
@@ -2787,12 +2801,12 @@ function tfGrid(rows){
 
 function filterTasks(){
   const search=(document.getElementById('task-search')?.value||'').toLowerCase();
-  var baseTasks=_taskUser?_tasks.filter(function(t){return (t.assigned_name||'')===_taskUser;}):_tasks;
+  var baseTasks=_taskUser?_tasks.filter(function(t){return hasPerson(t,_taskUser);}):_tasks;
   let rows=[...baseTasks];
   if(search) rows=rows.filter(t=>(t.name||'').toLowerCase().includes(search));
   if(_tfScope==='daily') rows=rows.filter(t=>!t.task_type||t.task_type==='daily');
   else if(_tfScope==='longterm') rows=rows.filter(t=>t.task_type==='longterm');
-  else if(_tfScope==='mine') rows=rows.filter(t=>CP&&(t.assigned_name||'')===(CP.full_name||''));
+  else if(_tfScope==='mine') rows=rows.filter(t=>CP&&hasPerson(t,CP.full_name||''));
   if(_taskFilter==='high') rows=rows.filter(t=>!t.done&&t.priority==='high');
   else if(_taskFilter==='due_today') rows=rows.filter(t=>!t.done&&t.deadline&&ddiff(t.deadline)<=0);
   else if(_taskFilter==='done') rows=rows.filter(t=>t.done);
@@ -2833,7 +2847,7 @@ async function tfDrop(e,ci){
     else if(col.k==='prog'){upd.done=false;upd.progress=(t.progress&&t.progress>0)?t.progress:50;}
     else{upd.done=false;upd.progress=0;}
   }else if(_tfGroup==='priority'){upd.priority=col.k;}
-  else{upd.assigned_name=col.k||null;}
+  else{var ps=taskPeople(t);if(col.k&&ps.indexOf(col.k)<0)ps.push(col.k);upd.assigned_name=col.k?ps.join('; '):null;}
   Object.assign(t,upd);filterTasks();
   var r=await sb.from('tasks').update(upd).eq('id',id);
   if(r.error){console.error(r.error);await loadTasks();}
@@ -2841,7 +2855,7 @@ async function tfDrop(e,ci){
 
 
 // ===== Taskflow: task window (edit + new) =====
-var _tfEditId=null,_tfProfMap={};
+var _tfEditId=null,_tfProfMap={},_tfGroups={},_tfmPeople=[];
 function tfName(id){return _tfProfMap[id]||'';}
 function tfDT(s){if(!s)return'';try{return new Date(s).toLocaleDateString('en-US',{month:'short',day:'numeric'});}catch(e){return'';}}
 function tfCardClick(e,id){if(e.target.closest('.tf-chk,button,select,input,.tf-acts'))return;tfOpen(id);}
@@ -2853,19 +2867,20 @@ async function tfOpen(id,pre){
   var isNew=!t;
   if(isNew)t=Object.assign({task_type:'daily',priority:'medium',progress:0,done:false,assigned_name:(CP&&CP.full_name)||''},pre||{});
   _tfEditId=id||null;
+  _tfmPeople=taskPeople(t);
   var m=document.getElementById('tf-modal');
   if(!m){m=document.createElement('div');m.id='tf-modal';m.className='tfm-bg';m.onclick=function(e){if(e.target===m)tfClose();};document.body.appendChild(m);}
   var st=tfStatus(t);
-  var people=_tfProfiles.slice();if(t.assigned_name&&people.indexOf(t.assigned_name)<0)people.push(t.assigned_name);
+  
   var pcol={high:'#D9480F',medium:'#3B9A2B',low:'#7a8599'};
-  var info=isNew?'New task':('Created '+(tfDT(t.created_at)||'')+(tfName(t.created_by)?' by '+tfEsc(tfName(t.created_by)):'')+(t.updated_at?' · Last changed '+tfDT(t.updated_at)+(tfName(t.updated_by)?' by '+tfEsc(tfName(t.updated_by)):''):''));
+  var info=isNew?'New task':('Created '+(tfDT(t.created_at)||'')+(t.ai_generated?' by Vantage AI (CEO)':(tfName(t.created_by)?' by '+tfEsc(tfName(t.created_by)):''))+(t.updated_at?' · Last changed '+tfDT(t.updated_at)+(tfName(t.updated_by)?' by '+tfEsc(tfName(t.updated_by)):''):''));
   m.innerHTML='<div class="tfm">'
    +'<div class="tfm-top"><div class="tfm-ref">'+(isNew?'New task':'Task')+'</div><div><button class="tfm-x" onclick="tfClose()" title="Close">✕</button></div></div>'
    +'<div class="tfm-main"><div class="tfm-left">'
      +'<div class="tfm-titlerow"><span class="tf-chk'+(st==='done'?' on':'')+'" id="tfm-chk" onclick="tfmToggleDone()"></span><input autocomplete="off" id="tfm-name" class="tfm-title" type="text" placeholder="Task name" value="'+tfEsc(t.name||'')+'"></div>'
      +'<div class="tfm-meta">'+info+'</div>'
      +'<div class="tfm-tags"><span class="tf-tag" id="tfm-ttag" style="background:'+(t.task_type==='longterm'?'#6B2A8B':'#2BA6B5')+'">'+(t.task_type==='longterm'?'Long-term':'Daily')+'</span><span class="tf-tag" id="tfm-ptag" style="background:'+({high:'#D9480F',medium:'#E8A317',low:'#3B9A2B'}[t.priority||'medium'])+'">'+((t.priority||'medium').charAt(0).toUpperCase()+(t.priority||'medium').slice(1))+'</span></div>'
-     +'<div class="tfm-assigned"><span id="tfm-av">'+tfAvatar(t.assigned_name||'')+'</span><span style="font-size:13px;color:#666" id="tfm-avn">'+tfEsc(t.assigned_name||'Unassigned')+'</span></div>'
+     +'<div class="tfm-assigned" id="tfm-av"></div>'
      +'<div class="tfm-tab"><span>Task details</span></div>'
      +'<div class="tfm-grid">'
        +'<div><label>Status</label><select autocomplete="off" id="tfm-status">'+tfOptions(TF_STATUS,st)+'</select></div>'
@@ -2873,7 +2888,7 @@ async function tfOpen(id,pre){
        +'<div><label>Start date</label><input autocomplete="off" id="tfm-start" type="date" value="'+tfEsc(t.start_date||'')+'"></div>'
        +'<div><label>Due date</label><input autocomplete="off" id="tfm-end" type="date" value="'+tfEsc(t.deadline||'')+'"></div>'
        +'<div><label>Type</label><select autocomplete="off" id="tfm-type" onchange="tfmSync()"><option value="daily"'+(t.task_type!=='longterm'?' selected':'')+'>Daily</option><option value="longterm"'+(t.task_type==='longterm'?' selected':'')+'>Long-term</option></select></div>'
-       +'<div><label>Assigned to</label><select autocomplete="off" id="tfm-assign" onchange="tfmSync()">'+tfOptions(people,t.assigned_name||'','Unassigned')+'</select></div>'
+       +'<div style="grid-column:1/-1"><label>Assigned to <span style="color:#888;font-weight:400">(one or more people, or a whole group)</span></label><div id="tfm-chips" class="tfm-chips"></div><div class="tfm-addrow"><select autocomplete="off" id="tfm-addp" onchange="tfmAddPerson(this.value);this.value=\'\'"><option value="">+ Add person…</option>'+_tfProfiles.map(function(n){return '<option value="'+tfEsc(n)+'">'+tfEsc(n)+'</option>';}).join('')+'</select><select autocomplete="off" id="tfm-addg" onchange="tfmAddGroup(this.value);this.value=\'\'"><option value="">+ Add whole group…</option>'+Object.keys(_tfGroups).map(function(g){return '<option value="'+tfEsc(g)+'">'+tfEsc(g.charAt(0).toUpperCase()+g.slice(1))+' ('+_tfGroups[g].length+')</option>';}).join('')+'</select></div></div>'
        +'<div><label>Progress</label><select autocomplete="off" id="tfm-prog">'+[0,10,20,30,40,50,60,70,80,90,100].map(function(v){var cur=t.done?100:(t.progress||0);return '<option value="'+v+'"'+(cur==v?' selected':'')+'>'+v+'%</option>';}).join('')+'</select></div>'
      +'</div>'
      +'<label class="tfm-lbl">Notes</label><textarea autocomplete="off" id="tfm-notes" placeholder="Type a description or add notes here">'+tfEsc(t.notes||'')+'</textarea>'
@@ -2881,18 +2896,25 @@ async function tfOpen(id,pre){
    +'</div>'
    +'<div class="tfm-right"><div class="tfm-rh">Activity</div><div id="tfm-act" class="tfm-act">'+(isNew?'<div class="tfm-empty">Activity will show here once the task is created.</div>':'<div class="tfm-empty">Loading…</div>')+'</div></div>'
    +'</div></div>';
-  m.classList.add('open');
+  m.classList.add('open');tfmRenderPeople();
   var ni=document.getElementById('tfm-name');if(ni&&isNew)ni.focus();
   if(!isNew)tfmLoadActivity(id);
 }
 function tfClose(){var m=document.getElementById('tf-modal');if(m)m.classList.remove('open');_tfEditId=null;}
 document.addEventListener('keydown',function(e){if(e.key==='Escape'){var m=document.getElementById('tf-modal');if(m&&m.classList.contains('open'))tfClose();}});
 function tfmSync(){
-  var p=document.getElementById('tfm-pri').value,ty=document.getElementById('tfm-type').value,a=document.getElementById('tfm-assign').value;
+  var p=document.getElementById('tfm-pri').value,ty=document.getElementById('tfm-type').value;
   var pt=document.getElementById('tfm-ptag');pt.textContent=p.charAt(0).toUpperCase()+p.slice(1);pt.style.background={high:'#D9480F',medium:'#E8A317',low:'#3B9A2B'}[p];
   var tt=document.getElementById('tfm-ttag');tt.textContent=ty==='longterm'?'Long-term':'Daily';tt.style.background=ty==='longterm'?'#6B2A8B':'#2BA6B5';
-  document.getElementById('tfm-av').innerHTML=tfAvatar(a);document.getElementById('tfm-avn').textContent=a||'Unassigned';
 }
+function tfmRenderPeople(){
+  var ch=document.getElementById('tfm-chips'),av=document.getElementById('tfm-av');
+  if(ch)ch.innerHTML=_tfmPeople.length?_tfmPeople.map(function(n,i){return '<span class="tfm-chip">'+tfAvatar(n)+tfEsc(n)+'<button onclick="tfmRemovePerson('+i+')" title="Remove">×</button></span>';}).join(''):'<span style="font-size:12.5px;color:#999">Nobody assigned yet</span>';
+  if(av)av.innerHTML=tfStack(_tfmPeople,6)+'<span style="font-size:13px;color:#666">'+(_tfmPeople.length?(_tfmPeople.length===1?tfEsc(_tfmPeople[0]):_tfmPeople.length+' people'):'Unassigned')+'</span>';
+}
+function tfmAddPerson(n){if(n&&_tfmPeople.indexOf(n)<0)_tfmPeople.push(n);tfmRenderPeople();}
+function tfmAddGroup(g){(_tfGroups[g]||[]).forEach(function(n){if(_tfmPeople.indexOf(n)<0)_tfmPeople.push(n);});tfmRenderPeople();}
+function tfmRemovePerson(i){_tfmPeople.splice(i,1);tfmRenderPeople();}
 function tfmToggleDone(){
   var s=document.getElementById('tfm-status'),c=document.getElementById('tfm-chk');
   var done=s.value!=='done';s.value=done?'done':'todo';c.classList.toggle('on',done);
@@ -2917,7 +2939,7 @@ async function tfmSave(){
   if(status==='done'){done=true;prog=100;}
   else if(status==='todo'){prog=prog>0?prog:0;if(prog>0)status='prog';}
   else if(status==='prog'){if(prog<=0||prog>=100)prog=50;}
-  var o={name:name,priority:g('tfm-pri'),task_type:g('tfm-type'),start_date:g('tfm-start')||null,deadline:g('tfm-end')||null,assigned_name:g('tfm-assign')||null,notes:g('tfm-notes')||null,done:done,progress:prog};
+  var o={name:name,priority:g('tfm-pri'),task_type:g('tfm-type'),start_date:g('tfm-start')||null,deadline:g('tfm-end')||null,assigned_name:_tfmPeople.join('; ')||null,notes:g('tfm-notes')||null,done:done,progress:prog};
   if(_tfEditId){
     var upd=Object.assign({},o,{updated_by:CU.id,updated_at:new Date().toISOString()});
     var res=await sb.from('tasks').update(upd).eq('id',_tfEditId);
