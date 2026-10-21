@@ -8183,6 +8183,10 @@ var APP_VERSION='2.2.0',APP_BUILD_DATE='Oct 21, 2026';
 .tfs-cnt{font-size:12px;color:#667;background:#eef2f8;border-radius:999px;padding:2px 9px}
 .tfs-bar{flex:1;min-width:80px;height:6px;border-radius:6px;background:#e7ebf2;overflow:hidden}
 .tfs-bar i{display:block;height:100%;background:#1D9E75;border-radius:6px;transition:width .2s}
+.tfs-top{display:flex;gap:8px;align-items:center;margin-bottom:7px;flex-wrap:wrap}
+.tfs-who{font-size:12.5px;font-weight:700;border-radius:999px;padding:3px 11px}
+.tfs-me{font-size:10px;font-weight:800;letter-spacing:.06em;background:#1B5E9B;color:#fff;border-radius:999px;padding:3px 9px}
+.tfs-row.mine{padding:12px 14px}
 .tfs-hint{font-size:12px;color:#8590a3;margin:0 0 10px;line-height:1.45}
 .tfs-row{display:flex;gap:10px;align-items:flex-start;border:1px solid #e1e7f0;border-radius:10px;padding:10px 12px;margin-bottom:8px;background:#fff}
 .tfs-row.done{background:#f5faf7;border-color:#cfe8da}
@@ -8199,7 +8203,7 @@ var APP_VERSION='2.2.0',APP_BUILD_DATE='Oct 21, 2026';
 .tfs-f select,.tfs-f input{border:1px solid #d9e0ea;border-radius:7px;padding:6px 8px;font-size:12.5px;background:#fff;color:#223;max-width:170px}
 .tfs-f select:disabled,.tfs-f input:disabled{background:#f3f5f8;color:#777}
 .tfs-ro{font-size:12.5px;color:#445;display:flex;align-items:center;gap:6px}
-.tfs-note{width:100%;box-sizing:border-box;margin-top:8px;border:1px solid #d9e0ea;border-radius:7px;padding:7px 9px;font-size:12.5px;min-height:44px;resize:vertical;font-family:inherit}
+.tfs-note{height:64px!important;width:100%;box-sizing:border-box;margin-top:8px;border:1px solid #d9e0ea;border-radius:7px;padding:7px 9px;font-size:12.5px;min-height:44px;resize:vertical;font-family:inherit}
 .tfs-noteview{margin-top:8px;font-size:12.5px;color:#445;background:#f6f8fb;border-radius:7px;padding:7px 9px;white-space:pre-wrap}
 .tfs-meta{margin-top:6px;font-size:11px;color:#98a2b3;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .tfs-meta .late{color:#D9480F;font-weight:600}
@@ -8285,17 +8289,33 @@ function tfmSubPeopleOpts(sel){
   var names=_tfmPeople.slice();if(sel&&names.indexOf(sel)<0)names.push(sel);
   return '<option value="">— Choose person —</option>'+names.map(function(n){return '<option value="'+tfEsc(n)+'"'+(n===sel?' selected':'')+'>'+tfEsc(n)+'</option>';}).join('');
 }
+var TFS_PAL=[210,18,150,280,340,45,180,0,240,95,320,30];
+function tfsHue(n){
+  n=n||'';
+  var names=Object.keys(_tfProfMap||{}).map(function(k){return _tfProfMap[k];}).filter(Boolean).sort();
+  var ix=names.indexOf(n);
+  if(ix>=0)return TFS_PAL[ix%TFS_PAL.length]; // same person = same colour for everyone; different people get different colours
+  var h=0;for(var i=0;i<n.length;i++)h=(h*31+n.charCodeAt(i))%360;return h;
+}
+function tfsIsMine(s){var me=CU&&CU.id,nm=CP&&CP.full_name;return !!((s.assignee_id&&s.assignee_id===me)||(s.assignee_name&&nm&&s.assignee_name===nm));}
 function tfmRenderSubs(){
   var w=document.getElementById('tfm-subs-wrap');if(!w)return;
   if(!_tfSubOK){w.innerHTML='<div class="tfs-head"><b>Subtasks</b></div><div class="tfs-warn">Subtasks need a one-time database setup. Run <b>SQL_subtasks.sql</b> in Supabase → SQL Editor, then reload Vantage.</div>';return;}
   var n=_tfmSubs.length,d=_tfmSubs.filter(function(s){return s.status==='done';}).length;
   var h='<div class="tfs-head"><b>Subtasks — who does what</b>'+(n?'<span class="tfs-cnt">'+d+' of '+n+' done</span><span class="tfs-bar"><i style="width:'+Math.round(d/n*100)+'%"></i></span>':'')+'</div>';
   h+='<div class="tfs-hint">'+(n?'Each person updates their own part. The task closes by itself when every subtask is done.':'Split this task between the people involved. Add each person\'s part with its own dates, status and note.')+(_tfmPeople.length?'':' <b>Add people in “Assigned to” first.</b>')+'</div>';
-  _tfmSubs.forEach(function(s,i){
+  var order=_tfmSubs.map(function(_,i){return i;});
+  order=order.filter(function(i){return tfsIsMine(_tfmSubs[i]);}).concat(order.filter(function(i){return !tfsIsMine(_tfmSubs[i]);}));
+  order.forEach(function(i){
+    var s=_tfmSubs[i];
+    var mine=tfsIsMine(s),hue=tfsHue(s.assignee_name);
     var p=tfmSubPerm(s),done=s.status==='done',late=!done&&s.end_date&&ddiff(s.end_date)<0;
     var chk=p.own?'<span class="tf-chk'+(done?' on':'')+'" onclick="tfmSubToggle('+i+')" title="'+(done?'Re-open':'Mark my part done')+'"></span>':'<span class="tf-chk ro'+(done?' on':'')+'"></span>';
     var titleH=p.full?'<input class="tfs-title" type="text" autocomplete="off" maxlength="200" placeholder="Subtask, e.g. Configure the network switch" value="'+tfEsc(s.title||'')+'" onchange="tfmSubSet('+i+',\'title\',this.value)">':'<div class="tfs-t">'+tfEsc(s.title||'')+'</div>';
-    var who=p.full?'<label class="tfs-f"><span>Person</span><select autocomplete="off" onchange="tfmSubSet('+i+',\'assignee_name\',this.value)">'+tfmSubPeopleOpts(s.assignee_name)+'</select></label>':'<div class="tfs-f"><span>Person</span><div class="tfs-ro">'+tfAvatar(s.assignee_name||'')+tfEsc(s.assignee_name||'Unassigned')+'</div></div>';
+    var whoPill=s.assignee_name?'<span class="tfs-who" style="background:hsl('+hue+',60%,88%);color:hsl('+hue+',50%,24%)">'+tfEsc(s.assignee_name)+'</span>':'<span class="tfs-who" style="background:#eceff3;color:#667">Unassigned</span>';
+    var top='<div class="tfs-top">'+whoPill+(mine?'<span class="tfs-me">YOUR PART</span>':'')+'</div>';
+    var rowStyle=s.assignee_name?(mine?'background:hsl('+hue+',85%,96%);border:1.5px solid hsl('+hue+',55%,68%);box-shadow:0 0 0 3px hsl('+hue+',85%,93%);border-left:6px solid hsl('+hue+',55%,46%)':'border-left:6px solid hsl('+hue+',55%,60%)'):'';
+    var who=p.full?'<label class="tfs-f"><span>Person</span><select autocomplete="off" onchange="tfmSubSet('+i+',\'assignee_name\',this.value)">'+tfmSubPeopleOpts(s.assignee_name)+'</select></label>':'';
     var dis=p.own?'':' disabled';
     var line='<div class="tfs-line">'+who
       +'<label class="tfs-f"><span>Start</span><input type="date" autocomplete="off"'+dis+' value="'+tfEsc(s.start_date||'')+'" onchange="tfmSubSet('+i+',\'start_date\',this.value)"></label>'
@@ -8306,7 +8326,7 @@ function tfmRenderSubs(){
       +(done&&s.done_at?'<span>Done '+tfEsc(tfDT(s.done_at))+'</span>':'')
       +(s.id&&s.updated_at?'<span>Updated '+tfEsc(tfDT(s.updated_at))+(tfName(s.updated_by)?' by '+tfEsc(tfName(s.updated_by)):'')+'</span>':'')
       +(p.full?'<button class="tfs-del" onclick="tfmSubDel('+i+')">Remove</button>':'')+'</div>';
-    h+='<div class="tfs-row'+(done?' done':'')+'">'+chk+'<div class="tfs-main">'+titleH+line+note+meta+'</div></div>';
+    h+='<div class="tfs-row'+(done?' done':'')+(mine?' mine':'')+'" data-i="'+i+'" style="'+rowStyle+'">'+chk+'<div class="tfs-main">'+top+titleH+line+note+meta+'</div></div>';
   });
   if(tfmSubCanAdd())h+='<button type="button" class="tfs-add" onclick="tfmSubAdd()">+ Add subtask</button>';
   w.innerHTML=h;
@@ -8317,7 +8337,7 @@ function tfmSubAdd(){
   var def=(_tfmPeople.length===1)?_tfmPeople[0]:(me&&_tfmPeople.indexOf(me)>=0?me:'');
   _tfmSubs.push({_tmp:true,title:'',assignee_name:def||null,assignee_id:def?(tfIdByName(def)||null):null,start_date:null,end_date:null,status:'todo',note:null});
   tfmRenderSubs();
-  var ins=document.querySelectorAll('#tfm-subs-wrap .tfs-title');if(ins.length)ins[ins.length-1].focus();
+  var ni=document.querySelector('#tfm-subs-wrap .tfs-row[data-i="'+(_tfmSubs.length-1)+'"] .tfs-title');if(ni)ni.focus();
 }
 async function tfmSubToggle(i){
   var s=_tfmSubs[i];if(!s)return;
@@ -8342,7 +8362,7 @@ async function tfmSubSet(i,f,v){
     var ok=await tfSubPersist(s,f);
     if(!ok){s[f]=oldVal;s.assignee_id=oldId;s.done_at=oldDone;tfmRenderSubs();return;}
   }
-  if(f==='status')tfmRenderSubs();
+  if(f==='status'||f==='assignee_name')tfmRenderSubs();
 }
 async function tfSubPersist(s,f){
   var t=_tfmSubTask,now=new Date().toISOString();
