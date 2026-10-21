@@ -2966,7 +2966,7 @@ function tfGrid(rows){
     var dl=!d?'—':t.done?fmtD(d):diff<0?'<span class="dl-ov">'+Math.abs(diff)+'d overdue</span>':diff===0?'<span class="dl-tod">Today</span>':fmtD(d);
     return '<div class="task-row '+(t.done?'done-row':'')+'" style="grid-template-columns:'+tpl+'">'
      +'<div class="chk '+(t.done?'on':'')+'" onclick="toggleTask(\''+t.id+'\','+!!t.done+')"></div>'
-     +'<div class="tname" style="font-size:13px;cursor:pointer;color:#1B5E9B" onclick="tfOpen(\''+t.id+'\')">'+tfEsc(t.name)+(t.ai_generated?' 🤖':'')+'</div>'
+     +'<div class="tname" style="font-size:13px;cursor:pointer;color:#1B5E9B" onclick="tfOpen(\''+t.id+'\')">'+tfEsc(t.name)+(t.ai_generated?' 🤖':'')+(typeof tfSubChip==='function'?tfSubChip(t):'')+'</div>'
      +'<div><span class="tbadge" style="background:'+(t.task_type==='longterm'?'#F1E6F8;color:#6B2A8B':'#DDF3F6;color:#17727E')+'">'+(t.task_type==='longterm'?'Long-term':'Daily')+'</span></div>'
      +'<div><span class="tbadge '+(t.priority||'medium')+'">'+(t.priority||'medium')+'</span></div>'
      +'<div style="font-size:12px;color:#888">'+(t.start_date?fmtD(t.start_date):'—')+'</div>'
@@ -3143,7 +3143,7 @@ async function tfmSave(){
     try{await logAct('Edited task','tasks',_tfEditId,'Edited: '+name);}catch(e){}
     tfClose();await loadTasks();
   }else{
-    var ok=await tfCreate(o);if(ok){tfClose();var b=document.getElementById('tf-name');if(b)b.value='';}
+    var ok=await tfCreate(o);if(ok){try{await tfmSubsFlush(window._tfLastCreatedId);}catch(e){console.error(e);}tfClose();var b=document.getElementById('tf-name');if(b)b.value='';}
   }
 }
 async function tfmDelete(){
@@ -3166,6 +3166,7 @@ async function tfCreate(o){
   if(o.progress!=null)obj.progress=o.progress;
   if(o.notes)obj.notes=o.notes;
   var res=await sb.from('tasks').insert(obj).select().single();
+  if(res&&res.data)window._tfLastCreatedId=res.data.id;
   if(res.error){console.error('Task error:',res.error);alert('Could not add task: '+res.error.message);return false;}
   await logAct('Added task','tasks',res.data?res.data.id:null,'Added: '+o.name);
   await loadTasks();return true;
@@ -8171,8 +8172,254 @@ async function bdAIContext(q){
   }catch(e){return '';}
 }
 
-var APP_VERSION='2.1.0',APP_BUILD_DATE='Oct 20, 2026';
+var APP_VERSION='2.2.0',APP_BUILD_DATE='Oct 21, 2026';
 (function(){function s(){var e=document.getElementById('sb-ver');if(e)e.textContent='Vantage v'+APP_VERSION+' · '+APP_BUILD_DATE;}s();document.addEventListener('DOMContentLoaded',s);})();
+
+</script>
+<style id="tfs-css">
+.tfs-wrap{margin-top:22px}
+.tfs-head{display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap}
+.tfs-head b{font-size:15px;font-weight:600;color:#222}
+.tfs-cnt{font-size:12px;color:#667;background:#eef2f8;border-radius:999px;padding:2px 9px}
+.tfs-bar{flex:1;min-width:80px;height:6px;border-radius:6px;background:#e7ebf2;overflow:hidden}
+.tfs-bar i{display:block;height:100%;background:#1D9E75;border-radius:6px;transition:width .2s}
+.tfs-hint{font-size:12px;color:#8590a3;margin:0 0 10px;line-height:1.45}
+.tfs-row{display:flex;gap:10px;align-items:flex-start;border:1px solid #e1e7f0;border-radius:10px;padding:10px 12px;margin-bottom:8px;background:#fff}
+.tfs-row.done{background:#f5faf7;border-color:#cfe8da}
+.tfs-row.done .tfs-title,.tfs-row.done .tfs-t{color:#6b8577;text-decoration:line-through}
+.tfs-row .tf-chk{margin-top:6px}
+.tfs-row .tf-chk.ro{cursor:default;opacity:.55}
+.tfs-main{flex:1;min-width:0}
+.tfs-title{width:100%;border:1px solid transparent;background:#f6f8fb;border-radius:7px;padding:7px 9px;font-size:14px;font-weight:600;color:#1a2233;box-sizing:border-box}
+.tfs-title:focus{outline:none;border-color:#1B5E9B;background:#fff}
+.tfs-t{font-size:14px;font-weight:600;color:#1a2233;padding:6px 0}
+.tfs-line{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;align-items:flex-end}
+.tfs-f{display:flex;flex-direction:column;gap:2px;min-width:0}
+.tfs-f span{font-size:10.5px;font-weight:600;color:#8590a3;text-transform:uppercase;letter-spacing:.03em}
+.tfs-f select,.tfs-f input{border:1px solid #d9e0ea;border-radius:7px;padding:6px 8px;font-size:12.5px;background:#fff;color:#223;max-width:170px}
+.tfs-f select:disabled,.tfs-f input:disabled{background:#f3f5f8;color:#777}
+.tfs-ro{font-size:12.5px;color:#445;display:flex;align-items:center;gap:6px}
+.tfs-note{width:100%;box-sizing:border-box;margin-top:8px;border:1px solid #d9e0ea;border-radius:7px;padding:7px 9px;font-size:12.5px;min-height:44px;resize:vertical;font-family:inherit}
+.tfs-noteview{margin-top:8px;font-size:12.5px;color:#445;background:#f6f8fb;border-radius:7px;padding:7px 9px;white-space:pre-wrap}
+.tfs-meta{margin-top:6px;font-size:11px;color:#98a2b3;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.tfs-meta .late{color:#D9480F;font-weight:600}
+.tfs-del{margin-left:auto;background:none;border:none;color:#E24B4A;cursor:pointer;font-size:12px;padding:2px 6px}
+.tfs-add{border:1.5px dashed #b9c7da;background:#f8fafd;color:#1B5E9B;border-radius:9px;padding:9px 14px;font-size:13px;font-weight:600;cursor:pointer;width:100%}
+.tfs-add:hover{background:#eef4fb}
+.tfs-warn{background:#FFF6E0;border:1px solid #f0d58a;border-radius:9px;padding:10px 12px;font-size:12.5px;color:#7a5b00}
+.tfs-chiprow{margin:8px 0 0 28px}
+.tfs-chip{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;color:#1B5E9B;background:#e8f1fb;border-radius:999px;padding:2px 9px}
+.tfs-chip.ok{color:#17734f;background:#e3f5ec}
+.tfs-chip.late{color:#b23c0c;background:#fdeadf}
+.tname .tfs-chip{margin-left:8px;vertical-align:middle}
+@media(max-width:760px){.tfs-f select,.tfs-f input{max-width:none;width:100%}.tfs-f{flex:1 1 45%}}
+</style>
+<script>
+// ============================================================
+// TASKFLOW SUBTASKS — per-person sub-work inside a shared task
+// (title, person, start/end, status, note; person closes own part; parent rolls up)
+// ============================================================
+var _tfSubAll=[],_tfSubOK=true,_tfmSubs=[],_tfmSubTask=null;
+var TFS_ST=[{k:'todo',l:'Not started'},{k:'prog',l:'In progress'},{k:'done',l:'Done'}];
+function tfsSame(a,b){return String(a)===String(b);}
+function tfIdByName(n){for(var k in _tfProfMap){if(_tfProfMap[k]===n)return k;}return null;}
+function tfSubsOf(tid){return _tfSubAll.filter(function(s){return tfsSame(s.task_id,tid);});}
+function tfSubSync(s){var i=_tfSubAll.findIndex(function(x){return x.id===s.id;});var c=Object.assign({},s);delete c._tmp;if(i>=0)_tfSubAll[i]=c;else _tfSubAll.push(c);}
+async function tfLoadSubs(){
+  try{
+    var r=await sb.from('task_subtasks').select('*').order('created_at',{ascending:true}).limit(5000);
+    if(r.error){_tfSubOK=false;_tfSubAll=[];return;}
+    _tfSubOK=true;_tfSubAll=r.data||[];
+  }catch(e){_tfSubOK=false;_tfSubAll=[];}
+}
+// ---- load subtasks together with tasks ----
+var _tfsLoadTasks0=loadTasks;
+loadTasks=async function(){await tfLoadSubs();return _tfsLoadTasks0.apply(this,arguments);};
+
+// ---- chip on cards / list rows ----
+function tfSubChip(t){
+  var s=tfSubsOf(t.id);if(!s.length)return'';
+  var d=s.filter(function(x){return x.status==='done';}).length;
+  var late=s.some(function(x){return x.status!=='done'&&x.end_date&&ddiff(x.end_date)<0;});
+  var tip=s.map(function(x){return '• '+(x.assignee_name||'Unassigned')+': '+x.title+' ('+({todo:'not started',prog:'in progress',done:'done'}[x.status]||x.status)+')';}).join('\n');
+  return '<span class="tfs-chip'+(d===s.length?' ok':late?' late':'')+'" title="'+tfEsc(tip)+'">☰ '+d+'/'+s.length+' subtasks</span>';
+}
+var _tfsCard0=tfCard;
+tfCard=function(t){
+  var h=_tfsCard0(t),c=tfSubChip(t);
+  return c?h.replace('<div class="tf-foot">','<div class="tfs-chiprow">'+c+'</div><div class="tf-foot">'):h;
+};
+
+// ---- permissions ----
+function tfsIsAdmin(){return !!(CP&&CP.group_name==='admin');}
+function tfmSubPerm(s){
+  var t=_tfmSubTask,me=CU&&CU.id,myName=CP&&CP.full_name;
+  var tCreator=!t||(t.created_by===me);
+  var sCreator=!s.id||s.created_by===me;
+  var full=tfsIsAdmin()||tCreator||sCreator;
+  var mine=(s.assignee_id&&s.assignee_id===me)||(!!s.assignee_name&&s.assignee_name===myName);
+  return {full:full,own:full||mine};
+}
+function tfmSubCanAdd(){var t=_tfmSubTask;if(!t)return true;return tfsIsAdmin()||t.created_by===(CU&&CU.id)||hasPerson(t,CP&&CP.full_name);}
+
+// ---- modal section ----
+var _tfsOpen0=tfOpen;
+tfOpen=async function(id,pre){
+  var ret=await _tfsOpen0(id,pre);
+  var t=id?_tasks.find(function(x){return tfsSame(x.id,id);}):null;
+  _tfmSubTask=t||null;
+  _tfmSubs=t?tfSubsOf(t.id).map(function(s){return Object.assign({},s);}):[];
+  var ta=document.getElementById('tfm-notes');
+  if(ta&&!document.getElementById('tfm-subs-wrap')){
+    var w=document.createElement('div');w.id='tfm-subs-wrap';w.className='tfs-wrap';
+    var lbl=ta.previousElementSibling;
+    (lbl&&lbl.classList&&lbl.classList.contains('tfm-lbl')?lbl:ta).insertAdjacentElement('beforebegin',w);
+  }
+  tfmRenderSubs();
+  return ret;
+};
+var _tfsPeople0=tfmRenderPeople;
+tfmRenderPeople=function(){_tfsPeople0.apply(this,arguments);if(document.getElementById('tfm-subs-wrap'))tfmRenderSubs();};
+
+function tfmSubPeopleOpts(sel){
+  var names=_tfmPeople.slice();if(sel&&names.indexOf(sel)<0)names.push(sel);
+  return '<option value="">— Choose person —</option>'+names.map(function(n){return '<option value="'+tfEsc(n)+'"'+(n===sel?' selected':'')+'>'+tfEsc(n)+'</option>';}).join('');
+}
+function tfmRenderSubs(){
+  var w=document.getElementById('tfm-subs-wrap');if(!w)return;
+  if(!_tfSubOK){w.innerHTML='<div class="tfs-head"><b>Subtasks</b></div><div class="tfs-warn">Subtasks need a one-time database setup. Run <b>SQL_subtasks.sql</b> in Supabase → SQL Editor, then reload Vantage.</div>';return;}
+  var n=_tfmSubs.length,d=_tfmSubs.filter(function(s){return s.status==='done';}).length;
+  var h='<div class="tfs-head"><b>Subtasks — who does what</b>'+(n?'<span class="tfs-cnt">'+d+' of '+n+' done</span><span class="tfs-bar"><i style="width:'+Math.round(d/n*100)+'%"></i></span>':'')+'</div>';
+  h+='<div class="tfs-hint">'+(n?'Each person updates their own part. The task closes by itself when every subtask is done.':'Split this task between the people involved. Add each person\'s part with its own dates, status and note.')+(_tfmPeople.length?'':' <b>Add people in “Assigned to” first.</b>')+'</div>';
+  _tfmSubs.forEach(function(s,i){
+    var p=tfmSubPerm(s),done=s.status==='done',late=!done&&s.end_date&&ddiff(s.end_date)<0;
+    var chk=p.own?'<span class="tf-chk'+(done?' on':'')+'" onclick="tfmSubToggle('+i+')" title="'+(done?'Re-open':'Mark my part done')+'"></span>':'<span class="tf-chk ro'+(done?' on':'')+'"></span>';
+    var titleH=p.full?'<input class="tfs-title" type="text" autocomplete="off" maxlength="200" placeholder="Subtask, e.g. Configure the network switch" value="'+tfEsc(s.title||'')+'" onchange="tfmSubSet('+i+',\'title\',this.value)">':'<div class="tfs-t">'+tfEsc(s.title||'')+'</div>';
+    var who=p.full?'<label class="tfs-f"><span>Person</span><select autocomplete="off" onchange="tfmSubSet('+i+',\'assignee_name\',this.value)">'+tfmSubPeopleOpts(s.assignee_name)+'</select></label>':'<div class="tfs-f"><span>Person</span><div class="tfs-ro">'+tfAvatar(s.assignee_name||'')+tfEsc(s.assignee_name||'Unassigned')+'</div></div>';
+    var dis=p.own?'':' disabled';
+    var line='<div class="tfs-line">'+who
+      +'<label class="tfs-f"><span>Start</span><input type="date" autocomplete="off"'+dis+' value="'+tfEsc(s.start_date||'')+'" onchange="tfmSubSet('+i+',\'start_date\',this.value)"></label>'
+      +'<label class="tfs-f"><span>End</span><input type="date" autocomplete="off"'+dis+' value="'+tfEsc(s.end_date||'')+'" onchange="tfmSubSet('+i+',\'end_date\',this.value)"></label>'
+      +'<label class="tfs-f"><span>Status</span><select autocomplete="off"'+dis+' onchange="tfmSubSet('+i+',\'status\',this.value)">'+tfOptions(TFS_ST,s.status||'todo')+'</select></label></div>';
+    var note=p.own?'<textarea class="tfs-note" rows="2" autocomplete="off" maxlength="3000" placeholder="Note: progress, issues, what was done…" onchange="tfmSubSet('+i+',\'note\',this.value)">'+tfEsc(s.note||'')+'</textarea>':(s.note?'<div class="tfs-noteview">'+tfEsc(s.note)+'</div>':'');
+    var meta='<div class="tfs-meta">'+(late?'<span class="late">'+Math.abs(ddiff(s.end_date))+'d overdue</span>':'')
+      +(done&&s.done_at?'<span>Done '+tfEsc(tfDT(s.done_at))+'</span>':'')
+      +(s.id&&s.updated_at?'<span>Updated '+tfEsc(tfDT(s.updated_at))+(tfName(s.updated_by)?' by '+tfEsc(tfName(s.updated_by)):'')+'</span>':'')
+      +(p.full?'<button class="tfs-del" onclick="tfmSubDel('+i+')">Remove</button>':'')+'</div>';
+    h+='<div class="tfs-row'+(done?' done':'')+'">'+chk+'<div class="tfs-main">'+titleH+line+note+meta+'</div></div>';
+  });
+  if(tfmSubCanAdd())h+='<button type="button" class="tfs-add" onclick="tfmSubAdd()">+ Add subtask</button>';
+  w.innerHTML=h;
+}
+function tfmSubAdd(){
+  if(!_tfmPeople.length){showToast('Add at least one person in “Assigned to” first');return;}
+  var me=CP&&CP.full_name;
+  var def=(_tfmPeople.length===1)?_tfmPeople[0]:(me&&_tfmPeople.indexOf(me)>=0?me:'');
+  _tfmSubs.push({_tmp:true,title:'',assignee_name:def||null,assignee_id:def?(tfIdByName(def)||null):null,start_date:null,end_date:null,status:'todo',note:null});
+  tfmRenderSubs();
+  var ins=document.querySelectorAll('#tfm-subs-wrap .tfs-title');if(ins.length)ins[ins.length-1].focus();
+}
+async function tfmSubToggle(i){
+  var s=_tfmSubs[i];if(!s)return;
+  await tfmSubSet(i,'status',s.status==='done'?'prog':'done');
+}
+async function tfmSubSet(i,f,v){
+  var s=_tfmSubs[i];if(!s)return;
+  var p=tfmSubPerm(s);
+  if((f==='title'||f==='assignee_name')&&!p.full){tfmRenderSubs();return;}
+  if(!p.own){tfmRenderSubs();return;}
+  v=(typeof v==='string')?v.trim():v;
+  if(v===''&&f!=='title'&&f!=='status')v=null;
+  if(f==='title'&&!v&&s.id){showToast('A subtask needs a title');tfmRenderSubs();return;}
+  var oldVal=s[f],oldId=s.assignee_id,oldDone=s.done_at;
+  s[f]=v;
+  if(f==='assignee_name')s.assignee_id=v?(tfIdByName(v)||null):null;
+  if(f==='status')s.done_at=(v==='done')?new Date().toISOString():null;
+  if((f==='start_date'||f==='end_date')&&s.start_date&&s.end_date&&s.end_date<s.start_date){
+    s[f]=oldVal;showToast('End date can’t be before the start date');tfmRenderSubs();return;
+  }
+  if(_tfmSubTask){
+    var ok=await tfSubPersist(s,f);
+    if(!ok){s[f]=oldVal;s.assignee_id=oldId;s.done_at=oldDone;tfmRenderSubs();return;}
+  }
+  if(f==='status')tfmRenderSubs();
+}
+async function tfSubPersist(s,f){
+  var t=_tfmSubTask,now=new Date().toISOString();
+  try{
+    if(!s.id){
+      if(!s.title)return true; // wait for a title
+      if(s.assignee_name&&taskPeople(t).indexOf(s.assignee_name)<0)await tfEnsureOnTask(t,s.assignee_name);
+      var row={task_id:t.id,title:s.title,assignee_id:s.assignee_id||null,assignee_name:s.assignee_name||null,start_date:s.start_date||null,end_date:s.end_date||null,status:s.status||'todo',note:s.note||null,created_by:CU.id,updated_by:CU.id,updated_at:now,done_at:s.status==='done'?now:null};
+      var r=await sb.from('task_subtasks').insert(row).select().single();
+      if(r.error){showToast('Could not save subtask: '+r.error.message);return false;}
+      Object.keys(r.data).forEach(function(k){s[k]=r.data[k];});delete s._tmp;tfSubSync(s);
+      try{await logAct('Added subtask','tasks',t.id,(s.assignee_name||'Unassigned')+': '+s.title);}catch(e){}
+      await tfRollup(t.id);tfmRenderSubs();return true;
+    }
+    var patch={updated_by:CU.id,updated_at:now};patch[f]=s[f];
+    if(f==='assignee_name'){patch.assignee_id=s.assignee_id||null;if(s.assignee_name&&taskPeople(t).indexOf(s.assignee_name)<0)await tfEnsureOnTask(t,s.assignee_name);}
+    if(f==='status')patch.done_at=s.status==='done'?now:null;
+    var r2=await sb.from('task_subtasks').update(patch).eq('id',s.id).select().single();
+    if(r2.error){showToast('Could not save: '+r2.error.message);return false;}
+    Object.keys(r2.data).forEach(function(k){s[k]=r2.data[k];});tfSubSync(s);
+    if(f==='status'){try{await logAct(s.status==='done'?'Subtask done':'Subtask status changed','tasks',t.id,(s.assignee_name||'')+': '+s.title+' → '+({todo:'Not started',prog:'In progress',done:'Done'}[s.status]));}catch(e){} await tfRollup(t.id);}
+    else if(f==='note'){try{await logAct('Subtask note','tasks',t.id,(s.assignee_name||'')+': '+s.title);}catch(e){}}
+    return true;
+  }catch(e){showToast('Could not save subtask: '+(e.message||e));return false;}
+}
+async function tfEnsureOnTask(t,name){
+  var ppl=taskPeople(t);if(ppl.indexOf(name)>=0)return;
+  ppl.push(name);var val=ppl.join('; ');
+  var r=await sb.from('tasks').update({assigned_name:val,updated_by:CU.id,updated_at:new Date().toISOString()}).eq('id',t.id);
+  if(!r.error){t.assigned_name=val;}
+}
+async function tfmSubDel(i){
+  var s=_tfmSubs[i];if(!s)return;
+  var t=_tfmSubTask;
+  if(s.id){
+    if(!confirm('Remove this subtask'+(s.title?' ("'+s.title+'")':'')+'?'))return;
+    var r=await sb.from('task_subtasks').delete().eq('id',s.id);
+    if(r.error){showToast('Could not remove: '+r.error.message);return;}
+    _tfSubAll=_tfSubAll.filter(function(x){return x.id!==s.id;});
+    try{await logAct('Removed subtask','tasks',t.id,(s.assignee_name||'')+': '+s.title);}catch(e){}
+  }
+  _tfmSubs.splice(i,1);tfmRenderSubs();
+  if(t&&s.id)await tfRollup(t.id);
+}
+// ---- parent task follows its subtasks ----
+async function tfRollup(tid){
+  var t=_tasks.find(function(x){return tfsSame(x.id,tid);});if(!t)return;
+  var subs=tfSubsOf(tid);if(!subs.length)return;
+  var n=subs.length,d=subs.filter(function(x){return x.status==='done';}).length;
+  var act=d>0||subs.some(function(x){return x.status==='prog';});
+  var nd,np;
+  if(d===n){nd=true;np=100;}
+  else{nd=false;np=act?Math.min(99,Math.max(1,Math.round(d/n*100))):(t.done?0:(t.progress||0));}
+  if(!!t.done===nd&&(t.progress||0)===np)return;
+  var r=await sb.from('tasks').update({done:nd,progress:np,updated_by:CU.id,updated_at:new Date().toISOString()}).eq('id',tid);
+  if(r.error){showToast('Subtask saved, but the task status could not update: '+r.error.message);return;}
+  t.done=nd;t.progress=np;
+  if(tfsSame(_tfEditId,tid)){
+    var st=document.getElementById('tfm-status'),pg=document.getElementById('tfm-prog'),ck=document.getElementById('tfm-chk');
+    if(st)st.value=nd?'done':(np>0?'prog':'todo');
+    if(pg)pg.value=String(Math.round(np/10)*10);
+    if(ck)ck.classList.toggle('on',nd);
+  }
+  try{await logAct(nd?'Completed task':'Task progress updated','tasks',tid,(nd?'All subtasks done: ':'Progress '+np+'%: ')+(t.name||''));}catch(e){}
+  filterTasks();
+}
+// ---- save subtasks that were drafted while creating a brand-new task ----
+async function tfmSubsFlush(taskId){
+  var pend=_tfmSubs.filter(function(s){return (s.title||'').trim();});
+  if(!pend.length||!taskId)return;
+  var now=new Date().toISOString();
+  var rows=pend.map(function(s){return {task_id:taskId,title:s.title.trim(),assignee_id:s.assignee_id||null,assignee_name:s.assignee_name||null,start_date:s.start_date||null,end_date:s.end_date||null,status:s.status||'todo',note:s.note||null,created_by:CU.id,updated_by:CU.id,updated_at:now,done_at:s.status==='done'?now:null};});
+  var r=await sb.from('task_subtasks').insert(rows).select();
+  if(r.error){showToast('Task saved, but subtasks failed: '+r.error.message);return;}
+  try{await logAct('Added subtasks','tasks',taskId,rows.length+' subtask'+(rows.length>1?'s':''));}catch(e){}
+  await loadTasks();await tfRollup(taskId);
+}
 
 </script>
 </body>
