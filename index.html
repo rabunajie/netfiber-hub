@@ -4430,16 +4430,13 @@ async function sendAIMessage(){
       body:JSON.stringify({
         model:'claude-sonnet-4-5',
         max_tokens:1000,
+        stream:true,
         system: sysPrompt,
         messages: messages
       })
     });
-    var data = await resp.json();
-    if(typing) typing.remove();
-
-    if(data.error){throw new Error(data.error.message||JSON.stringify(data.error));}
-    var reply = (data.content&&data.content[0]&&data.content[0].text) || 'Sorry, I had trouble responding. Please try again.';
-    aiMsg('assistant', reply);
+    // Shows the answer live, word by word (real streaming; falls back to a typing effect)
+    var reply = await aiStreamReply(resp, typing);
     _aiChat.push({role:'assistant', content:reply});
 
   } catch(err){
@@ -8439,6 +8436,92 @@ async function tfmSubsFlush(taskId){
   if(r.error){showToast('Task saved, but subtasks failed: '+r.error.message);return;}
   try{await logAct('Added subtasks','tasks',taskId,rows.length+' subtask'+(rows.length>1?'s':''));}catch(e){}
   await loadTasks();await tfRollup(taskId);
+}
+
+</script>
+<script>
+
+// ============================================================
+// AI ADVISOR — live (streamed) answers + readable formatting
+// ============================================================
+(function(){var st=document.createElement('style');st.id='ai-stream-css';st.textContent=
+'.ai-stream{white-space:normal!important}.ai-stream p{margin:0 0 9px}.ai-stream p:last-child,.ai-stream ul:last-child,.ai-stream ol:last-child{margin-bottom:0}'
++'.ai-stream ul,.ai-stream ol{margin:0 0 9px;padding-left:20px}.ai-stream li{margin-bottom:3px}'
++'.ai-stream h4{font-size:13.5px;font-weight:700;color:#1B5E9B;margin:12px 0 5px}.ai-stream h4:first-child{margin-top:0}'
++'.ai-stream code{background:#eef2f8;border-radius:4px;padding:1px 5px;font-size:12px}'
++'.ai-stream.live>*:last-child::after,.ai-stream.live:empty::after{content:"";display:inline-block;width:7px;height:14px;background:#1B5E9B;margin-left:3px;vertical-align:-2px;border-radius:1px;animation:aiBlink 1s steps(2,start) infinite}'
++'@keyframes aiBlink{to{visibility:hidden}}';document.head.appendChild(st);})();
+
+function aiMd(src){
+  var t=String(src==null?'':src).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  function inl(x){return x.replace(/`([^`\n]+)`/g,'<code>$1</code>').replace(/\*\*([^*\n]+)\*\*/g,'<b>$1</b>').replace(/(^|[^*])\*([^*\s][^*\n]*)\*(?!\*)/g,'$1<i>$2</i>');}
+  var out='',list=null,para=[];
+  function flushP(){if(para.length){out+='<p>'+para.join('<br>')+'</p>';para=[];}}
+  function closeL(){if(list){out+='</'+list+'>';list=null;}}
+  t.split('\n').forEach(function(raw){
+    var l=raw.trim(),m;
+    if(!l){flushP();closeL();return;}
+    if((m=/^#{1,4}\s+(.*)$/.exec(l))){flushP();closeL();out+='<h4>'+inl(m[1])+'</h4>';return;}
+    if((m=/^[-*•]\s+(.*)$/.exec(l))){flushP();if(list!=='ul'){closeL();out+='<ul>';list='ul';}out+='<li>'+inl(m[1])+'</li>';return;}
+    if((m=/^\d+[.)]\s+(.*)$/.exec(l))){flushP();if(list!=='ol'){closeL();out+='<ol>';list='ol';}out+='<li>'+inl(m[1])+'</li>';return;}
+    closeL();para.push(inl(l));
+  });
+  flushP();closeL();return out;
+}
+
+async function aiStreamReply(resp,typing){
+  var FALLBACK='Sorry, I had trouble responding. Please try again.';
+  var bubble=null,text='',pending=false;
+  function ensure(){
+    if(typing&&typing.parentNode)typing.remove();
+    if(!bubble){bubble=aiMsg('assistant','');if(bubble){bubble.classList.add('ai-stream','live');}}
+  }
+  function paint(){
+    pending=false;if(!bubble)return;
+    var m=document.getElementById('ai-messages');
+    var stick=!m||(m.scrollHeight-m.scrollTop-m.clientHeight<140);
+    bubble.innerHTML=aiMd(text);
+    if(m&&stick)m.scrollTop=m.scrollHeight;
+  }
+  function schedule(){if(!pending){pending=true;(window.requestAnimationFrame||setTimeout)(paint);}}
+  function finish(){if(bubble){bubble.classList.remove('live');}paint();}
+  var ct=(resp.headers&&resp.headers.get&&resp.headers.get('content-type'))||'';
+  // ---- real streaming ----
+  if(resp.ok&&resp.body&&ct.indexOf('text/event-stream')>=0){
+    var reader=resp.body.getReader(),dec=new TextDecoder(),buf='';
+    function handle(part){
+      part.split('\n').forEach(function(line){
+        if(line.indexOf('data:')!==0)return;
+        var js=line.slice(5).trim();if(!js||js==='[DONE]')return;
+        var ev;try{ev=JSON.parse(js);}catch(e){return;}
+        if(ev.type==='content_block_delta'&&ev.delta&&ev.delta.type==='text_delta'&&ev.delta.text){ensure();text+=ev.delta.text;schedule();}
+        else if(ev.type==='error'){throw new Error((ev.error&&ev.error.message)||'The AI stream stopped');}
+      });
+    }
+    try{
+      for(;;){
+        var rd=await reader.read();if(rd.done)break;
+        buf+=dec.decode(rd.value,{stream:true});
+        var parts=buf.split('\n\n');buf=parts.pop();
+        parts.forEach(handle);
+      }
+      if(buf.trim())handle(buf);
+    }catch(e){
+      if(!text){if(typing&&typing.parentNode)typing.remove();throw e;}
+      text+='\n\n(Connection interrupted — this answer may be incomplete.)';
+    }
+    if(!text)text=FALLBACK;
+    ensure();finish();return text;
+  }
+  // ---- fallback: whole answer arrives at once -> reveal it as typing ----
+  var data=await resp.json();
+  if(typing&&typing.parentNode)typing.remove();
+  if(data.error)throw new Error(data.error.message||JSON.stringify(data.error));
+  var full=(data.content&&data.content[0]&&data.content[0].text)||FALLBACK;
+  ensure();
+  var i=0,step=Math.max(3,Math.ceil(full.length/220));
+  await new Promise(function(done){(function tick(){i=Math.min(full.length,i+step);text=full.slice(0,i);paint();if(i<full.length)setTimeout(tick,18);else done();})();});
+  finish();return full;
 }
 
 </script>
