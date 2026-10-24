@@ -1000,7 +1000,7 @@ body.view-only button[onclick*="Remove"]{
       <div class="ped-grid3" style="margin-bottom:10px">
         <div class="ifield"><label>Estimate #</label><input autocomplete="off" id="ped-estno" placeholder="GC26-22-xxx"></div>
         <div class="ifield"><label>Date</label><input autocomplete="off" id="ped-date" type="date"></div>
-        <div class="ifield"><label>Status</label><select autocomplete="off" id="ped-status"><option>Draft</option><option>Sent</option><option>Approved</option><option>Lost</option></select></div>
+        <div class="ifield"><label>Status</label><select autocomplete="off" id="ped-status"><option>Under Review</option><option>Draft</option><option>Sent</option><option>Approved</option><option>Lost</option></select></div>
       </div>
       <div class="ped-grid2" style="margin-bottom:10px">
         <div class="ifield"><label>Project Name</label><input autocomplete="off" id="ped-projname" placeholder="Aspen Dental"></div>
@@ -4925,7 +4925,7 @@ var invWorkItems = [];
 async function renderProposals(){
   var mc = document.getElementById('main-content');
   mc.innerHTML = '<div class="page-hdr"><div><div class="page-title">Proposals</div><div class="page-sub">Estimates, invoices & scope of work</div></div><button class="btn btn-blue" onclick="openNewProposal()">+ New Proposal</button></div>'
-    + '<div class="toolbar"><input autocomplete="off" type="text" id="prop-search" placeholder="Search proposals..." oninput="filterProposals()" style="flex:1;min-width:180px"><select autocomplete="off" id="prop-filter" onchange="filterProposals()"><option value="">All statuses</option><option>Draft</option><option>Sent</option><option>Approved</option><option>Lost</option></select></div>'
+    + '<div class="toolbar"><input autocomplete="off" type="text" id="prop-search" placeholder="Search proposals..." oninput="filterProposals()" style="flex:1;min-width:180px"><select autocomplete="off" id="prop-filter" onchange="filterProposals()"><option value="">All statuses</option><option>Under Review</option><option>Draft</option><option>Sent</option><option>Approved</option><option>Lost</option></select></div>'
     + '<div id="proposals-grid"><div class="loading"><span class="spinner"></span></div></div>';
   await loadProposals();
 }
@@ -8169,7 +8169,7 @@ async function bdAIContext(q){
   }catch(e){return '';}
 }
 
-var APP_VERSION='2.3.0',APP_BUILD_DATE='Oct 23, 2026';
+var APP_VERSION='2.4.0',APP_BUILD_DATE='Oct 23, 2026';
 (function(){function s(){var e=document.getElementById('sb-ver');if(e)e.textContent='Vantage v'+APP_VERSION+' · '+APP_BUILD_DATE;}s();document.addEventListener('DOMContentLoaded',s);})();
 
 </script>
@@ -8523,6 +8523,676 @@ async function aiStreamReply(resp,typing){
   await new Promise(function(done){(function tick(){i=Math.min(full.length,i+step);text=full.slice(0,i);paint();if(i<full.length)setTimeout(tick,18);else done();})();});
   finish();return full;
 }
+
+</script>
+<script id="aip-engine">
+/* ===== Vantage AI Proposal Engine (core) ===== */
+(function(){
+var JSPDF='https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js';
+try{BD_SRI[JSPDF]='sha384-en/ztfPSRkGfME4KIm05joYXynqzUgbsG5nMrj/xEFAHXkeZfO3yMK8QQ+mP7p1/';}catch(e){}
+var AIP=window.AIP={st:{mode:'off',grid:2,days_ahead:14},busy:false,timer:null,cur:null,jobs:[],started:false};
+
+var TYPES={
+ data_drop:{cat:'data',code:'DD',label:'Data drop / outlet',hint:'RJ45 data outlet, triangle/inverted triangle with D/T/data label, floor box data'},
+ wap:{cat:'data',code:'WP',label:'Wireless access point',hint:'WAP / WiFi AP, ceiling or wall'},
+ idf_rack:{cat:'data',code:'RK',label:'Rack / IDF / MDF',hint:'telecom room, rack, cabinet, patch panel location'},
+ fiber:{cat:'data',code:'FB',label:'Fiber / backbone run',hint:'fiber backbone, riser, interconnect between rooms'},
+ display:{cat:'av',code:'DP',label:'Display / TV / monitor',hint:'flat panel, TV, monitor, digital signage'},
+ projector:{cat:'av',code:'PJ',label:'Projector / screen',hint:'projector, projection screen'},
+ speaker:{cat:'av',code:'SP',label:'Speaker',hint:'ceiling or wall speaker, pendant speaker'},
+ microphone:{cat:'av',code:'MC',label:'Microphone',hint:'ceiling mic, table mic, lectern mic'},
+ av_plate:{cat:'av',code:'AP',label:'AV wall / floor plate',hint:'HDMI/AV input plate, table box, floor box AV'},
+ av_camera:{cat:'av',code:'VC',label:'Conference / PTZ camera',hint:'video conferencing camera, PTZ'},
+ touch_panel:{cat:'av',code:'TP',label:'Touch panel / control',hint:'touch panel, keypad, room control'},
+ av_rack:{cat:'av',code:'AR',label:'AV rack / DSP / equipment',hint:'AV rack, DSP, amplifier, matrix'},
+ camera:{cat:'security',code:'CA',label:'Security camera',hint:'CCTV / IP camera dome, bullet, fixed, PTZ, fisheye'},
+ card_reader:{cat:'security',code:'CR',label:'Card reader',hint:'access control reader, keypad reader'},
+ mag_lock:{cat:'security',code:'ML',label:'Mag lock / electric strike',hint:'magnetic lock, electric strike, electrified hardware'},
+ door_contact:{cat:'security',code:'DC',label:'Door contact',hint:'door position switch'},
+ rex:{cat:'security',code:'RX',label:'REX / request to exit',hint:'REX sensor, exit button'},
+ intercom:{cat:'security',code:'IC',label:'Intercom / door station',hint:'video intercom, call station'},
+ alarm:{cat:'security',code:'AL',label:'Alarm panel / sensor',hint:'intrusion panel, motion, glass break'},
+ other:{cat:'other',code:'OT',label:'Other low-voltage device',hint:'any other low-voltage device (state what it is in note)'}
+};
+var CATCOL={data:'#1B5E9B',av:'#E67E22',security:'#D63031',other:'#7B3FA0'};
+var CATNAME={data:'Data / Structured Cabling',av:'Audio / Video',security:'Security / Access Control'};
+AIP.TYPES=TYPES;AIP.CATNAME=CATNAME;
+function E(s){return (typeof bdE==='function')?bdE(s):String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+function sleep(ms){return new Promise(function(r){setTimeout(r,ms);});}
+function typeKey(t){t=String(t||'').toLowerCase().trim().replace(/[^a-z_]+/g,'_');if(TYPES[t])return t;
+ var m={outlet:'data_drop',drop:'data_drop',data:'data_drop',jack:'data_drop',rj45:'data_drop',wifi:'wap',ap:'wap',tv:'display',monitor:'display',screen:'projector',mic:'microphone',cctv:'camera',ip_camera:'camera',reader:'card_reader',access_reader:'card_reader',maglock:'mag_lock',strike:'mag_lock',electric_strike:'mag_lock',dps:'door_contact',exit:'rex',rack:'idf_rack',idf:'idf_rack',mdf:'idf_rack'};
+ return m[t]||'other';}
+function jparse(txt){
+ var s=String(txt||'').replace(/```json|```/gi,'').trim();
+ var a=s.search(/[\[{]/);if(a<0)throw new Error('AI returned no JSON');
+ var open=s[a],close=open==='{'?'}':']',b=s.lastIndexOf(close);
+ if(b<a)throw new Error('AI JSON incomplete');
+ s=s.slice(a,b+1);
+ try{return JSON.parse(s);}catch(e){try{return JSON.parse(s.replace(/,\s*([}\]])/g,'$1'));}catch(e2){throw new Error('AI JSON invalid');}}
+}
+async function ai(sys,content,max){
+ var last;
+ for(var i=0;i<4;i++){
+  try{return await bdCallAI(sys,[{role:'user',content:content}],max||3000);}
+  catch(e){last=e;var m=String(e&&e.message||e);if(/rate|429|too many|overload|529|busy|timeout|fetch/i.test(m)&&i<3){await sleep(7000*(i+1));continue;}throw e;}
+ }
+ throw last;
+}
+async function aiJson(sys,content,max){
+ var t=await ai(sys,content,max);
+ try{return jparse(t);}catch(e){
+  var t2=await ai(sys+' Reply with ONLY valid JSON, nothing else.',content,max);return jparse(t2);
+ }
+}
+AIP._h={jparse:jparse,ai:ai,aiJson:aiJson,typeKey:typeKey,sleep:sleep};
+
+/* ---------- settings ---------- */
+AIP.loadSettings=async function(){
+ try{var r=await sb.from('ai_proposal_settings').select('*').eq('id',1).maybeSingle();if(r.data)AIP.st=Object.assign(AIP.st,r.data);}catch(e){}
+ return AIP.st;
+};
+AIP.setMode=async function(mode){
+ if(!CP||CP.group_name!=='admin')return;
+ if(mode==='full'&&!confirm('Full Automation: Vantage AI will automatically create proposals for every bid coming due (status "Under Review") and save files into Build. Turn it on?'))return;
+ var r=await sb.from('ai_proposal_settings').upsert({id:1,mode:mode,updated_by:CU.id,updated_at:new Date().toISOString()});
+ if(r.error){alert('Could not save mode: '+r.error.message+'\n\nHave you run SQL_ai_proposals.sql in Supabase?');return;}
+ AIP.st.mode=mode;try{await logAct('AI proposal mode','ai_proposal_settings','1','Mode set to '+mode);}catch(e){}
+ AIP.refreshBar();if(mode!=='off')AIP.tick(true);
+};
+
+/* ---------- jobs ---------- */
+async function upd(job,patch){
+ Object.assign(job,patch);
+ try{await sb.from('ai_proposal_jobs').update(patch).eq('id',job.id);}catch(e){}
+ AIP.refreshBar();
+}
+function step(job,stage,pct,line){
+ job._log=(job._log||'')+(new Date().toLocaleTimeString())+'  '+(line||stage)+'\n';
+ return upd(job,{stage:stage,progress:pct,log:job._log.slice(-12000)});
+}
+AIP.loadJobs=async function(){
+ var r=await sb.from('ai_proposal_jobs').select('*').order('created_at',{ascending:false}).limit(60);
+ AIP.jobs=r.data||[];return AIP.jobs;
+};
+AIP.queueJob=async function(o){
+ var row={bid_id:o.bid_id||null,bid_ref:o.bid_ref||null,build_project_id:o.build_project_id||null,project_name:o.project_name||'',mode:o.mode||'full',status:o.status||'queued',error:o.error||null,created_by:CU.id};
+ var r=await sb.from('ai_proposal_jobs').insert(row).select().single();
+ if(r.error)throw r.error;return r.data;
+};
+
+/* ---------- scheduler ---------- */
+var TESTRE=/^testing[\s_\-]?[12]$/i;
+AIP.tick=async function(force){
+ if(AIP.busy)return;
+ if(!CP||CP.group_name!=='admin')return;
+ try{
+  await AIP.loadSettings();
+  var mode=AIP.st.mode;if(mode==='off'){AIP.refreshBar();return;}
+  AIP.busy=true;AIP.refreshBar();
+  // recover jobs left "running" by a closed browser
+  var old=new Date(Date.now()-45*60000).toISOString();
+  await sb.from('ai_proposal_jobs').update({status:'error',error:'Interrupted (browser closed while running). Press Re-run.'}).eq('status','running').lt('claimed_at',old);
+  var pr=await sb.from('build_projects').select('*').neq('status','Archived');var projs=pr.data||[];
+  await AIP.loadJobs();
+  var have={};AIP.jobs.forEach(function(j){have[(j.bid_id||'')+'|'+(j.build_project_id||'')+'|'+j.mode]=1;});
+  if(mode==='training'){
+   for(var i=0;i<projs.length;i++){var p=projs[i];
+    if(TESTRE.test(String(p.name||'').trim())&&!have['|'+p.id+'|training']){await AIP.queueJob({build_project_id:p.id,project_name:p.name,bid_ref:p.code||p.name,mode:'training'});}
+   }
+  }else if(mode==='full'){
+   var br=await sb.from('bids').select('*').eq('status','Under Review');var bids=br.data||[];
+   var today=new Date();today.setHours(0,0,0,0);var lim=new Date(today.getTime()+(AIP.st.days_ahead||14)*86400000);
+   for(var b=0;b<bids.length;b++){var bid=bids[b];
+    if(!bid.due_date||!bid.ref)continue;var dd=new Date(bid.due_date+'T00:00:00');
+    if(dd<today||dd>lim)continue;
+    if(have[bid.id+'||full']||Object.keys(have).some(function(k){return k.indexOf(bid.id+'|')===0;}))continue;
+    var proj=AIP.findProject(bid,projs);
+    if(!proj){await AIP.queueJob({bid_id:bid.id,bid_ref:bid.ref,project_name:bid.project,mode:'full',status:'error',error:'No Build project found with code "'+bid.ref+'". Create it (or upload the documents) and press Re-run.'});continue;}
+    // wait while documents are still being uploaded
+    var fr=await sb.from('build_files').select('updated_at').eq('project_id',proj.id).eq('is_deleted',false).order('updated_at',{ascending:false}).limit(1);
+    if(!fr.data||!fr.data.length)continue;
+    if(Date.now()-new Date(fr.data[0].updated_at).getTime()<20*60000)continue;
+    await AIP.queueJob({bid_id:bid.id,bid_ref:bid.ref,build_project_id:proj.id,project_name:bid.project,mode:'full'});
+   }
+  }
+  // run queued jobs one at a time
+  while(true){
+   var q=await sb.from('ai_proposal_jobs').select('*').eq('status','queued').order('created_at').limit(5);
+   var jobs=(q.data||[]).filter(function(j){return mode==='full'?j.mode==='full':j.mode==='training';});
+   if(!jobs.length)break;
+   var job=jobs[0];
+   var cl=await sb.from('ai_proposal_jobs').update({status:'running',claimed_at:new Date().toISOString(),stage:'Starting',progress:1}).eq('id',job.id).eq('status','queued').select();
+   if(!cl.data||!cl.data.length)continue;
+   job=cl.data[0];AIP.cur=job;AIP.refreshBar();
+   await AIP.runJob(job);AIP.cur=null;
+   await AIP.loadSettings();if(AIP.st.mode==='off')break;mode=AIP.st.mode;
+  }
+ }catch(e){console.warn('AI engine tick',e);}
+ finally{AIP.busy=false;AIP.cur=null;AIP.refreshBar();}
+};
+AIP.findProject=function(bid,projs){
+ var norm=function(s){return String(s||'').toLowerCase().replace(/[^a-z0-9]/g,'');};
+ var ref=norm(bid.ref);if(!ref)return null;
+ var hit=projs.filter(function(p){return norm(p.code)===ref||norm(p.name).indexOf(ref)>=0||(norm(p.code)&&ref.indexOf(norm(p.code))>=0&&norm(p.code).length>=6);});
+ return hit[0]||null;
+};
+AIP.rerun=async function(id){
+ if(AIP.st.mode==='off'){alert('Engine is Off. Choose Training or Full Automation first.');return;}
+ var r=await sb.from('ai_proposal_jobs').select('*').eq('id',id).single();var j=r.data;if(!j)return;
+ var patch={status:'queued',error:null,stage:null,progress:0,result:null};
+ if(!j.build_project_id&&j.bid_id){var pr=await sb.from('build_projects').select('*');var bd=await sb.from('bids').select('*').eq('id',j.bid_id).single();var p=bd.data?AIP.findProject(bd.data,pr.data||[]):null;if(p)patch.build_project_id=p.id;else{alert('Still no Build project with code "'+j.bid_ref+'".');return;}}
+ await sb.from('ai_proposal_jobs').update(patch).eq('id',id);AIP.tick(true);
+};
+AIP.start=function(){
+ if(AIP.started)return;AIP.started=true;
+ AIP.loadSettings().then(function(){AIP.refreshBar();setTimeout(function(){AIP.tick();},4000);});
+ AIP.timer=setInterval(function(){AIP.tick();},5*60000);
+};
+setInterval(function(){try{if(typeof CP!=='undefined'&&CP&&CP.group_name==='admin'&&typeof sb!=='undefined'&&!AIP.started)AIP.start();}catch(e){}},3000);
+})();
+
+/* ===== Vantage AI Proposal Engine (reading + drawings + pipeline) ===== */
+(function(){
+var AIP=window.AIP,H=AIP._h,TYPES=AIP.TYPES,ai=H.ai,aiJson=H.aiJson,typeKey=H.typeKey,sleep=H.sleep;
+var CATCOL={data:'#1B5E9B',av:'#E67E22',security:'#D63031',other:'#7B3FA0'};
+function E(s){return bdE(s);}
+async function upd(job,patch){Object.assign(job,patch);try{await sb.from('ai_proposal_jobs').update(patch).eq('id',job.id);}catch(e){}AIP.refreshBar();}
+function step(job,stage,pct,line){job._log=(job._log||'')+(new Date().toLocaleTimeString())+'  '+(line||stage)+'\n';return upd(job,{stage:stage,progress:pct,log:job._log.slice(-12000)});}
+function fpath(f){var parts=[],cur=BD.folders.find(function(x){return x.id===f.folder_id;});var g=0;while(cur&&g++<20){parts.unshift(cur.name);cur=BD.folders.find(function(x){return x.id===cur.parent_id;});}return parts.join(' / ');}
+
+var SYS_EST='You are a senior low-voltage estimator at NetFiber Network Cabling Solutions (Houston, TX). NetFiber does structured/data cabling (division 27), audio-video (AV) and security / access control / cameras. You read construction documents with extreme care, never guess, and say "unclear" when something is not stated.';
+
+/* ---------- 1. read every file ---------- */
+async function readFiles(job,proj){
+ var live=BD.files.filter(function(f){return !f.is_deleted&&!/^AI_/i.test(f.name);});
+ var docs=[],drawings=[],skipped=[];
+ var txt={};
+ for(var i=0;i<live.length;i+=40){
+  var ids=live.slice(i,i+40).map(function(f){return f.id;});
+  var r=await sb.from('build_files').select('id,extracted_text').in('id',ids);
+  (r.data||[]).forEach(function(x){txt[x.id]=x.extracted_text||'';});
+ }
+ var n=0;
+ for(var k=0;k<live.length;k++){
+  var f=live[k],kind=bdKind(f.name,f.mime),path=fpath(f),isRef=/^7\.0/.test(path);
+  var inSpecs=/specification|forms|contract|scope of work|reference/i.test(path);
+  var looksDwg=(kind==='pdf'||kind==='image')&&(/drawing/i.test(path)||/(plan|dwg|drawing|sheet|floor|layout|elev|riser|detail|\b[A-Z]{1,3}[-_ ]?\d{1,3}(\.\d+)?\b)/i.test(f.name));
+  if((kind==='pdf'||kind==='image')&&(looksDwg||!inSpecs))drawings.push({f:f,path:path,kind:kind});
+  var t=txt[f.id]||'';
+  var needs=!t&&((kind!=='image'&&kind!=='pdf')?f.index_status!=='none':(kind==='pdf'&&(f.index_status==='pending'||f.index_status==='error')));
+  if(needs){
+   try{var blob=await bdFetchBlob(f.storage_path);t=(await bdExtract(f,blob))||'';}catch(e){skipped.push(f.name+' (could not read)');}
+  }
+  if(t&&t.length>15)docs.push({path:path,name:f.name,text:t,ref:isRef});
+  else if(kind!=='pdf'&&kind!=='image'&&!t)skipped.push(f.name+' (no readable text)');
+  n++;if(n%5===0)await step(job,'Reading files',8+Math.round(10*n/live.length),'Read '+n+' of '+live.length+' files');
+ }
+ docs.sort(function(a,b){return (b.ref?1:0)-(a.ref?1:0)||a.path.localeCompare(b.path);});
+ return {docs:docs,drawings:drawings,skipped:skipped,total:live.length};
+}
+
+/* ---------- 2. requirements (data / AV / security SOW) ---------- */
+function chunkCorpus(docs,max){
+ var chunks=[],cur='';
+ docs.forEach(function(d){
+  var head='\n\n### FILE: '+(d.path?d.path+' / ':'')+d.name+'\n',body=d.text.slice(0,90000);
+  while(body.length){
+   var room=max-cur.length-head.length;
+   if(room<2000){chunks.push(cur);cur='';room=max-head.length;}
+   cur+=head+body.slice(0,room);body=body.slice(room);head='\n(continued) ';
+  }
+ });
+ if(cur.trim())chunks.push(cur);return chunks;
+}
+var REQ_SCHEMA='{"data":[{"requirement":"","qty":null,"location":"","responsibility":"NetFiber|Others|Unclear","source":"file name + section","quote":""}],"av":[...same],"security":[...same],"exclusions":[""],"bid_info":{"gc":"","due":"","notes":""},"questions":[""]}';
+async function extractRequirements(job,ctx,bid,lessons){
+ var chunks=chunkCorpus(ctx.docs,70000),merged={data:[],av:[],security:[],exclusions:[],questions:[],bid_info:{}};
+ if(!chunks.length)return merged;
+ var bidTxt=bid?('BID RECORD: project '+bid.project+'; GC '+bid.gc+'; due '+bid.due_date+'; scope/notes: '+(bid.scope||'')+' '+(bid.notes||'')):'';
+ for(var i=0;i<chunks.length;i++){
+  var base='Read these project documents (part '+(i+1)+' of '+chunks.length+'). Find EVERYTHING that asks for, specifies or assigns work in: (1) DATA/structured cabling & wireless, (2) AUDIO-VIDEO, (3) SECURITY / access control / cameras. For each, say what the client requires, quantities if stated, location, and whether NetFiber (low-voltage/technology subcontractor) is responsible or Others (electrical, GC, owner-furnished, vendor). Quote the exact words. Include forms, addenda and reference documents. '+bidTxt+(lessons?'\nLessons learned from past corrections:\n'+lessons:'')+'\nReturn ONLY JSON: '+REQ_SCHEMA+'\n\nDOCUMENTS:\n'+chunks[i];
+  var p1=await aiJson(SYS_EST,base,6000);
+  await step(job,'Reading SOW documents',20+Math.round(12*(i+0.5)/chunks.length),'SOW pass 1 done for part '+(i+1)+'/'+chunks.length);
+  var p2=await aiJson(SYS_EST,'Second, independent check. Below are documents and a first-pass extraction. Find items the first pass MISSED or got WRONG (wrong quantity, wrong responsibility, wrong location). Return the COMPLETE corrected extraction (everything from pass 1 that is right, plus fixes and additions) in the same JSON shape: '+REQ_SCHEMA+'\n\nFIRST PASS:\n'+JSON.stringify(p1).slice(0,30000)+'\n\nDOCUMENTS:\n'+chunks[i],6000);
+  ['data','av','security','exclusions','questions'].forEach(function(k){(p2[k]||p1[k]||[]).forEach(function(x){merged[k].push(x);});});
+  if(p2.bid_info)Object.assign(merged.bid_info,p2.bid_info);
+  await step(job,'Reading SOW documents',20+Math.round(12*(i+1)/chunks.length),'SOW double-check done for part '+(i+1)+'/'+chunks.length);
+ }
+ var seen={};['data','av','security'].forEach(function(k){merged[k]=merged[k].filter(function(x){var key=k+(x.requirement||'').toLowerCase().replace(/\W+/g,'').slice(0,80)+(x.location||'');if(seen[key])return false;seen[key]=1;return true;});});
+ return merged;
+}
+
+/* ---------- 3. drawings ---------- */
+async function loadCanvasFromImage(blob){return await new Promise(function(res,rej){var u=URL.createObjectURL(blob),im=new Image();im.onload=function(){var cv=document.createElement('canvas');cv.width=im.width;cv.height=im.height;cv.getContext('2d').drawImage(im,0,0);URL.revokeObjectURL(u);res(cv);};im.onerror=function(){rej(new Error('bad image'));};im.src=u;});}
+function scaleCanvas(src,maxDim){var s=Math.min(1,maxDim/Math.max(src.width,src.height)),cv=document.createElement('canvas');cv.width=Math.max(1,Math.round(src.width*s));cv.height=Math.max(1,Math.round(src.height*s));cv.getContext('2d').drawImage(src,0,0,cv.width,cv.height);return cv;}
+function b64(cv,q){return cv.toDataURL('image/jpeg',q||0.85).split(',')[1];}
+function imgBlock(cv,q){return {type:'image',source:{type:'base64',media_type:'image/jpeg',data:b64(cv,q)}};}
+var KW=/(data|telecom|communicat|voice|cabling|cable|network|wireless|wap\b|audio|video|\bav\b|a\/v|speaker|display|microphone|projector|security|camera|cctv|card reader|access control|mag ?lock|door contact|intercom|low voltage|technology|\bTD\b|\bT-\d|\bAV-?\d|\bFA\b|riser)/ig;
+async function pickPages(job,ctx){
+ var pages=[],pdfFiles=0;
+ for(var i=0;i<ctx.drawings.length;i++){
+  var d=ctx.drawings[i];
+  try{
+   var blob=await bdFetchBlob(d.f.storage_path);
+   if(d.kind==='image'){pages.push({file:d.f,path:d.path,blob:blob,kind:'image',n:1,score:5,text:''});continue;}
+   var lib=await bdPdfLib();var pdf=await lib.getDocument({data:await blob.arrayBuffer()}).promise;pdfFiles++;
+   for(var p=1;p<=pdf.numPages&&p<=120;p++){
+    var pg=await pdf.getPage(p),tc=await pg.getTextContent(),t=tc.items.map(function(x){return x.str;}).join(' ');
+    var hits=(t.match(KW)||[]).length,scanned=t.replace(/\s/g,'').length<15;
+    pages.push({file:d.f,path:d.path,pdf:pdf,pageNo:p,kind:'pdf',n:p,score:scanned?4:hits,text:t.slice(0,3500),scanned:scanned,total:pdf.numPages});
+   }
+  }catch(e){ctx.skipped.push(d.f.name+' (drawing could not be opened)');}
+ }
+ var rel=pages.filter(function(p){return p.score>0;}).sort(function(a,b){return b.score-a.score;});
+ if(!rel.length)rel=pages.slice(0,12);
+ return rel.slice(0,40).sort(function(a,b){return (a.file.name+(1000+a.n)).localeCompare(b.file.name+(1000+b.n));});
+}
+async function renderPage(pg){
+ if(pg.kind==='image')return await loadCanvasFromImage(pg.blob);
+ var page=await pg.pdf.getPage(pg.pageNo),v0=page.getViewport({scale:1}),s=3200/Math.max(v0.width,v0.height),vp=page.getViewport({scale:Math.min(s,6)}),cv=document.createElement('canvas');
+ cv.width=Math.round(vp.width);cv.height=Math.round(vp.height);var cx=cv.getContext('2d');cx.fillStyle='#fff';cx.fillRect(0,0,cv.width,cv.height);
+ await page.render({canvasContext:cx,viewport:vp}).promise;return cv;
+}
+function typeGuide(){return Object.keys(TYPES).map(function(k){return k+' = '+TYPES[k].hint;}).join('\n');}
+var DET_SCHEMA='{"sheet_number":"","sheet_title":"","discipline":"data|av|security|mixed|architectural|other","legend":[{"symbol":"","meaning":""}],"devices":[{"type":"<type key>","x":0.0,"y":0.0,"room":"","label":"","note":""}],"schedule_counts":[{"type":"","count":0,"source":""}],"notes":[""],"uncertain":[""]}';
+function detectPrompt(extra,ctxText,lessons,req){
+ return 'Study this construction drawing very carefully. First read the LEGEND / symbol list and general notes, then find EVERY low-voltage device symbol: data outlets/drops, wireless APs, racks/IDF rooms, AV devices (displays, speakers, microphones, AV plates, cameras, touch panels), and security devices (cameras, card readers, mag locks/strikes, door contacts, REX, intercoms, alarms). Count each symbol separately - do not summarise, do not guess. Give x and y as the CENTRE of the symbol as a fraction of this image width/height (0-1). Use ONLY these type keys:\n'+typeGuide()+'\n'+(extra||'')+'\nText extracted from the sheet (may help read legend): '+(ctxText||'(none)').slice(0,2500)+(req?'\nWhat the specs ask NetFiber to do (use to decide what matters): '+req.slice(0,1500):'')+(lessons?'\nLessons from past corrections (follow them):\n'+lessons:'')+'\nReturn ONLY JSON: '+DET_SCHEMA;
+}
+function dist(a,b){var dx=a.x-b.x,dy=a.y-b.y;return Math.sqrt(dx*dx+dy*dy);}
+function cleanDevs(arr){return (arr||[]).map(function(d){return {type:typeKey(d.type),x:Math.min(1,Math.max(0,+d.x||0)),y:Math.min(1,Math.max(0,+d.y||0)),room:d.room||'',label:d.label||'',note:d.note||''};}).filter(function(d){return isFinite(d.x)&&isFinite(d.y);});}
+function dedupe(list,r){var out=[];list.forEach(function(d){if(!out.some(function(o){return o.type===d.type&&dist(o,d)<r;}))out.push(d);});return out;}
+async function analyzePage(job,pg,idx,total,lessons,req,grid){
+ var hi=await renderPage(pg),whole=scaleCanvas(hi,1900);
+ var A=await aiJson(SYS_EST,[imgBlock(whole,0.85),{type:'text',text:detectPrompt('This is the WHOLE sheet.',pg.text,lessons,req)}],6000);
+ var devA=cleanDevs(A.devices);
+ var devB=[];
+ if(grid>1){
+  var ov=0.04,cells=[];for(var gy=0;gy<grid;gy++)for(var gx=0;gx<grid;gx++)cells.push({gx:gx,gy:gy,x0:Math.max(0,gx/grid-ov),x1:Math.min(1,(gx+1)/grid+ov),y0:Math.max(0,gy/grid-ov),y1:Math.min(1,(gy+1)/grid+ov)});
+  for(var c=0;c<cells.length;c+=2){
+   var batch=cells.slice(c,c+2);
+   var res=await Promise.all(batch.map(async function(ce){
+    var cv=document.createElement('canvas'),sw=(ce.x1-ce.x0)*hi.width,sh=(ce.y1-ce.y0)*hi.height;var sc=Math.min(1,1700/Math.max(sw,sh));cv.width=Math.round(sw*sc);cv.height=Math.round(sh*sc);
+    cv.getContext('2d').drawImage(hi,ce.x0*hi.width,ce.y0*hi.height,sw,sh,0,0,cv.width,cv.height);
+    var T=await aiJson(SYS_EST,[imgBlock(cv,0.88),{type:'text',text:detectPrompt('This image is ONE ZOOMED SECTION (tile) of a larger sheet. Report x,y relative to THIS tile image only. Devices cut off at the very edge of the tile can be skipped (the neighbouring tile covers them).',pg.text,lessons,req)}],6000);
+    return cleanDevs(T.devices).map(function(d){return Object.assign(d,{x:ce.x0+d.x*(ce.x1-ce.x0),y:ce.y0+d.y*(ce.y1-ce.y0)});});
+   }));
+   res.forEach(function(r){devB=devB.concat(r);});
+  }
+  devB=dedupe(devB,0.012);
+ }
+ // reconcile whole-sheet pass vs tile pass
+ var used={},final=[];
+ devA.forEach(function(a){
+  var best=-1,bd=0.03;devB.forEach(function(b,i){if(!used[i]&&b.type===a.type){var dd=dist(a,b);if(dd<bd){bd=dd;best=i;}}});
+  if(best>=0){used[best]=1;var b=devB[best];final.push({type:a.type,x:(a.x+b.x)/2,y:(a.y+b.y)/2,room:a.room||b.room,label:a.label||b.label,note:a.note,src:'both'});}
+  else final.push(Object.assign({},a,{src:grid>1?'whole':'both'}));
+ });
+ devB.forEach(function(b,i){if(!used[i])final.push(Object.assign({},b,{src:'tile'}));});
+ // 3rd look: visually verify the disputed ones
+ var disputed=final.filter(function(d){return d.src==='whole'||d.src==='tile';});
+ if(grid>1&&disputed.length){
+  var vc=scaleCanvas(hi,2000),cx=vc.getContext('2d');
+  final.forEach(function(d){if(d.src==='both'){cx.fillStyle='rgba(0,150,0,0.55)';cx.beginPath();cx.arc(d.x*vc.width,d.y*vc.height,5,0,7);cx.fill();}});
+  disputed.forEach(function(d,i){d.n=i+1;var px=d.x*vc.width,py=d.y*vc.height;cx.strokeStyle='#e00000';cx.lineWidth=3;cx.beginPath();cx.arc(px,py,20,0,7);cx.stroke();cx.fillStyle='#e00000';cx.font='bold 20px Arial';cx.fillText(String(d.n),px+22,py-14);});
+  try{
+   var V=await aiJson(SYS_EST,[imgBlock(vc,0.85),{type:'text',text:'Green dots = devices already confirmed. Red numbered circles = DISPUTED detections. For each red number decide if a real '+'low-voltage device symbol is at that spot. Disputed list: '+disputed.map(function(d){return d.n+'='+d.type;}).join(', ')+'.\nAlso list any device clearly present but with NO marker (missed). Return ONLY JSON: {"verdicts":[{"n":1,"real":true,"type":"<type key if the type is wrong>"}],"missed":[{"type":"","x":0.0,"y":0.0,"room":""}]}'}],3000);
+   (V.verdicts||[]).forEach(function(v){var d=disputed[(v.n|0)-1];if(!d)return;if(v.real===false)d.drop=true;else{d.src='verified';if(v.type)d.type=typeKey(v.type);}});
+   cleanDevs(V.missed).forEach(function(m){final.push(Object.assign(m,{src:'verified'}));});
+  }catch(e){}
+ }
+ final=final.filter(function(d){return !d.drop;});
+ var counts={};final.forEach(function(d){counts[d.type]=(counts[d.type]||0)+1;});
+ var sched={};(A.schedule_counts||[]).forEach(function(s){var k=typeKey(s.type);if(+s.count>0)sched[k]=(sched[k]||0)+(+s.count);});
+ var flags=[];Object.keys(sched).forEach(function(k){if((counts[k]||0)!==sched[k])flags.push('Sheet schedule says '+sched[k]+' '+TYPES[k].label+', drawing count is '+(counts[k]||0));});
+ var dis=final.filter(function(d){return d.src==='whole'||d.src==='tile';}).length;
+ if(dis)flags.push(dis+' device(s) seen in only one of the two passes - please check the markup');
+ (A.uncertain||[]).forEach(function(u){flags.push(u);});
+ var conf=final.length?Math.max(0.2,1-(dis/Math.max(1,final.length))-(flags.length>2?0.1:0)):0.5;
+ var sheet={file:pg.file.name,page:pg.n,sheet_number:A.sheet_number||'',title:A.sheet_title||'',discipline:A.discipline||'',legend:(A.legend||[]).slice(0,40),counts:counts,schedule:sched,flags:flags.slice(0,12),confidence:Math.round(conf*100),notes:(A.notes||[]).slice(0,15),devices:final.map(function(d){return [d.type,+d.x.toFixed(4),+d.y.toFixed(4),d.room||'',d.src];})};
+ return {sheet:sheet,canvas:hi,devices:final};
+}
+function drawMarkup(hi,devs,sheet){
+ var cv=scaleCanvas(hi,2300),cx=cv.getContext('2d'),W=cv.width,H2=cv.height,R=Math.max(9,Math.round(W*0.0065));
+ devs.forEach(function(d){var t=TYPES[d.type]||TYPES.other,col=CATCOL[t.cat],px=d.x*W,py=d.y*H2;
+  cx.globalAlpha=0.9;cx.fillStyle=col;cx.beginPath();cx.arc(px,py,R,0,7);cx.fill();cx.globalAlpha=1;cx.lineWidth=2;cx.strokeStyle=d.src==='both'||d.src==='verified'?'#fff':'#ffd400';cx.stroke();
+  cx.fillStyle='#fff';cx.font='bold '+Math.round(R*0.95)+'px Arial';cx.textAlign='center';cx.textBaseline='middle';cx.fillText(t.code,px,py+1);});
+ var used=Object.keys(sheet.counts),lh=Math.round(R*2.1),bw=Math.round(W*0.24),bh=lh*(used.length+2)+10;
+ cx.textAlign='left';cx.textBaseline='alphabetic';cx.fillStyle='rgba(255,255,255,0.93)';cx.fillRect(14,14,bw,bh);cx.strokeStyle='#333';cx.lineWidth=2;cx.strokeRect(14,14,bw,bh);
+ cx.fillStyle='#111';cx.font='bold '+Math.round(R*1.2)+'px Arial';cx.fillText('AI MARKUP  '+(sheet.sheet_number||''),24,14+lh*0.9);
+ used.forEach(function(k,i){var t=TYPES[k]||TYPES.other,y=14+lh*(i+1.9);cx.fillStyle=CATCOL[t.cat];cx.beginPath();cx.arc(24+R,y-R*0.4,R*0.8,0,7);cx.fill();cx.fillStyle='#fff';cx.font='bold '+Math.round(R*0.7)+'px Arial';cx.textAlign='center';cx.fillText(t.code,24+R,y-R*0.4+R*0.25);cx.textAlign='left';cx.fillStyle='#111';cx.font=Math.round(R*1.05)+'px Arial';cx.fillText(t.label+':  '+sheet.counts[k],24+R*2.4,y);});
+ cx.fillStyle='#b58900';cx.font=Math.round(R*0.85)+'px Arial';cx.fillText('yellow ring = seen in only one pass, please verify',24,14+bh-8);
+ return cv;
+}
+AIP._p={readFiles:readFiles,extractRequirements:extractRequirements,pickPages:pickPages,analyzePage:analyzePage,drawMarkup:drawMarkup,fpath:fpath,step:step,upd:upd,SYS_EST:SYS_EST};
+})();
+
+/* ===== Vantage AI Proposal Engine (proposal, PDFs, save) ===== */
+(function(){
+var AIP=window.AIP,H=AIP._h,P=AIP._p,TYPES=AIP.TYPES,ai=H.ai,aiJson=H.aiJson;
+var step=P.step,upd=P.upd;
+var CATNAME=AIP.CATNAME;
+var ADDR='4840 North Shepherd Dr #4303, Houston, TX 77018';
+
+async function loadLessons(){
+ try{var r=await sb.from('ai_proposal_lessons').select('lesson').eq('active',true).order('created_at').limit(40);return (r.data||[]).map(function(x,i){return (i+1)+'. '+x.lesson;}).join('\n');}catch(e){return '';}
+}
+AIP.loadLessons=loadLessons;
+function money(n){return '$'+(Math.round((+n||0)*100)/100).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
+
+async function styleSamples(bid){
+ var r=await sb.from('proposals').select('*').order('created_at',{ascending:false}).limit(25);
+ var all=(r.data||[]).filter(function(p){return !p.ai_generated;});
+ var gc=(bid&&bid.gc||'').toLowerCase();
+ all.sort(function(a,b){return ((b.bill_to_company||'').toLowerCase()===gc&&gc?1:0)-((a.bill_to_company||'').toLowerCase()===gc&&gc?1:0);});
+ var pick=all.slice(0,5);if(!pick.length)return {text:'(no earlier proposals yet - use the defaults)',n:0};
+ var it=await sb.from('proposal_items').select('*').in('proposal_id',pick.map(function(p){return p.id;})).order('sort_order');
+ var by={};(it.data||[]).forEach(function(x){(by[x.proposal_id]=by[x.proposal_id]||[]).push(x);});
+ var txt=pick.map(function(p,i){
+  var secs={};(by[p.id]||[]).forEach(function(x){var h=x.section_header||'Main';(secs[h]=secs[h]||[]).push(x);});
+  return '--- EXAMPLE '+(i+1)+' ('+(p.status||'')+') ---\nProject: '+p.project_name+' | SOW: '+(p.project_sow||'')+' | Client: '+(p.bill_to_company||'')+'\nScope of work:\n'+(p.scope_of_work||'').slice(0,1500)+'\nExclusions:\n'+(p.exclusions||'').slice(0,1000)+'\nNotes:\n'+(p.notes||'').slice(0,600)+'\nPayment: '+(p.payment_expectations||'').slice(0,300)+'\nITEMS:\n'+Object.keys(secs).map(function(h){return '['+h+']\n'+secs[h].slice(0,22).map(function(x){return ' - '+x.product_service+' | '+(x.description||'').slice(0,160)+' | qty '+x.qty+' | rate '+x.rate+' | taxable '+x.taxable;}).join('\n');}).join('\n');
+ }).join('\n\n');
+ return {text:txt,n:pick.length};
+}
+async function libraryText(){
+ try{var r=await sb.from('item_library').select('*').order('name');window._aipLib=r.data||[];}catch(e){window._aipLib=[];}
+ return window._aipLib.slice(0,200).map(function(x){return x.name+' | '+(x.description||'').slice(0,120)+' | rate '+x.rate+' | cost '+x.cost;}).join('\n');
+}
+function totalsOf(sheets){var t={};sheets.forEach(function(s){Object.keys(s.counts).forEach(function(k){t[k]=(t[k]||0)+s.counts[k];});});return t;}
+
+async function writeSummaries(job,bid,proj,req,sheets,totals,ctx){
+ var out={},cats=['data','av','security'];
+ for(var i=0;i<cats.length;i++){
+  var c=cats[i],keys=Object.keys(TYPES).filter(function(k){return TYPES[k].cat===c;});
+  var per=sheets.filter(function(s){return keys.some(function(k){return s.counts[k];});}).map(function(s){return (s.sheet_number||s.file+' p'+s.page)+' '+(s.title||'')+': '+keys.filter(function(k){return s.counts[k];}).map(function(k){return TYPES[k].label+' x'+s.counts[k];}).join(', ');});
+  var t=await ai(P.SYS_EST,'Write a plain-text SOW SUMMARY file for the '+CATNAME[c].toUpperCase()+' scope of project "'+(bid?bid.project:proj.name)+'" (code '+(bid?bid.ref:proj.code||'')+'). Use only the facts below. No markdown symbols other than simple dashes. Sections in this order, each with a heading in CAPITALS:\nPROJECT\nWHAT THE CLIENT ASKS FOR (every requirement, with source file)\nNETFIBER\'S PART (what we must supply/install/terminate/test, with quantities)\nOTHERS\' PART / NOT IN OUR SCOPE\nDEVICE COUNTS FROM THE DRAWINGS (totals, then per sheet)\nOPEN QUESTIONS & RISKS (anything unclear, contradictory, or where specs and drawings disagree)\nSOURCES\nIf there is nothing for this scope, say clearly "No '+c+' scope found in the documents".\n\nREQUIREMENTS JSON:\n'+JSON.stringify({reqs:req[c],exclusions:req.exclusions,questions:req.questions}).slice(0,24000)+'\n\nDRAWING TOTALS: '+keys.filter(function(k){return totals[k];}).map(function(k){return TYPES[k].label+' = '+totals[k];}).join('; ')+'\nPER SHEET:\n'+per.join('\n'),3500);
+  out[c]=t;
+ }
+ return out;
+}
+
+async function generateProposal(job,bid,proj,req,sheets,totals,lessons){
+ var st=await styleSamples(bid),lib=await libraryText();
+ var gcn=bid?bid.gc:'';
+ var prompt='Create a proposal for NetFiber. Copy the WRITING STYLE, section layout, wording of scope/exclusions/notes and the way items are named and described from the EXAMPLE proposals NetFiber wrote earlier. Quantities MUST come from the drawing counts and requirements below (never invent quantities; if the SOW names a quantity and the drawings disagree, use the drawing count and add a flag). Prices: use the ITEM LIBRARY rates when an item matches; otherwise use the rate from a similar line in the examples; if no price exists set rate 0 and price_source "none". Separate sections for Data, AV and Security only when that scope exists. Only include work NetFiber is responsible for.\n\nPROJECT: '+(bid?bid.project:proj.name)+' | GC/client: '+gcn+' | city: '+(bid?bid.city:'')+' | bid scope notes: '+(bid?(bid.scope||'')+' '+(bid.notes||''):'')+'\n\nREQUIREMENTS FROM THE SPECS:\n'+JSON.stringify({data:req.data,av:req.av,security:req.security,exclusions:req.exclusions}).slice(0,22000)+'\n\nDRAWING TOTALS: '+JSON.stringify(totals)+'\nPER SHEET: '+JSON.stringify(sheets.map(function(s){return {sheet:s.sheet_number||s.file+' p'+s.page,title:s.title,counts:s.counts,flags:s.flags};})).slice(0,9000)+(lessons?'\n\nLESSONS FROM PAST CORRECTIONS (must follow):\n'+lessons:'')+'\n\nITEM LIBRARY:\n'+lib+'\n\n'+st.text+'\n\nReturn ONLY JSON: {"project_sow":"short SOW label e.g. DATA / AV / SECURITY","scope_of_work":"bullet lines starting with the bullet character, one per line","exclusions":"bullet lines","notes":"lines","sections":[{"header":"DATA CABLING","items":[{"product":"","description":"","qty":0,"rate":0,"cost":0,"taxable":true,"price_source":"library|history|none","basis":"where the qty came from"}]}],"flags":["anything the reviewer must check"],"confidence":0}';
+ var p=await aiJson(P.SYS_EST,prompt,8000);
+ var lib2=window._aipLib||[],flags=(p.flags||[]).slice(),n=0;
+ (p.sections||[]).forEach(function(s){(s.items||[]).forEach(function(it){
+  var m=lib2.find(function(l){return String(l.name||'').trim().toLowerCase()===String(it.product||'').trim().toLowerCase();});
+  if(m){it.rate=+m.rate||0;it.cost=+m.cost||0;it.price_source='library';}
+  it.qty=+it.qty||0;it.rate=+it.rate||0;it.cost=+it.cost||0;
+  if(!it.rate){flags.push('No price found for "'+it.product+'" - rate set to 0');}
+  n++;
+ });});
+ p.flags=flags;p._n=n;p._styleN=st.n;return p;
+}
+
+function buildProposalPdf(prop,items,gc){
+ var J=window.jspdf.jsPDF,d=new J({unit:'pt',format:'letter'}),W=612,M=44,y=0,page=1;
+ function footer(){d.setFontSize(8);d.setTextColor(120);d.text('NetFiber Network Cabling Solutions LLC  |  '+ADDR,W/2,764,{align:'center'});d.text('Page '+page,W-M,764,{align:'right'});}
+ function head(){d.setFont('helvetica','bold');d.setFontSize(16);d.setTextColor(27,94,155);d.text('NetFiber Network Cabling Solutions',M,48);d.setFont('helvetica','normal');d.setFontSize(9);d.setTextColor(90);d.text(ADDR,M,62);y=84;}
+ function np(){footer();d.addPage();page++;head();}
+ function need(h){if(y+h>744)np();}
+ function para(txt,fs,bold){d.setFont('helvetica',bold?'bold':'normal');d.setFontSize(fs||10);d.setTextColor(30);var ls=d.splitTextToSize(String(txt||''),W-2*M);ls.forEach(function(l){need(14);d.text(l,M,y);y+=13;});}
+ function h2(t){need(30);y+=6;d.setFont('helvetica','bold');d.setFontSize(11);d.setTextColor(27,94,155);d.text(t,M,y);y+=15;}
+ head();
+ d.setFont('helvetica','bold');d.setFontSize(22);d.setTextColor(30);d.text('ESTIMATE',W-M,52,{align:'right'});
+ d.setFont('helvetica','normal');d.setFontSize(10);d.setTextColor(60);d.text('No. '+(prop.estimate_no||''),W-M,68,{align:'right'});d.text('Date: '+(prop.date||''),W-M,81,{align:'right'});
+ y=104;d.setFont('helvetica','bold');d.setFontSize(10);d.setTextColor(30);d.text('Bill to',M,y);d.text('Project',W/2,y);y+=13;d.setFont('helvetica','normal');
+ var bl=[gc.company||prop.bill_to_company||'',gc.contact_name||'',gc.email||'',gc.phone||''].filter(Boolean),pl=[prop.project_name||'',prop.ship_to_address||'',[prop.project_city,prop.project_state].filter(Boolean).join(', ')].filter(Boolean),yy=y;
+ bl.forEach(function(l,i){d.text(String(l),M,y+i*12);});pl.forEach(function(l,i){d.text(d.splitTextToSize(String(l),W/2-M)[0],W/2,yy+i*12);});
+ y+=Math.max(bl.length,pl.length)*12+14;
+ var secs=[],map={};items.forEach(function(it){var h=it.section_header||'';if(!(h in map)){map[h]=[];secs.push(h);}map[h].push(it);});
+ var cols={n:M,p:M+22,q:W-M-150,r:W-M-95,a:W-M};
+ secs.forEach(function(h){
+  need(50);if(h){d.setFont('helvetica','bold');d.setFontSize(11);d.setTextColor(27,94,155);d.text(h,M,y);y+=6;}
+  d.setFillColor(27,94,155);d.rect(M,y,W-2*M,16,'F');d.setTextColor(255);d.setFont('helvetica','bold');d.setFontSize(9);d.text('#',cols.n+3,y+11);d.text('Product / Service',cols.p,y+11);d.text('Qty',cols.q,y+11,{align:'right'});d.text('Rate',cols.r,y+11,{align:'right'});d.text('Amount',cols.a-2,y+11,{align:'right'});y+=16;
+  map[h].forEach(function(it,i){
+   var desc=d.splitTextToSize(String(it.description||''),cols.q-cols.p-40),pr=d.splitTextToSize(String(it.product_service||''),cols.q-cols.p-40),hh=(pr.length+desc.length)*11+8;
+   need(hh);d.setFont('helvetica','normal');d.setFontSize(9);d.setTextColor(30);d.text(String(i+1),cols.n+3,y+11);
+   d.setFont('helvetica','bold');pr.forEach(function(l,k){d.text(l,cols.p,y+11+k*11);});d.setFont('helvetica','normal');d.setTextColor(80);desc.forEach(function(l,k){d.text(l,cols.p,y+11+(pr.length+k)*11);});
+   d.setTextColor(30);d.text(String(it.qty),cols.q,y+11,{align:'right'});d.text(money(it.rate),cols.r,y+11,{align:'right'});d.text(money(it.amount),cols.a-2,y+11,{align:'right'});
+   y+=hh;d.setDrawColor(220);d.line(M,y,W-M,y);
+  });y+=8;
+ });
+ need(70);var bx=W-M-200;d.setFont('helvetica','normal');d.setFontSize(10);d.setTextColor(30);
+ d.text('Subtotal',bx,y+10);d.text(money(prop.subtotal),W-M,y+10,{align:'right'});d.text('Tax ('+prop.tax_rate+'%)',bx,y+24);d.text(money(prop.tax_amount),W-M,y+24,{align:'right'});
+ d.setFont('helvetica','bold');d.setFontSize(12);d.text('TOTAL',bx,y+44);d.text(money(prop.total),W-M,y+44,{align:'right'});y+=62;
+ function list(title,txt){if(!txt)return;h2(title);String(txt).split('\n').filter(function(l){return l.trim();}).forEach(function(l){para(l,9.5);});}
+ list('Scope of Work',prop.scope_of_work);list('Exclusions',prop.exclusions);list('General Terms',prop.general_terms);
+ if(prop.payment_expectations){h2('Payment Expectations');para(prop.payment_expectations,9.5);}
+ list('Notes',prop.notes);if(prop.acknowledgment){h2('Acknowledgment');para(prop.acknowledgment,9.5);}
+ need(110);y+=14;d.setFont('helvetica','bold');d.setFontSize(11);d.setTextColor(27,94,155);d.text('THANK YOU FOR THE OPPORTUNITY TO WORK WITH YOU!',W/2,y,{align:'center'});y+=34;
+ d.setFontSize(9);d.setTextColor(30);d.text('NetFiber Network Cabling',M,y);d.text(gc.company||'Client',W/2+10,y);y+=30;
+ d.setDrawColor(90);d.line(M,y,M+220,y);d.line(W/2+10,y,W/2+230,y);d.setFont('helvetica','normal');d.setFontSize(8);d.text('Signature / Date',M,y+10);d.text('Signature / Date',W/2+10,y+10);
+ footer();return d.output('blob');
+}
+function buildMarkupPdf(job,pages,summary){
+ var J=window.jspdf.jsPDF,d=new J({unit:'pt',format:'letter'});
+ d.setFont('helvetica','bold');d.setFontSize(16);d.text('AI Drawing Markup - '+(job.project_name||''),40,50);d.setFontSize(10);d.setFont('helvetica','normal');
+ var y=76;summary.split('\n').forEach(function(l){d.splitTextToSize(l,530).forEach(function(x){if(y>740){d.addPage();y=50;}d.text(x,40,y);y+=13;});});
+ pages.forEach(function(p){var w=p.w*0.75,h=p.h*0.75;d.addPage([w,h],w>h?'l':'p');d.addImage(p.data,'JPEG',0,0,w,h,undefined,'FAST');});
+ return d.output('blob');
+}
+AIP._p.buildProposalPdf=buildProposalPdf;
+
+/* ---------- the pipeline ---------- */
+AIP.runJob=async function(job){
+ var snap={proj:BD.proj,folders:BD.folders,files:BD.files,members:BD.members,role:BD.role};
+ var t0=Date.now();
+ try{
+  await bdLoadScript('https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js');
+  var bid=null;if(job.bid_id){var br=await sb.from('bids').select('*').eq('id',job.bid_id).maybeSingle();bid=br.data;}
+  var pr=await sb.from('build_projects').select('*').eq('id',job.build_project_id).maybeSingle();var proj=pr.data;
+  if(!proj)throw new Error('Build project not found');
+  BD.proj=proj;BD.role='editor';await bdFetchAll();
+  var ref=(bid&&bid.ref)||proj.code||proj.name,training=job.mode==='training';
+  var lessons=await loadLessons();
+  await step(job,'Reading files',6,'Project "'+proj.name+'" - reading every file (7.0 REFERENCE, FORMS & TEMPLATES first)');
+  var ctx=await P.readFiles(job,proj);
+  if(!ctx.docs.length&&!ctx.drawings.length)throw new Error('No readable files found in the Build project yet.');
+  await step(job,'Reading SOW documents',20,ctx.docs.length+' documents, '+ctx.drawings.length+' drawing files');
+  var req=await P.extractRequirements(job,ctx,bid,lessons);
+  var reqTxt=['data','av','security'].map(function(c){return c.toUpperCase()+': '+(req[c]||[]).slice(0,12).map(function(x){return (x.qty?x.qty+' x ':'')+x.requirement;}).join('; ');}).join('\n');
+  await step(job,'Finding drawing sheets',34,'Found '+(req.data.length)+' data, '+(req.av.length)+' AV, '+(req.security.length)+' security requirements');
+  var pages=await P.pickPages(job,ctx),sheets=[],marks=[],grid=AIP.st.grid||2;
+  if(!pages.length)await step(job,'Drawings',36,'No drawing pages found - proposal will be based on the documents only');
+  for(var i=0;i<pages.length;i++){
+   await step(job,'Reading drawings',36+Math.round(36*i/pages.length),'Sheet '+(i+1)+' of '+pages.length+': '+pages[i].file.name+' p'+pages[i].n+' (whole-sheet pass, '+(grid>1?grid*grid+' zoomed tiles, ':'')+'cross-check)');
+   try{
+    var r=await P.analyzePage(job,pages[i],i,pages.length,lessons,reqTxt,grid);
+    if(Object.keys(r.sheet.counts).length||r.sheet.discipline!=='architectural'){
+     sheets.push(r.sheet);
+     if(r.devices.length){var cv=P.drawMarkup(r.canvas,r.devices,r.sheet);marks.push({data:cv.toDataURL('image/jpeg',0.78),w:cv.width,h:cv.height});}
+    }
+   }catch(e){ctx.skipped.push(pages[i].file.name+' p'+pages[i].n+' ('+(e.message||e)+')');}
+  }
+  var totals=totalsOf(sheets);
+  await step(job,'Writing SOW summaries',74,'Totals: '+Object.keys(totals).map(function(k){return TYPES[k].label+' '+totals[k];}).join(', '));
+  var sums=await writeSummaries(job,bid,proj,req,sheets,totals,ctx);
+  await step(job,'Writing proposal',80,'Learning the writing style from your saved proposals and building the proposal');
+  var gen=await generateProposal(job,bid,proj,req,sheets,totals,lessons);
+  // proposal row
+  var today=new Date().toISOString().split('T')[0],taxRate=8.25,allItems=[],sub=0,taxable=0;
+  (gen.sections||[]).forEach(function(s,si){(s.items||[]).forEach(function(it,ix){var amt=Math.round(it.qty*it.rate*100)/100;sub+=amt;if(it.taxable!==false)taxable+=amt;allItems.push({section_id:'ai_sec_'+si,section_header:s.header||'',sort_order:si*1000+ix,product_service:it.product,description:it.description||'',qty:it.qty,rate:it.rate,amount:amt,cost:it.cost||0,margin:0,taxable:it.taxable!==false});});});
+  sub=Math.round(sub*100)/100;var tax=Math.round(taxable*taxRate/100*100)/100,total=Math.round((sub+tax)*100)/100;
+  var pname=(training?'[TRAINING] ':'')+((bid&&bid.project)||proj.name);
+  var addr=bid?[bid.address].filter(Boolean).join(''):(proj.address||'');
+  var propData={estimate_no:ref,project_name:pname,project_city:bid?bid.city||'':'',project_state:bid?bid.state||'':'',project_sow:gen.project_sow||'',ship_to_address:addr,date:today,status:'Under Review',bill_to_company:bid?bid.gc||'':'',bill_to_name:bid?bid.poc||'':'',bill_to_address:'',
+   scope_of_work:gen.scope_of_work||DEFAULT_SCOPE,exclusions:gen.exclusions||DEFAULT_EXCL,general_terms:DEFAULT_TERMS,payment_expectations:DEFAULT_PAYMENT,notes:gen.notes||DEFAULT_PROJ_NOTES,acknowledgment:DEFAULT_ACK,custom_sections:'[]',custom_pages:'[]',fixed_sections_on:'{}',tax_rate:taxRate,subtotal:sub,tax_amount:tax,total:total,created_by:CU.id,updated_by:CU.id,updated_at:new Date().toISOString(),ai_generated:true,ai_job_id:job.id,bid_id:job.bid_id||null};
+  var ins=await sb.from('proposals').insert(propData).select().single();
+  if(ins.error&&/column|schema/i.test(ins.error.message||'')){delete propData.ai_generated;delete propData.ai_job_id;delete propData.bid_id;ins=await sb.from('proposals').insert(propData).select().single();}
+  if(ins.error)throw ins.error;
+  var propId=ins.data.id;
+  if(allItems.length)await sb.from('proposal_items').insert(allItems.map(function(x){return Object.assign({proposal_id:propId},x);}));
+  var gcRow={company:propData.bill_to_company,contact_name:propData.bill_to_name,email:bid?bid.email||'':'',phone:bid?bid.phone||'':'',address:'',city:'',is_primary:true};
+  if(gcRow.company)await sb.from('proposal_gcs').insert(Object.assign({proposal_id:propId},gcRow));
+  // files into 0.0 HAND-OFF DOCS / Kickoff Meeting
+  await step(job,'Saving to Build',90,'Saving SOW summaries, proposal PDF and marked-up drawings to 0.0 HAND-OFF DOCS / Kickoff Meeting');
+  var f0=await bdEnsureFolder(null,'0.0 HAND-OFF DOCS'),fk=await bdEnsureFolder(f0,'Kickoff Meeting'),sref=bdSafe(ref).replace(/^_+|_+$/g,'');
+  async function put(name,blob,mime){var ex=BD.files.find(function(f){return !f.is_deleted&&(f.folder_id||null)===fk&&f.name.toLowerCase()===name.toLowerCase();});return await bdPutFile({folderId:fk,name:name,blob:blob,mime:mime,existing:ex||null,note:'Created by Vantage AI'});}
+  var outputs=[];
+  var names={data:'AI_SOW_Data_',av:'AI_SOW_AV_',security:'AI_SOW_Security_'};
+  for(var c in names){await put(names[c]+sref+'.txt',new Blob([sums[c]],{type:'text/plain'}),'text/plain');outputs.push(names[c]+sref+'.txt');}
+  var notes='AI REVIEW NOTES - '+pname+'\nGenerated '+new Date().toLocaleString()+'\n\nFLAGS TO CHECK\n'+(gen.flags.concat.apply(gen.flags,[])).map(function(x){return '- '+x;}).join('\n')+'\n\nSHEET FLAGS\n'+sheets.map(function(s){return (s.sheet_number||s.file+' p'+s.page)+' (confidence '+s.confidence+'%): '+(s.flags.join(' | ')||'ok');}).join('\n')+'\n\nQUESTIONS FROM THE SPECS\n'+(req.questions||[]).map(function(x){return '- '+x;}).join('\n')+'\n\nFILES NOT READ\n'+(ctx.skipped.join('\n')||'none');
+  await put('AI_Review_Notes_'+sref+'.txt',new Blob([notes],{type:'text/plain'}),'text/plain');outputs.push('AI_Review_Notes_'+sref+'.txt');
+  var pdfItems=allItems,pdf=buildProposalPdf(Object.assign({},propData),pdfItems,gcRow);
+  await put('AI_Proposal_'+sref+'.pdf',pdf,'application/pdf');outputs.push('AI_Proposal_'+sref+'.pdf');
+  if(marks.length){var sumTxt=Object.keys(totals).map(function(k){return TYPES[k].label+': '+totals[k];}).join('\n')||'No devices found';var mk=buildMarkupPdf(job,marks,'Totals across all sheets\n'+sumTxt+'\n\nColours: blue = data, orange = AV, red = security. Yellow ring = seen in only one pass.');await put('AI_Markup_Drawings_'+sref+'.pdf',mk,'application/pdf');outputs.push('AI_Markup_Drawings_'+sref+'.pdf');}
+  var conf=sheets.length?Math.round(sheets.reduce(function(a,s){return a+s.confidence;},0)/sheets.length):(gen.confidence||50);
+  var result={sheets:sheets,totals:totals,flags:gen.flags,confidence:conf,files_read:ctx.docs.length,drawing_files:ctx.drawings.length,skipped:ctx.skipped,outputs:outputs,proposal_total:total,item_count:allItems.length,style_examples:gen._styleN,requirements:{data:req.data,av:req.av,security:req.security,exclusions:req.exclusions,questions:req.questions},seconds:Math.round((Date.now()-t0)/1000)};
+  await upd(job,{status:'done',stage:'Done',progress:100,proposal_id:propId,result:result,finished_at:new Date().toISOString(),error:null});
+  try{await logAct('AI created proposal','proposals',propId,'Vantage AI created "'+pname+'" (Under Review)');}catch(e){}
+  bdToast('AI proposal ready for review: '+pname);
+  if(typeof loadProposals==='function')loadProposals().catch(function(){});
+ }catch(e){
+  console.warn('AI job failed',e);
+  await upd(job,{status:'error',error:String(e&&e.message||e).slice(0,500),finished_at:new Date().toISOString()});
+ }finally{
+  BD.proj=snap.proj;BD.folders=snap.folders;BD.files=snap.files;BD.members=snap.members;BD.role=snap.role;
+ }
+};
+})();
+
+/* ===== Vantage AI Proposal Engine (UI + training) ===== */
+(function(){
+var AIP=window.AIP,H=AIP._h,TYPES=AIP.TYPES,ai=H.ai,aiJson=H.aiJson;
+function E(s){return bdE(s);}
+var TESTRE=/^testing[\s_\-]?[12]$/i;
+function ov(html){var o=document.getElementById('aip-ov');if(!o){o=document.createElement('div');o.id='aip-ov';document.body.appendChild(o);}o.className='open';o.innerHTML='<div class="aip-box">'+html+'</div>';o.onclick=function(e){if(e.target===o)AIP.close();};}
+AIP.close=function(){var o=document.getElementById('aip-ov');if(o){o.className='';o.innerHTML='';}};
+
+AIP.mountBar=function(){
+ if(!CP||CP.group_name!=='admin')return;
+ var anchor=document.getElementById('ai-settings-bar');if(!anchor||document.getElementById('aip-bar'))return;
+ var d=document.createElement('div');d.id='aip-bar';
+ d.innerHTML='<div class="aip-t"><span class="aip-dot"></span>AI Proposal Engine</div>'
+  +'<div class="aip-seg"><button data-m="off" onclick="AIP.setMode(\'off\')">Off</button><button data-m="training" onclick="AIP.setMode(\'training\')">Training</button><button data-m="full" onclick="AIP.setMode(\'full\')">Full Automation</button></div>'
+  +'<div id="aip-status" class="aip-s"></div><div style="flex:1"></div>'
+  +'<button class="aip-b" id="aip-run" style="display:none" onclick="AIP.runTesting()">Run Testing_1 &amp; Testing_2</button>'
+  +'<button class="aip-b" onclick="AIP.openJobs()">Jobs &amp; Training</button>';
+ anchor.parentNode.insertBefore(d,anchor);
+ AIP.loadSettings().then(AIP.refreshBar);
+};
+AIP.refreshBar=function(){
+ var b=document.getElementById('aip-bar');if(!b)return;
+ var m=AIP.st.mode;
+ b.querySelectorAll('.aip-seg button').forEach(function(x){x.className=x.dataset.m===m?'on '+m:'';});
+ var s=document.getElementById('aip-status'),run=document.getElementById('aip-run');
+ if(run)run.style.display=m==='training'?'':'none';
+ var txt;
+ if(AIP.cur)txt='Working on '+E(AIP.cur.project_name||AIP.cur.bid_ref||'')+' - '+E(AIP.cur.stage||'')+' ('+(AIP.cur.progress||0)+'%)';
+ else if(AIP.busy)txt='Checking for work...';
+ else txt={off:'Off - no proposals will be created.',training:'Training - practising on Testing_1 and Testing_2 only.',full:'Full automation - bids due within '+(AIP.st.days_ahead||14)+' days get a proposal. Runs while Vantage is open.'}[m];
+ if(s)s.innerHTML=txt;
+};
+var _r=window.renderAIAdvisor;
+window.renderAIAdvisor=function(){var x=_r.apply(this,arguments);try{AIP.mountBar();AIP.refreshBar();}catch(e){}return x;};
+
+AIP.runTesting=async function(){
+ if(AIP.st.mode!=='training'){alert('Switch to Training first.');return;}
+ var r=await sb.from('build_projects').select('*');var ps=(r.data||[]).filter(function(p){return TESTRE.test(String(p.name||'').trim());});
+ if(!ps.length){alert('No Build project named Testing_1 or Testing_2 was found.');return;}
+ for(var i=0;i<ps.length;i++){await AIP.queueJob({build_project_id:ps[i].id,project_name:ps[i].name,bid_ref:ps[i].code||ps[i].name,mode:'training'});}
+ AIP.tick(true);bdToast('Training run started for '+ps.map(function(p){return p.name;}).join(' & '));
+};
+
+/* ---------- jobs & training screen ---------- */
+AIP.openJobs=async function(){
+ ov('<div class="aip-h">AI Proposals - Jobs &amp; Training <button class="aip-x" onclick="AIP.close()">x</button></div><div class="aip-b2">Loading...</div>');
+ var jobs=await AIP.loadJobs();
+ var ls=await sb.from('ai_proposal_lessons').select('*').order('created_at',{ascending:false});var lessons=ls.data||[];
+ var tr=jobs.filter(function(j){return j.mode==='training'&&j.accuracy!=null;}).slice(0,6).reverse();
+ var spark=tr.length?'<div class="aip-acc">Training accuracy: '+tr.map(function(j){return '<b>'+Math.round(j.accuracy*100)+'%</b>';}).join(' &rarr; ')+'</div>':'';
+ var rows=jobs.map(function(j){
+  var st={done:'Done',error:'Error',running:'Running',queued:'Queued'}[j.status]||j.status;
+  var res=j.result||{};
+  return '<tr><td><b>'+E(j.project_name||j.bid_ref||'')+'</b><div class="aip-m">'+E(j.bid_ref||'')+' &middot; '+E(j.mode)+' &middot; '+new Date(j.created_at).toLocaleString()+'</div></td>'
+   +'<td><span class="aip-st '+j.status+'">'+st+'</span>'+(j.status==='running'?'<div class="aip-m">'+E(j.stage||'')+' '+(j.progress||0)+'%</div>':'')+(j.error?'<div class="aip-m err">'+E(j.error)+'</div>':'')+'</td>'
+   +'<td>'+(res.confidence!=null?res.confidence+'%':'-')+'</td><td>'+(j.accuracy!=null?Math.round(j.accuracy*100)+'%':'-')+'</td>'
+   +'<td class="aip-acts">'+(j.status==='done'?'<button onclick="AIP.openFindings(\''+j.id+'\')">Review findings</button>':'')+(j.proposal_id?'<button onclick="AIP.close();showPage(\'proposals\')">Proposals</button>':'')+'<button onclick="AIP.viewLog(\''+j.id+'\')">Log</button>'+(j.status!=='running'?'<button onclick="AIP.rerun(\''+j.id+'\');AIP.close()">Re-run</button><button class="d" onclick="AIP.delJob(\''+j.id+'\')">Delete</button>':'')+'</td></tr>';
+ }).join('')||'<tr><td colspan="5" style="padding:20px;color:#888">No jobs yet. Choose Training and press "Run Testing_1 &amp; Testing_2", or Full Automation to handle bids that are coming due.</td></tr>';
+ var les=lessons.map(function(l){return '<div class="aip-les"><label><input type="checkbox" '+(l.active?'checked':'')+' onchange="AIP.togLesson(\''+l.id+'\',this.checked)"> '+E(l.lesson)+'</label><button class="d" onclick="AIP.delLesson(\''+l.id+'\')">x</button></div>';}).join('')||'<div class="aip-m">No lessons yet. They are created when you correct a training result.</div>';
+ ov('<div class="aip-h">AI Proposals - Jobs &amp; Training <button class="aip-x" onclick="AIP.close()">x</button></div><div class="aip-b2">'+spark
+  +'<table class="aip-tb"><thead><tr><th>Project</th><th>Status</th><th>AI confidence</th><th>Accuracy</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>'
+  +'<div class="aip-sec">What the AI has learned (applied to every run)</div>'+les
+  +'<div class="aip-sec">Settings</div><div class="aip-set">Look-ahead for bids: <input type="number" id="aip-days" min="1" max="90" value="'+(AIP.st.days_ahead||14)+'"> days &nbsp; Drawing detail: <select id="aip-grid"><option value="1"'+(AIP.st.grid==1?' selected':'')+'>Standard (fast)</option><option value="2"'+(AIP.st.grid==2?' selected':'')+'>Thorough (recommended)</option><option value="3"'+(AIP.st.grid==3?' selected':'')+'>Maximum (slow, costs more)</option></select> <button class="aip-b" onclick="AIP.saveSettings()">Save</button></div></div>');
+};
+AIP.saveSettings=async function(){
+ var d=Math.max(1,Math.min(90,parseInt(document.getElementById('aip-days').value,10)||14)),g=parseInt(document.getElementById('aip-grid').value,10)||2;
+ var r=await sb.from('ai_proposal_settings').upsert({id:1,days_ahead:d,grid:g,mode:AIP.st.mode,updated_by:CU.id,updated_at:new Date().toISOString()});
+ if(r.error){alert(r.error.message);return;}AIP.st.days_ahead=d;AIP.st.grid=g;bdToast('Saved');AIP.refreshBar();
+};
+AIP.delJob=async function(id){if(!confirm('Delete this job record? (The proposal and files it created are not deleted.)'))return;await sb.from('ai_proposal_jobs').delete().eq('id',id);AIP.openJobs();};
+AIP.viewLog=async function(id){var r=await sb.from('ai_proposal_jobs').select('log,project_name').eq('id',id).single();ov('<div class="aip-h">Log - '+E(r.data&&r.data.project_name||'')+' <button class="aip-x" onclick="AIP.openJobs()">back</button></div><div class="aip-b2"><pre class="aip-pre">'+E(r.data&&r.data.log||'(empty)')+'</pre></div>');};
+AIP.togLesson=async function(id,on){await sb.from('ai_proposal_lessons').update({active:!!on}).eq('id',id);};
+AIP.delLesson=async function(id){await sb.from('ai_proposal_lessons').delete().eq('id',id);AIP.openJobs();};
+
+/* ---------- findings + teaching ---------- */
+AIP.openFindings=async function(id){
+ var r=await sb.from('ai_proposal_jobs').select('*').eq('id',id).single();var j=r.data;if(!j||!j.result)return;
+ AIP._fj=j;var res=j.result,cor=j.corrections||{};
+ var rows=[];(res.sheets||[]).forEach(function(s,si){Object.keys(s.counts).forEach(function(k){rows.push({si:si,sheet:(s.sheet_number||s.file+' p'+s.page)+(s.title?' - '+s.title:''),k:k,ai:s.counts[k],conf:s.confidence});});});
+ var tbl=rows.map(function(x){var key=x.si+'|'+x.k,cv=cor[key];return '<tr><td>'+E(x.sheet)+'</td><td><span class="aip-pill" style="background:'+({data:'#1B5E9B',av:'#E67E22',security:'#D63031',other:'#7B3FA0'}[TYPES[x.k].cat])+'">'+TYPES[x.k].code+'</span> '+E(TYPES[x.k].label)+'</td><td><b>'+x.ai+'</b></td><td><input type="number" min="0" class="aip-in" data-key="'+key+'" data-ai="'+x.ai+'" value="'+(cv!=null?cv:'')+'" placeholder="'+x.ai+'"></td></tr>';}).join('');
+ var tot=Object.keys(res.totals||{}).map(function(k){return '<span class="aip-pill" style="background:'+({data:'#1B5E9B',av:'#E67E22',security:'#D63031',other:'#7B3FA0'}[TYPES[k].cat])+'">'+TYPES[k].label+': '+res.totals[k]+'</span>';}).join(' ');
+ var flags=(res.flags||[]).map(function(f){return '<li>'+E(f)+'</li>';}).join('');
+ ov('<div class="aip-h">Findings - '+E(j.project_name||'')+' <button class="aip-x" onclick="AIP.openJobs()">back</button></div><div class="aip-b2">'
+  +'<div class="aip-m">Read '+res.files_read+' documents and '+res.drawing_files+' drawing files in '+res.seconds+'s &middot; '+res.item_count+' proposal lines &middot; total '+(res.proposal_total!=null?'$'+Number(res.proposal_total).toLocaleString():'')+'</div>'
+  +'<div style="margin:8px 0">'+(tot||'No devices found')+'</div>'
+  +(flags?'<div class="aip-sec">AI wants you to check</div><ul class="aip-ul">'+flags+'</ul>':'')
+  +'<div class="aip-sec">Teach the AI - fill the box only where the AI is wrong</div>'
+  +'<div class="aip-m">Open the marked-up drawings in Build (0.0 HAND-OFF DOCS / Kickoff Meeting) and compare. Leave a box empty if the AI is right.</div>'
+  +'<div class="aip-scroll"><table class="aip-tb"><thead><tr><th>Sheet</th><th>Device</th><th>AI counted</th><th>Correct count</th></tr></thead><tbody>'+tbl+'</tbody></table></div>'
+  +'<div class="aip-sec">Optional: paste the answer key</div><textarea id="aip-key" rows="3" placeholder="e.g. Sheet T-101: 24 data drops, 3 WAPs ... (any format)"></textarea><button class="aip-b" onclick="AIP.fillKey()">Fill the boxes from this answer key</button>'
+  +'<div class="aip-sec">What did the AI misunderstand? (optional)</div><textarea id="aip-note" rows="3" placeholder="e.g. The triangle symbols with a T are phone/data outlets. Security cameras on this GC always list the dome model in the schedule."></textarea>'
+  +'<div style="margin-top:12px"><button class="aip-b pri" onclick="AIP.saveCorrections()">Save &amp; teach the AI</button> <span class="aip-m" id="aip-msg"></span></div></div>');
+};
+AIP.fillKey=async function(){
+ var j=AIP._fj,res=j.result,key=document.getElementById('aip-key').value.trim();if(!key)return;
+ var rows=[];(res.sheets||[]).forEach(function(s,si){Object.keys(s.counts).forEach(function(k){rows.push({key:si+'|'+k,sheet:(s.sheet_number||s.file+' p'+s.page),type:k,ai:s.counts[k]});});});
+ document.getElementById('aip-msg').textContent='Reading answer key...';
+ try{
+  var o=await aiJson('You match an answer key to rows. Reply with JSON only.','Answer key from the estimator:\n'+key+'\n\nRows (key, sheet, device type, AI count):\n'+rows.map(function(r){return r.key+' | '+r.sheet+' | '+r.type+' | '+r.ai;}).join('\n')+'\n\nFor each row the key covers, give the correct count. If the key gives only a total for a device type across all sheets, put the entire difference on the sheet with the most of that type. Return {"rows":[{"key":"0|data_drop","correct":24}]}',2500);
+  (o.rows||[]).forEach(function(x){var el=document.querySelector('.aip-in[data-key="'+x.key+'"]');if(el&&x.correct!=null)el.value=x.correct;});
+  document.getElementById('aip-msg').textContent='Filled - please check, then press Save.';
+ }catch(e){document.getElementById('aip-msg').textContent='Could not read the key: '+e.message;}
+};
+AIP.saveCorrections=async function(){
+ var j=AIP._fj,res=j.result,cor={},diff=0,tot=0,lines=[];
+ document.querySelectorAll('.aip-in').forEach(function(el){var ai=+el.dataset.ai,v=el.value===''?ai:+el.value;if(el.value!=='')cor[el.dataset.key]=v;diff+=Math.abs(ai-v);tot+=Math.max(v,1);
+  if(el.value!==''&&v!==ai){var p=el.dataset.key.split('|'),s=res.sheets[+p[0]];lines.push('Sheet '+(s.sheet_number||s.file)+' ('+(s.title||'')+'): '+TYPES[p[1]].label+' - AI counted '+ai+', correct is '+v);}});
+ var acc=Math.max(0,1-diff/Math.max(1,tot)),note=(document.getElementById('aip-note').value||'').trim();
+ var msg=document.getElementById('aip-msg');msg.textContent='Saving...';
+ await sb.from('ai_proposal_jobs').update({corrections:cor,accuracy:acc}).eq('id',j.id);
+ if(lines.length||note){
+  try{
+   var o=await aiJson('You turn estimator corrections into short, general, reusable lessons for an AI that counts low-voltage devices on construction drawings. Reply JSON only.','Project: '+j.project_name+'\nCorrections where the AI was wrong:\n'+lines.join('\n')+'\nEstimator note: '+note+'\n\nWrite 1 to 4 lessons. Each is one sentence, specific enough to change behaviour next time (symbol meanings, what to count or skip, where counts are found) and not tied to a single sheet number. Return {"lessons":["..."]}',1200);
+   for(var i=0;i<(o.lessons||[]).length;i++){await sb.from('ai_proposal_lessons').insert({job_id:j.id,lesson:String(o.lessons[i]).slice(0,500)});}
+  }catch(e){}
+ }
+ msg.innerHTML='Saved. Accuracy: <b>'+Math.round(acc*100)+'%</b>. The AI will use these lessons from now on. <a href="#" onclick="AIP.rerun(\''+j.id+'\');AIP.close();return false">Re-run with the new lessons</a>';
+};
+
+/* ---------- styles + proposal status ---------- */
+var css=document.createElement('style');css.id='aip-css';css.textContent=
+'#aip-bar{flex-shrink:0;display:flex;gap:10px;align-items:center;padding:10px 20px;background:linear-gradient(90deg,#0f2a47,#1B5E9B);color:#fff;flex-wrap:wrap}'
++'#aip-bar .aip-t{font-weight:700;font-size:13px;display:flex;align-items:center;gap:8px}.aip-dot{width:9px;height:9px;border-radius:50%;background:#7fe3a1;box-shadow:0 0 0 3px rgba(127,227,161,.25)}'
++'.aip-seg{display:flex;background:rgba(255,255,255,.14);border-radius:9px;padding:3px}.aip-seg button{border:0;background:transparent;color:#dbe8f6;padding:6px 14px;border-radius:7px;font-weight:600;font-size:12px;cursor:pointer}'
++'.aip-seg button.on{background:#fff;color:#0f2a47}.aip-seg button.on.training{background:#ffd27a}.aip-seg button.on.full{background:#7fe3a1}'
++'.aip-s{font-size:12px;opacity:.92}.aip-b{border:1px solid rgba(255,255,255,.4);background:rgba(255,255,255,.12);color:#fff;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer}'
++'#aip-ov{display:none;position:fixed;inset:0;background:rgba(10,20,35,.55);z-index:99990;align-items:center;justify-content:center}#aip-ov.open{display:flex}'
++'.aip-box{background:#fff;color:#222;border-radius:14px;width:min(1000px,94vw);max-height:90vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.35)}'
++'.aip-h{padding:14px 18px;font-weight:700;font-size:15px;border-bottom:1px solid #e3e8f0;display:flex;justify-content:space-between;align-items:center}.aip-x{border:0;background:#eef1f6;border-radius:8px;padding:4px 10px;cursor:pointer}'
++'.aip-b2{padding:14px 18px;overflow:auto}.aip-b2 .aip-b{background:#eef3fa;color:#1B5E9B;border-color:#c9d8ec}.aip-b2 .aip-b.pri{background:#1B5E9B;color:#fff}'
++'.aip-tb{width:100%;border-collapse:collapse;font-size:12.5px}.aip-tb th{text-align:left;color:#667;font-size:11px;text-transform:uppercase;padding:6px;border-bottom:1px solid #dde3ee}.aip-tb td{padding:8px 6px;border-bottom:1px solid #eef1f6;vertical-align:top}'
++'.aip-m{font-size:11.5px;color:#778}.aip-m.err{color:#c0392b}.aip-st{padding:2px 8px;border-radius:99px;font-size:11px;font-weight:700;background:#eee}.aip-st.done{background:#dff5e6;color:#1b7a3d}.aip-st.error{background:#fde3e1;color:#b3261e}.aip-st.running{background:#fff1cc;color:#8a5a00}'
++'.aip-acts button,.aip-les button{border:1px solid #cdd6e4;background:#fff;border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer;margin:0 3px 3px 0}.aip-acts button.d,.aip-les button.d{color:#b3261e}'
++'.aip-sec{font-weight:700;font-size:12px;margin:16px 0 6px;color:#1B5E9B;text-transform:uppercase;letter-spacing:.4px}.aip-pill{color:#fff;border-radius:99px;padding:2px 8px;font-size:11px;font-weight:700;display:inline-block;margin:0 2px 2px 0}'
++'.aip-in{width:80px;padding:4px 6px;border:1px solid #cdd6e4;border-radius:6px}.aip-scroll{max-height:300px;overflow:auto;border:1px solid #e3e8f0;border-radius:8px}.aip-b2 textarea{width:100%;border:1px solid #cdd6e4;border-radius:8px;padding:8px;font:inherit;margin:4px 0}'
++'.aip-pre{white-space:pre-wrap;font-size:11.5px;background:#f6f8fb;padding:10px;border-radius:8px}.aip-acc{background:#eef7f0;border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:13px}.aip-ul{margin:4px 0 0 18px;font-size:12.5px}.aip-les{display:flex;justify-content:space-between;gap:8px;font-size:12.5px;padding:4px 0;border-bottom:1px solid #f0f2f6}.aip-set input,.aip-set select{padding:4px 6px;border:1px solid #cdd6e4;border-radius:6px}';
+document.head.appendChild(css);
+['ped-status'].forEach(function(id){var s=document.getElementById(id);if(s&&!Array.prototype.some.call(s.options,function(o){return o.text==='Under Review';})){var o=document.createElement('option');o.text='Under Review';s.add(o,0);}});
+var pf=window.renderProposals;if(typeof pf==='function'){window.renderProposals=function(){var x=pf.apply(this,arguments);setTimeout(function(){var s=document.getElementById('prop-filter');if(s&&!Array.prototype.some.call(s.options,function(o){return o.text==='Under Review';})){var o=document.createElement('option');o.text='Under Review';s.add(o,1);}},0);return x;};}
+})();
 
 </script>
 </body>
