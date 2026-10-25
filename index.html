@@ -10458,6 +10458,18 @@ window.saveGroupPermissions=function(){
  VG.saveSettings().then(function(){VG.applyAll();});
 };
 })();
+/* ---------- Dashboard: department tiles in the Modules box ---------- */
+(function(){
+var VG=window.VG;var _rd=window.renderDashboard;if(typeof _rd!=='function')return;
+VG.dashTiles=function(){
+ var fb=null;document.querySelectorAll('#main-content .frame').forEach(function(f){var t=f.querySelector('.ftitle');if(t&&/^\s*Modules\s*$/.test(t.textContent))fb=f.querySelector('.fbody');});
+ if(!fb||fb.querySelector('.vg-dtile'))return;
+ VG.spec.modules.forEach(function(m){if(!canAccess(m.key))return;
+  fb.insertAdjacentHTML('beforeend','<div class="mod-btn vg-dtile" onclick="showPage(\''+m.key+'\')" style="border-top:3px solid '+m.color+'"><span class="mod-btn-name">'+VG.E(m.label)+'</span></div>');});
+};
+window.renderDashboard=async function(){var r=await _rd.apply(this,arguments);try{VG.dashTiles();}catch(e){}return r;};
+var _aa=VG.applyAll;VG.applyAll=function(){_aa();try{if(document.querySelector('#main-content .frame .fbody'))VG.dashTiles();}catch(e){}};
+})();
 
 </script>
 </body>
