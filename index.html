@@ -8615,13 +8615,13 @@ AIP.loadJobs=async function(){
  AIP.jobs=r.data||[];return AIP.jobs;
 };
 AIP.queueJob=async function(o){
- var row={bid_id:o.bid_id||null,bid_ref:o.bid_ref||null,build_project_id:o.build_project_id||null,project_name:o.project_name||'',mode:o.mode||'full',status:o.status||'queued',error:o.error||null,created_by:CU.id};
+ var row={bid_id:o.bid_id||null,bid_ref:o.bid_ref||null,build_project_id:o.build_project_id||null,project_name:o.project_name||'',mode:o.mode||'full',status:o.status||'queued',error:o.error||null,created_by:CU.id};if(o.folder_id)row.folder_id=o.folder_id;
  var r=await sb.from('ai_proposal_jobs').insert(row).select().single();
- if(r.error)throw r.error;return r.data;
+ if(r.error){if(/folder_id/.test(r.error.message||''))throw new Error('Run SQL_ai_training.sql in Supabase first (adds the folder_id column).');throw r.error;}return r.data;
 };
 
 /* ---------- scheduler ---------- */
-var TESTRE=/^testing[\s_\-]?[12]$/i;
+var TESTRE=/^testing[\s_\-]?1$/i;
 AIP.tick=async function(force){
  if(AIP.busy)return;
  if(!CP||CP.group_name!=='admin')return;
@@ -8635,16 +8635,12 @@ AIP.tick=async function(force){
   var pr=await sb.from('build_projects').select('*').neq('status','Archived');var projs=pr.data||[];
   await AIP.loadJobs();
   var have={};AIP.jobs.forEach(function(j){have[(j.bid_id||'')+'|'+(j.build_project_id||'')+'|'+j.mode]=1;});
-  if(mode==='training'){
-   for(var i=0;i<projs.length;i++){var p=projs[i];
-    if(TESTRE.test(String(p.name||'').trim())&&!have['|'+p.id+'|training']){await AIP.queueJob({build_project_id:p.id,project_name:p.name,bid_ref:p.code||p.name,mode:'training'});}
-   }
-  }else if(mode==='full'){
+  if(mode==='full'){
    var pf=await sb.from('profiles').select('id,full_name');var aiIds=(pf.data||[]).filter(function(p){return /vantage\s*ai/i.test(p.full_name||'');}).map(function(p){return p.id;});
    var br=await sb.from('bids').select('*').eq('status','Under Review');var bids=(br.data||[]).filter(function(b){return aiIds.indexOf(b.assigned_to)>=0;});
    var today=new Date();today.setHours(0,0,0,0);var lim=new Date(today.getTime()+(AIP.st.days_ahead||14)*86400000);
    for(var b=0;b<bids.length;b++){var bid=bids[b];
-    if(!bid.due_date||!bid.ref)continue;var dd=new Date(bid.due_date+'T00:00:00');
+    if(!bid.due_date||!bid.ref)continue;if(/^testing[\s_\-]?\d/i.test(String(bid.ref||'').trim())||/^testing[\s_\-]?\d/i.test(String(bid.project||'').trim()))continue;var dd=new Date(bid.due_date+'T00:00:00');
     if(dd<today||dd>lim)continue;
     if(have[bid.id+'||full']||Object.keys(have).some(function(k){return k.indexOf(bid.id+'|')===0;}))continue;
     var proj=AIP.findProject(bid,projs);
@@ -8706,7 +8702,7 @@ var SYS_EST='You are a senior low-voltage estimator at NetFiber Network Cabling 
 
 /* ---------- 1. read every file ---------- */
 async function readFiles(job,proj){
- var live=BD.files.filter(function(f){return !f.is_deleted&&!/^AI_/i.test(f.name);});
+ var live=BD.files.filter(function(f){return !f.is_deleted&&!/^AI_/i.test(f.name)&&!/(^| \/ )notes?( \/ |$)/i.test(fpath(f));});
  var docs=[],drawings=[],skipped=[];
  var txt={};
  for(var i=0;i<live.length;i+=40){
@@ -8987,7 +8983,14 @@ AIP.runJob=async function(job){
   var pr=await sb.from('build_projects').select('*').eq('id',job.build_project_id).maybeSingle();var proj=pr.data;
   if(!proj)throw new Error('Build project not found');
   BD.proj=proj;BD.role='editor';await bdFetchAll();
-  var ref=(bid&&bid.ref)||proj.code||proj.name,training=job.mode==='training';
+  var training=job.mode==='training',tf=null;
+  if(training){
+   if(!job.folder_id)throw new Error('Old-style training job (whole project). Delete it and press Run Training again.');
+   tf=BD.folders.find(function(f){return f.id===job.folder_id&&!f.is_deleted;});if(!tf)throw new Error('Training folder not found (renamed or deleted).');
+   var sub={};sub[tf.id]=1;var chg=true;while(chg){chg=false;BD.folders.forEach(function(f){if(!f.is_deleted&&f.parent_id&&sub[f.parent_id]&&!sub[f.id]){sub[f.id]=1;chg=true;}});}
+   BD.files=BD.files.filter(function(f){return sub[f.folder_id];});
+  }
+  var ref=training?tf.name:((bid&&bid.ref)||proj.code||proj.name);
   var lessons=await loadLessons();
   await step(job,'Reading files',6,'Project "'+proj.name+'" - reading every file (7.0 REFERENCE, FORMS & TEMPLATES first)');
   var ctx=await P.readFiles(job,proj);
@@ -9017,34 +9020,37 @@ AIP.runJob=async function(job){
   var today=new Date().toISOString().split('T')[0],taxRate=8.25,allItems=[],sub=0,taxable=0;
   (gen.sections||[]).forEach(function(s,si){(s.items||[]).forEach(function(it,ix){var amt=Math.round(it.qty*it.rate*100)/100;sub+=amt;if(it.taxable!==false)taxable+=amt;allItems.push({section_id:'ai_sec_'+si,section_header:s.header||'',sort_order:si*1000+ix,product_service:it.product,description:it.description||'',qty:it.qty,rate:it.rate,amount:amt,cost:it.cost||0,margin:0,taxable:it.taxable!==false});});});
   sub=Math.round(sub*100)/100;var tax=Math.round(taxable*taxRate/100*100)/100,total=Math.round((sub+tax)*100)/100;
-  var pname=(training?'[TRAINING] ':'')+((bid&&bid.project)||proj.name);
+  var pname=training?tf.name:((bid&&bid.project)||proj.name);
   var addr=bid?[bid.address].filter(Boolean).join(''):(proj.address||'');
   var propData={estimate_no:ref,project_name:pname,project_city:bid?bid.city||'':'',project_state:bid?bid.state||'':'',project_sow:(bid&&bid.scope)||gen.project_sow||'',ship_to_address:addr,date:today,status:'Under Review',bill_to_company:bid?bid.gc||'':'',bill_to_name:bid?bid.poc||'':'',bill_to_address:'',
    scope_of_work:gen.scope_of_work||DEFAULT_SCOPE,exclusions:gen.exclusions||DEFAULT_EXCL,general_terms:DEFAULT_TERMS,payment_expectations:DEFAULT_PAYMENT,notes:gen.notes||DEFAULT_PROJ_NOTES,acknowledgment:DEFAULT_ACK,custom_sections:'[]',custom_pages:'[]',fixed_sections_on:'{}',tax_rate:taxRate,subtotal:sub,tax_amount:tax,total:total,created_by:CU.id,updated_by:CU.id,updated_at:new Date().toISOString(),ai_generated:true,ai_job_id:job.id,bid_id:job.bid_id||null};
-  var ins=await sb.from('proposals').insert(propData).select().single();
-  if(ins.error&&/column|schema/i.test(ins.error.message||'')){delete propData.ai_generated;delete propData.ai_job_id;delete propData.bid_id;ins=await sb.from('proposals').insert(propData).select().single();}
-  if(ins.error)throw ins.error;
-  var propId=ins.data.id;
-  if(allItems.length)await sb.from('proposal_items').insert(allItems.map(function(x){return Object.assign({proposal_id:propId},x);}));
+  var propId=null;
   var gcRow={company:propData.bill_to_company,contact_name:propData.bill_to_name,email:bid?bid.email||'':'',phone:bid?bid.phone||'':'',address:'',city:'',is_primary:true};
-  if(gcRow.company)await sb.from('proposal_gcs').insert(Object.assign({proposal_id:propId},gcRow));
+  if(!training){
+   var ins=await sb.from('proposals').insert(propData).select().single();
+   if(ins.error&&/column|schema/i.test(ins.error.message||'')){delete propData.ai_generated;delete propData.ai_job_id;delete propData.bid_id;ins=await sb.from('proposals').insert(propData).select().single();}
+   if(ins.error)throw ins.error;
+   propId=ins.data.id;
+   if(allItems.length)await sb.from('proposal_items').insert(allItems.map(function(x){return Object.assign({proposal_id:propId},x);}));
+   if(gcRow.company)await sb.from('proposal_gcs').insert(Object.assign({proposal_id:propId},gcRow));
+  }
   // files into 0.0 HAND-OFF DOCS / Kickoff Meeting
   await step(job,'Saving to Build',90,'Saving SOW summaries, proposal PDF and marked-up drawings to 0.0 HAND-OFF DOCS / Kickoff Meeting');
-  var f0=await bdEnsureFolder(null,'0.0 HAND-OFF DOCS'),fk=await bdEnsureFolder(f0,'Kickoff Meeting'),sref=bdSafe(ref).replace(/^_+|_+$/g,'');
+  var f0=training?null:await bdEnsureFolder(null,'0.0 HAND-OFF DOCS'),fk=training?tf.id:await bdEnsureFolder(f0,'Kickoff Meeting'),sref=bdSafe(ref).replace(/^_+|_+$/g,'');
   async function put(name,blob,mime){var ex=BD.files.find(function(f){return !f.is_deleted&&(f.folder_id||null)===fk&&f.name.toLowerCase()===name.toLowerCase();});return await bdPutFile({folderId:fk,name:name,blob:blob,mime:mime,existing:ex||null,note:'Created by Vantage AI'});}
   var outputs=[];
-  var names={data:'AI_SOW_Data_',av:'AI_SOW_AV_',security:'AI_SOW_Security_'};
+  var names=training?{data:'AI_Summary_Data_',av:'AI_Summary_AV_',security:'AI_Summary_Security_'}:{data:'AI_SOW_Data_',av:'AI_SOW_AV_',security:'AI_SOW_Security_'};
   for(var c in names){await put(names[c]+sref+'.txt',new Blob([sums[c]],{type:'text/plain'}),'text/plain');outputs.push(names[c]+sref+'.txt');}
   var notes='AI REVIEW NOTES - '+pname+'\nGenerated '+new Date().toLocaleString()+'\n\nFLAGS TO CHECK\n'+(gen.flags.concat.apply(gen.flags,[])).map(function(x){return '- '+x;}).join('\n')+'\n\nSHEET FLAGS\n'+sheets.map(function(s){return (s.sheet_number||s.file+' p'+s.page)+' (confidence '+s.confidence+'%): '+(s.flags.join(' | ')||'ok');}).join('\n')+'\n\nQUESTIONS FROM THE SPECS\n'+(req.questions||[]).map(function(x){return '- '+x;}).join('\n')+'\n\nFILES NOT READ\n'+(ctx.skipped.join('\n')||'none');
-  await put('AI_Review_Notes_'+sref+'.txt',new Blob([notes],{type:'text/plain'}),'text/plain');outputs.push('AI_Review_Notes_'+sref+'.txt');
+  await put((training?'AI_Notes_':'AI_Review_Notes_')+sref+'.txt',new Blob([notes],{type:'text/plain'}),'text/plain');outputs.push((training?'AI_Notes_':'AI_Review_Notes_')+sref+'.txt');
   var pdfItems=allItems,pdf=buildProposalPdf(Object.assign({},propData),pdfItems,gcRow);
   await put('AI_Proposal_'+sref+'.pdf',pdf,'application/pdf');outputs.push('AI_Proposal_'+sref+'.pdf');
   if(marks.length){var sumTxt=Object.keys(totals).map(function(k){return TYPES[k].label+': '+totals[k];}).join('\n')||'No devices found';var mk=buildMarkupPdf(job,marks,'Totals across all sheets\n'+sumTxt+'\n\nColours: blue = data, orange = AV, red = security. Yellow ring = seen in only one pass.');await put('AI_Markup_Drawings_'+sref+'.pdf',mk,'application/pdf');outputs.push('AI_Markup_Drawings_'+sref+'.pdf');}
   var conf=sheets.length?Math.round(sheets.reduce(function(a,s){return a+s.confidence;},0)/sheets.length):(gen.confidence||50);
   var result={sheets:sheets,totals:totals,flags:gen.flags,confidence:conf,files_read:ctx.docs.length,drawing_files:ctx.drawings.length,skipped:ctx.skipped,outputs:outputs,proposal_total:total,draft:{items:allItems.map(function(x){return [x.section_header,x.product_service,x.qty,x.rate];}),scope:propData.scope_of_work,exclusions:propData.exclusions,notes:propData.notes,total:total},item_count:allItems.length,style_examples:gen._styleN,requirements:{data:req.data,av:req.av,security:req.security,exclusions:req.exclusions,questions:req.questions},seconds:Math.round((Date.now()-t0)/1000)};
   await upd(job,{status:'done',stage:'Done',progress:100,proposal_id:propId,result:result,finished_at:new Date().toISOString(),error:null});
-  try{await logAct('AI created proposal','proposals',propId,'Vantage AI created "'+pname+'" (Under Review)');}catch(e){}
-  bdToast('AI proposal ready for review: '+pname);
+  try{if(!training)await logAct('AI created proposal','proposals',propId,'Vantage AI created "'+pname+'" (Under Review)');}catch(e){}
+  bdToast(training?'Training result saved in folder: '+pname:'AI proposal ready for review: '+pname);
   if(typeof loadProposals==='function')loadProposals().catch(function(){});
  }catch(e){
   console.warn('AI job failed',e);
@@ -9059,7 +9065,7 @@ AIP.runJob=async function(job){
 (function(){
 var AIP=window.AIP,H=AIP._h,TYPES=AIP.TYPES,ai=H.ai,aiJson=H.aiJson;
 function E(s){return bdE(s);}
-var TESTRE=/^testing[\s_\-]?[12]$/i;
+var TESTRE=/^testing[\s_\-]?1$/i;
 function ov(html){var o=document.getElementById('aip-ov');if(!o){o=document.createElement('div');o.id='aip-ov';document.body.appendChild(o);}o.className='open';o.innerHTML='<div class="aip-box">'+html+'</div>';o.onclick=function(e){if(e.target===o)AIP.close();};}
 AIP.close=function(){var o=document.getElementById('aip-ov');if(o){o.className='';o.innerHTML='';}};
 
@@ -9070,7 +9076,7 @@ AIP.mountBar=function(){
  d.innerHTML='<div class="aip-t"><span class="aip-dot"></span>AI Proposal Engine</div>'
   +'<div class="aip-seg"><button data-m="off" onclick="AIP.setMode(\'off\')">Off</button><button data-m="training" onclick="AIP.setMode(\'training\')">Training</button><button data-m="full" onclick="AIP.setMode(\'full\')">Full Automation</button></div>'
   +'<div id="aip-status" class="aip-s"></div><div style="flex:1"></div>'
-  +'<button class="aip-b" id="aip-run" style="display:none" onclick="AIP.runTesting()">Run Testing_1 &amp; Testing_2</button>'
+  +'<button class="aip-b" id="aip-run" style="display:none" onclick="AIP.runTesting()">Train on new Testing_1 projects</button>'
   +'<button class="aip-b" onclick="AIP.openJobs()">Jobs &amp; Training</button>';
  anchor.parentNode.insertBefore(d,anchor);
  AIP.loadSettings().then(AIP.refreshBar);
@@ -9084,18 +9090,31 @@ AIP.refreshBar=function(){
  var txt;
  if(AIP.cur)txt='Working on '+E(AIP.cur.project_name||AIP.cur.bid_ref||'')+' - '+E(AIP.cur.stage||'')+' ('+(AIP.cur.progress||0)+'%)';
  else if(AIP.busy)txt='Checking for work...';
- else txt={off:'Off - no proposals will be created.',training:'Training - practising on Testing_1 and Testing_2 only.',full:'Full automation - bids due within '+(AIP.st.days_ahead||14)+' days get a proposal. Runs while Vantage is open.'}[m];
+ else txt={off:'Off - no proposals will be created.',training:'Training - practising on the project folders inside Testing_1. No real proposals are created.',full:'Full automation - bids due within '+(AIP.st.days_ahead||14)+' days get a proposal. Runs while Vantage is open.'}[m];
  if(s)s.innerHTML=txt;
 };
 var _r=window.renderAIAdvisor;
 window.renderAIAdvisor=function(){var x=_r.apply(this,arguments);try{AIP.mountBar();AIP.refreshBar();}catch(e){}return x;};
 
+AIP.trainingTargets=async function(){
+ var ps=((await sb.from('build_projects').select('*')).data||[]),out=[];
+ var proj=ps.filter(function(p){return TESTRE.test(String(p.name||'').trim());})[0];
+ if(proj){var fr=(await sb.from('build_folders').select('*').eq('project_id',proj.id)).data||[];
+  out=fr.filter(function(f){return !f.is_deleted&&!f.parent_id&&!/^(notes?|AI_.*)$/i.test(f.name);}).map(function(f){return {project:proj,folder:f};});}
+ else{var all=(await sb.from('build_folders').select('*')).data||[];var tr=all.filter(function(f){return !f.is_deleted&&TESTRE.test(String(f.name||'').trim());})[0];
+  if(tr){var pr=ps.filter(function(p){return p.id===tr.project_id;})[0];out=all.filter(function(f){return !f.is_deleted&&f.parent_id===tr.id&&!/^(notes?|AI_.*)$/i.test(f.name);}).map(function(f){return {project:pr,folder:f};});}}
+ return out;
+};
 AIP.runTesting=async function(){
  if(AIP.st.mode!=='training'){alert('Switch to Training first.');return;}
- var r=await sb.from('build_projects').select('*');var ps=(r.data||[]).filter(function(p){return TESTRE.test(String(p.name||'').trim());});
- if(!ps.length){alert('No Build project named Testing_1 or Testing_2 was found.');return;}
- for(var i=0;i<ps.length;i++){await AIP.queueJob({build_project_id:ps[i].id,project_name:ps[i].name,bid_ref:ps[i].code||ps[i].name,mode:'training'});}
- AIP.tick(true);bdToast('Training run started for '+ps.map(function(p){return p.name;}).join(' & '));
+ var t=await AIP.trainingTargets();
+ if(!t.length){alert('No project folders found inside Testing_1 yet.');return;}
+ await AIP.loadJobs();
+ var todo=t.filter(function(x){return !AIP.jobs.some(function(j){return j.folder_id===x.folder.id&&j.mode==='training'&&j.status!=='error';});});
+ if(!todo.length){bdToast('Every Testing_1 project folder already has a training result. Use Re-run in Jobs & Training to repeat one.');return;}
+ if(!confirm(todo.length+' new project folder(s) will be trained: '+todo.map(function(x){return x.folder.name;}).join(', ')+'.\n\nEach one uses AI credits (roughly $2-10 each). Start?'))return;
+ for(var i=0;i<todo.length;i++){await AIP.queueJob({build_project_id:todo[i].project.id,folder_id:todo[i].folder.id,project_name:todo[i].folder.name,bid_ref:todo[i].folder.name,mode:'training'});}
+ AIP.tick(true);bdToast('Training started for '+todo.length+' project(s)');
 };
 
 /* ---------- jobs & training screen ---------- */
@@ -9111,8 +9130,8 @@ AIP.openJobs=async function(){
   return '<tr><td><b>'+E(j.project_name||j.bid_ref||'')+'</b><div class="aip-m">'+E(j.bid_ref||'')+' &middot; '+E(j.mode)+' &middot; '+new Date(j.created_at).toLocaleString()+'</div></td>'
    +'<td><span class="aip-st '+j.status+'">'+st+'</span>'+(res.learned?'<div class="aip-m">'+(res.learned.verdict==='confirmed_good'?'Confirmed good by your review':'AI learned from your review')+'</div>':'')+(j.status==='running'?'<div class="aip-m">'+E(j.stage||'')+' '+(j.progress||0)+'%</div>':'')+(j.error?'<div class="aip-m err">'+E(j.error)+'</div>':'')+'</td>'
    +'<td>'+(res.confidence!=null?res.confidence+'%':'-')+'</td><td>'+(j.accuracy!=null?Math.round(j.accuracy*100)+'%':'-')+'</td>'
-   +'<td class="aip-acts">'+(j.status==='done'&&j.proposal_id?'<button onclick="AIP.learnNow(\''+j.id+'\')">Learn from review</button>':'')+(j.status==='done'?'<button onclick="AIP.openFindings(\''+j.id+'\')">Review findings</button>':'')+(j.proposal_id?'<button onclick="AIP.close();showPage(\'proposals\')">Proposals</button>':'')+'<button onclick="AIP.viewLog(\''+j.id+'\')">Log</button>'+(j.status!=='running'?'<button onclick="AIP.rerun(\''+j.id+'\');AIP.close()">Re-run</button><button class="d" onclick="AIP.delJob(\''+j.id+'\')">Delete</button>':'')+'</td></tr>';
- }).join('')||'<tr><td colspan="5" style="padding:20px;color:#888">No jobs yet. Choose Training and press "Run Testing_1 &amp; Testing_2", or Full Automation to handle bids that are coming due.</td></tr>';
+   +'<td class="aip-acts">'+(j.status==='done'&&(j.proposal_id||j.mode==='training')?'<button onclick="AIP.learnNow(\''+j.id+'\')">Learn from review</button>':'')+(j.status==='done'&&j.mode==='training'&&!res.learned?'<button onclick="AIP.confirmGood(\''+j.id+'\')">Confirm good</button>':'')+(j.status==='done'?'<button onclick="AIP.openFindings(\''+j.id+'\')">Review findings</button>':'')+(j.proposal_id?'<button onclick="AIP.close();showPage(\'proposals\')">Proposals</button>':'')+'<button onclick="AIP.viewLog(\''+j.id+'\')">Log</button>'+(j.status!=='running'?'<button onclick="AIP.rerun(\''+j.id+'\');AIP.close()">Re-run</button><button class="d" onclick="AIP.delJob(\''+j.id+'\')">Delete</button>':'')+'</td></tr>';
+ }).join('')||'<tr><td colspan="5" style="padding:20px;color:#888">No jobs yet. Choose Training and press "Train on new Testing_1 projects", or Full Automation to handle bids that are coming due.</td></tr>';
  var les=lessons.map(function(l){return '<div class="aip-les"><label><input type="checkbox" '+(l.active?'checked':'')+' onchange="AIP.togLesson(\''+l.id+'\',this.checked)"> '+E(l.lesson)+'</label><button class="d" onclick="AIP.delLesson(\''+l.id+'\')">x</button></div>';}).join('')||'<div class="aip-m">No lessons yet. They are created when you correct a training result.</div>';
  ov('<div class="aip-h">AI Proposals - Jobs &amp; Training <button class="aip-x" onclick="AIP.close()">x</button></div><div class="aip-b2">'+spark
   +'<table class="aip-tb"><thead><tr><th>Project</th><th>Status</th><th>AI confidence</th><th>Accuracy</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>'
@@ -9206,7 +9225,8 @@ async function describeShot(f){
   return await ai(AIP._p.SYS_EST,[{type:'image',source:{type:'base64',media_type:'image/jpeg',data:b}},{type:'text',text:'This is a screenshot from an estimator reviewing an AI-made takeoff of a construction drawing. Circles, arrows and handwriting mark mistakes. List every marked spot: what device or area is circled, what any written note says, and what mistake it implies (missed device, false device, wrong type, wrong count, wrong room). Be factual and short.'}],1500);
  }catch(e){return '(screenshot could not be read: '+(e.message||e)+')';}
 }
-async function learnJob(j,p){
+async function learnJob(j,p,auto){
+ var training=j.mode==='training';p=p||{status:'training (no real proposal exists)',scope_of_work:'',exclusions:'',total:'',id:null};
  var snap={proj:BD.proj,folders:BD.folders,files:BD.files,members:BD.members,role:BD.role};
  try{
   var pr=await sb.from('build_projects').select('*').eq('id',j.build_project_id).maybeSingle();if(!pr.data)throw new Error('project gone');
@@ -9214,15 +9234,17 @@ async function learnJob(j,p){
   var live=BD.files.filter(function(f){return !f.is_deleted;});
   function tree(re){var ids={};BD.folders.filter(function(f){return !f.is_deleted&&re.test(String(f.name).trim());}).forEach(function(f){ids[f.id]=1;});var ch=true;while(ch){ch=false;BD.folders.forEach(function(f){if(!f.is_deleted&&f.parent_id&&ids[f.parent_id]&&!ids[f.id]){ids[f.id]=1;ch=true;}});}return ids;}
   var nIds=tree(/^notes?$/i),sIds=tree(/^scope of work\s*&\s*estimate$/i);
-  var noteFiles=live.filter(function(f){return nIds[f.folder_id];}),sentFiles=live.filter(function(f){return sIds[f.folder_id]&&!/^AI_/i.test(f.name);});
-  var draftFile=live.find(function(f){return /^AI_Proposal_/i.test(f.name);});
+  var noteFiles=live.filter(function(f){return nIds[f.folder_id];}),sentFilesAll=null,sentFiles=live.filter(function(f){return sIds[f.folder_id]&&!/^AI_/i.test(f.name);});
+  if(training){var keep={};Object.keys(nIds).forEach(function(id){var c=BD.folders.find(function(x){return x.id===id;}),g=0;while(c&&g++<30){if(c.id===j.folder_id||c.parent_id===j.folder_id){keep[id]=1;break;}c=BD.folders.find(function(x){return x.id===c.parent_id;});}});nIds=keep;noteFiles=live.filter(function(f){return nIds[f.folder_id];});}
+  var draftFile=live.find(function(f){return /^AI_Proposal_/i.test(f.name)&&(!training||f.folder_id===j.folder_id);});
+  if(training&&auto){if(!noteFiles.length)return false;var newest=Math.max.apply(null,noteFiles.map(function(f){return new Date(f.updated_at||f.created_at).getTime();}));if(Date.now()-newest<30*60000)return false;}
   var need=noteFiles.concat(sentFiles).concat(draftFile?[draftFile]:[]).filter(function(f){return bdKind(f.name,f.mime)!=='image';}),txt={};
   if(need.length){var r=await sb.from('build_files').select('id,extracted_text').in('id',need.map(function(f){return f.id;}));(r.data||[]).forEach(function(x){txt[x.id]=x.extracted_text||'';});}
   var notes='';
   for(var i=0;i<noteFiles.length;i++){var f=noteFiles[i];
    if(bdKind(f.name,f.mime)==='image')notes+='\n[Screenshot '+f.name+']\n'+await describeShot(f);
    else notes+='\n[File '+f.name+']\n'+(txt[f.id]||'(no readable text)').slice(0,8000);}
-  var it=await sb.from('proposal_items').select('*').eq('proposal_id',p.id).order('sort_order');
+  var it=p.id?await sb.from('proposal_items').select('*').eq('proposal_id',p.id).order('sort_order'):{data:[]};
   var finalTxt=(it.data||[]).map(function(x){return '['+(x.section_header||'')+'] '+x.product_service+' | qty '+x.qty+' | rate '+x.rate;}).join('\n')+'\nScope: '+(p.scope_of_work||'').slice(0,1500)+'\nExclusions: '+(p.exclusions||'').slice(0,800)+'\nTotal: '+p.total;
   var d=j.result&&j.result.draft,draftTxt=d?d.items.map(function(x){return '['+x[0]+'] '+x[1]+' | qty '+x[2]+' | rate '+x[3];}).join('\n')+'\nScope: '+(d.scope||'').slice(0,1500)+'\nExclusions: '+(d.exclusions||'').slice(0,800)+'\nTotal: '+d.total:(draftFile?(txt[draftFile.id]||'').slice(0,9000):'(draft not available)');
   var sentTxt=sentFiles.map(function(f){return '[File '+f.name+']\n'+(txt[f.id]||'').slice(0,9000);}).join('\n');
@@ -9242,19 +9264,25 @@ async function learnJob(j,p){
 }
 AIP.learnAll=async function(){
  var r=await sb.from('ai_proposal_jobs').select('*').eq('status','done').order('created_at',{ascending:false}).limit(40);
- var jobs=(r.data||[]).filter(function(j){return j.proposal_id&&j.build_project_id&&!(j.result&&j.result.learned);});
+ var jobs=(r.data||[]).filter(function(j){return (j.proposal_id||(j.mode==='training'&&j.folder_id))&&j.build_project_id&&!(j.result&&j.result.learned);});
  for(var i=0;i<jobs.length;i++){
+  if(jobs[i].mode==='training'){await learnJob(jobs[i],null,true);continue;}
   var pp=await sb.from('proposals').select('*').eq('id',jobs[i].proposal_id).maybeSingle(),p=pp.data;
   if(!p||/^(Under Review|Draft)$/i.test(p.status||''))continue;
   if(Date.now()-new Date(p.updated_at||p.created_at).getTime()<30*60000)continue;
   await learnJob(jobs[i],p);
  }
 };
+AIP.confirmGood=async function(id){
+ var r=await sb.from('ai_proposal_jobs').select('*').eq('id',id).single(),j=r.data;if(!j||!j.result)return;
+ var res=Object.assign({},j.result,{learned:{at:new Date().toISOString(),verdict:'confirmed_good',summary:'Confirmed good by the estimator',wrong:[],right:[],lessons:0,notes_files:0,sent_files:0}});
+ await sb.from('ai_proposal_jobs').update({result:res,accuracy:1}).eq('id',id);bdToast('Marked as confirmed good');AIP.openJobs();
+};
 AIP.learnNow=async function(id){
  var r=await sb.from('ai_proposal_jobs').select('*').eq('id',id).single(),j=r.data;if(!j)return;
- var pp=await sb.from('proposals').select('*').eq('id',j.proposal_id).maybeSingle(),p=pp.data;
- if(!p){alert('The proposal was deleted.');return;}
- if(/^(Under Review|Draft)$/i.test(p.status||'')){alert('This proposal is still "'+p.status+'". Change it to Sent first (and save the sent copy in Scope of Work & Estimate).');return;}
+ var p=null;if(j.mode!=='training'){var pp=await sb.from('proposals').select('*').eq('id',j.proposal_id).maybeSingle();p=pp.data;
+ if(!p){alert('The proposal was deleted.');return;}}
+ if(p&&/^(Under Review|Draft)$/i.test(p.status||'')){alert('This proposal is still "'+p.status+'". Change it to Sent first (and save the sent copy in Scope of Work & Estimate).');return;}
  bdToast('AI is reading your review...');var ok=await learnJob(j,p);if(!ok)alert('Could not finish learning. See the browser console.');AIP.openJobs();
 };
 })();
