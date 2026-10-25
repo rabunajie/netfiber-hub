@@ -693,6 +693,73 @@ body.view-only button[onclick*="Remove"]{
 
 
 
+<style id="vg-css">
+.vg-page{max-width:1500px}
+.vg-pdot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:8px}
+.vg-prev{background:#fff1cc;color:#6b4a00;border-radius:10px;padding:9px 14px;font-size:12.5px;margin-bottom:12px}
+.vg-tabs{display:flex;gap:4px;flex-wrap:wrap;border-bottom:1px solid #e4e8f0;margin-bottom:14px}
+.vg-tabs button{background:none;border:none;border-bottom:2px solid transparent;padding:9px 13px;font-size:13px;font-weight:600;color:#6b7a90;cursor:pointer;font-family:inherit}
+.vg-tabs button:hover{color:#1B5E9B}.vg-tabs button.on{color:#1B5E9B;border-bottom-color:#1B5E9B}
+.vg-load{padding:24px;color:#8a95a6;font-size:13px;text-align:center}
+.vg-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-bottom:14px}
+.vg-kpi{background:#fff;border:0.5px solid #e4e8f0;border-radius:12px;padding:13px 15px}
+.vg-kl{font-size:11px;color:#6b7a90;text-transform:uppercase;letter-spacing:.04em;font-weight:600}
+.vg-kv{font-size:24px;font-weight:700;color:#14233b;margin-top:3px}.vg-ks{font-size:11.5px;color:#8a95a6;margin-top:2px}
+.vg-grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:12px;margin-bottom:12px}
+.vg-pn{background:#fff;border:0.5px solid #e4e8f0;border-radius:12px;overflow:hidden}
+.vg-pt{padding:11px 15px;font-weight:700;font-size:13px;border-bottom:1px solid #f0f2f7;display:flex;justify-content:space-between;color:#14233b}
+.vg-pt span{font-weight:500;font-size:12px}.vg-pt a{color:#1B5E9B;text-decoration:none}
+.vg-pb{padding:10px 15px}
+.vg-bars{display:flex;flex-direction:column;gap:7px}.vg-br{display:grid;grid-template-columns:90px 1fr 80px;gap:8px;align-items:center;font-size:12px}
+.vg-bl{color:#4a5870;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.vg-bt{background:#eef1f6;border-radius:5px;height:12px;overflow:hidden}.vg-bf{height:100%;border-radius:5px}.vg-bv{text-align:right;font-weight:600;color:#14233b}
+.vg-lst{display:flex;flex-direction:column}.vg-li{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid #f3f5f9}.vg-li:last-child{border:none}.vg-li:hover{background:#fafbfd}
+.vg-lm{font-size:13px;font-weight:600;color:#14233b}.vg-ls{font-size:11.5px;color:#8a95a6;margin-top:1px}.vg-lr{text-align:right;font-size:13px;white-space:nowrap}
+.vg-empty2{padding:16px;text-align:center;color:#9aa5b5;font-size:12.5px}
+.vg-kv2,.vg-pb .vg-kv{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f3f5f9;font-size:13px;font-size:13px;margin:0;font-weight:400;color:#14233b}
+.vg-pb .vg-kv b{font-weight:700}
+.vg-tbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+.vg-in{padding:8px 11px;border:1px solid #dde2ec;border-radius:8px;font-size:13px;font-family:inherit;background:#fff;min-width:150px}
+.vg-btn{padding:8px 13px;border:1px solid #cfd6e3;background:#fff;border-radius:8px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;color:#33425b}
+.vg-btn:hover{background:#f4f7fb}.vg-btn.pri{background:#1B5E9B;border-color:#1B5E9B;color:#fff}.vg-btn.pri:hover{background:#164d80}.vg-btn.dng{color:#b3261e;border-color:#f0c4c0}.vg-btn:disabled{opacity:.6;cursor:default}
+.vg-seg{display:flex;border:1px solid #cfd6e3;border-radius:8px;overflow:hidden}.vg-seg button{border:none;background:#fff;padding:7px 12px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;color:#6b7a90}.vg-seg button.on{background:#1B5E9B;color:#fff}
+.vg-sum{display:flex;gap:18px;flex-wrap:wrap;font-size:12.5px;color:#4a5870;margin-bottom:8px}.vg-sum b{color:#14233b}
+.vg-wrap{background:#fff;border:0.5px solid #e4e8f0;border-radius:12px;overflow:auto}
+.vg-t{width:100%;border-collapse:collapse;font-size:13px}.vg-t th{background:#f8faff;text-align:left;padding:9px 12px;font-size:11.5px;color:#6b7a90;text-transform:uppercase;letter-spacing:.03em;white-space:nowrap;cursor:pointer;border-bottom:1px solid #e4e8f0}
+.vg-t td{padding:9px 12px;border-bottom:1px solid #f1f3f8;color:#14233b;max-width:300px;overflow:hidden;text-overflow:ellipsis}.vg-t tbody tr{cursor:pointer}.vg-t tbody tr:hover{background:#f6f9fd}
+.vg-t .r{text-align:right}.vg-empty{text-align:center;color:#9aa5b5;padding:22px!important}.vg-count{font-size:11.5px;color:#8a95a6;margin-top:6px}
+.vg-bd{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:700;white-space:nowrap}
+.vg-board{display:flex;gap:10px;overflow-x:auto;padding-bottom:10px}.vg-col{min-width:230px;max-width:230px;background:#eef1f6;border-radius:12px;padding:8px;flex-shrink:0}.vg-col.ov{outline:2px dashed #1B5E9B}
+.vg-ch{font-size:12px;font-weight:700;color:#4a5870;padding:4px 6px 8px}.vg-ch span{background:#fff;border-radius:10px;padding:1px 7px;margin-left:4px;font-weight:600}
+.vg-card{background:#fff;border-radius:9px;padding:9px 10px;margin-bottom:7px;box-shadow:0 1px 2px rgba(0,0,0,.06);cursor:pointer}.vg-ct{font-size:13px;font-weight:600;color:#14233b}.vg-cs{font-size:11.5px;color:#8a95a6;margin-top:3px}
+#vg-ov{display:none;position:fixed;inset:0;background:rgba(20,35,59,.5);z-index:10050;align-items:flex-start;justify-content:center;overflow:auto;padding:30px 12px}
+#vg-ov.open{display:flex}#vg-ov.dark{background:rgba(0,0,0,.88)}
+.vg-dlg{background:#fff;border-radius:14px;width:760px;max-width:100%;box-shadow:0 12px 50px rgba(0,0,0,.3)}.vg-dlg.wide{width:900px}
+.vg-dh{padding:15px 20px;font-size:16px;font-weight:700;border-bottom:1px solid #eef1f6;display:flex;justify-content:space-between;align-items:center;color:#14233b}.vg-dm{font-weight:500;color:#8a95a6;font-size:13px;margin-left:8px}
+.vg-x{background:none;border:none;font-size:24px;cursor:pointer;color:#8a95a6;line-height:1}.vg-db{padding:16px 20px;max-height:68vh;overflow:auto}
+.vg-df{padding:12px 20px;border-top:1px solid #eef1f6;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.vg-fg{display:grid;grid-template-columns:1fr 1fr;gap:12px}.vg-f.w{grid-column:1/-1}.vg-f label{display:block;font-size:11.5px;font-weight:700;color:#4a5870;margin-bottom:4px}
+.vg-f input[type=text],.vg-f input[type=number],.vg-f input[type=date],.vg-f select,.vg-f textarea{width:100%;padding:8px 10px;border:1px solid #dde2ec;border-radius:8px;font-size:13px;font-family:inherit;box-sizing:border-box}
+.vg-f input[type=file]{font-size:12.5px}.vg-chk{font-weight:500!important;display:flex!important;gap:6px;align-items:center}.vg-hint{font-size:11px;color:#8a95a6;margin-top:3px}.vg-err{color:#b3261e;font-size:12.5px;margin-top:10px;min-height:16px}.vg-fl{font-size:12px;margin-top:4px}
+.vg-week{display:grid;grid-template-columns:repeat(7,minmax(140px,1fr));gap:8px;overflow-x:auto}.vg-day{background:#fff;border:0.5px solid #e4e8f0;border-radius:10px;min-height:150px;padding:8px}.vg-day.tod{border-color:#1B5E9B;box-shadow:0 0 0 1px #1B5E9B}
+.vg-dn{font-size:12px;font-weight:700;color:#4a5870;display:flex;justify-content:space-between;margin-bottom:6px}.vg-dn a{color:#1B5E9B;text-decoration:none;font-size:15px}
+.vg-ev{background:#e3effa;border-left:3px solid #1B5E9B;border-radius:6px;padding:5px 7px;margin-bottom:5px;font-size:11.5px;cursor:pointer}.vg-ev b{font-size:12px;color:#14233b}.vg-evs{color:#6b7a90}
+.vg-quick{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:14px}.vg-quick button{background:#fff;border:1px solid #dde2ec;border-radius:12px;padding:16px 8px;font-size:13px;font-weight:700;color:#14233b;cursor:pointer;font-family:inherit;display:flex;flex-direction:column;gap:6px;align-items:center}.vg-quick button span{font-size:26px}.vg-quick button:hover{border-color:#1B5E9B;background:#f4f9ff}
+.vg-gal{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}.vg-gi{background:#fff;border:0.5px solid #e4e8f0;border-radius:10px;overflow:hidden;cursor:pointer}.vg-gph{height:130px;background:#eef1f6 center/cover no-repeat}.vg-gc{padding:7px 9px;font-size:12px}
+.vg-lbx{position:relative;max-width:96vw;margin:auto;text-align:center;color:#fff}.vg-lbx img{max-width:92vw;max-height:76vh;border-radius:8px}.vg-lbc{margin-top:10px;font-size:13px}
+.vg-annt{display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap}.vg-cv{max-width:100%;border:1px solid #dde2ec;border-radius:8px;touch-action:none;cursor:crosshair}
+.vg-modbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:12px 16px;background:#f8faff;border-bottom:1px solid #eaedf2}.vg-mb-l{display:flex;flex-direction:column;flex:1;min-width:220px}.vg-mb-l span{font-size:11.5px;color:#6b7a90}
+.vg-dd{position:relative}.vg-ddp{position:absolute;top:100%;right:0;margin-top:6px;background:#fff;border:1px solid #dde2ec;border-radius:12px;box-shadow:0 10px 36px rgba(0,0,0,.18);width:330px;max-height:430px;overflow:auto;z-index:50;padding:6px 0}
+.vg-ddh{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;font-weight:700;color:#8a95a6;padding:8px 14px 4px}.vg-ddr{display:flex;gap:9px;align-items:center;padding:7px 14px;font-size:13px;cursor:pointer}.vg-ddr:hover{background:#f4f7fb}.vg-ddr span{flex:1}.vg-ddr em{font-size:11px;color:#8a95a6;font-style:normal}.vg-ddr a{font-size:11.5px;color:#1B5E9B}.vg-ddf{font-size:11px;color:#8a95a6;padding:8px 14px;border-top:1px solid #f0f2f7;margin-top:4px}
+#vg-p360{display:none;position:fixed;inset:0;background:rgba(20,35,59,.55);z-index:10000;overflow:auto;padding:24px 12px}#vg-p360.open{display:block}
+.vg-p3{background:#f4f6fa;border-radius:16px;max-width:1280px;margin:0 auto;box-shadow:0 14px 60px rgba(0,0,0,.35);min-height:300px}
+.vg-p3h{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:16px 22px;background:#fff;border-radius:16px 16px 0 0;border-bottom:1px solid #e4e8f0;flex-wrap:wrap}.vg-p3t{font-size:19px;font-weight:700;color:#14233b}.vg-p3s{font-size:12.5px;color:#6b7a90;margin-top:2px}
+.vg-tabs.p3{padding:0 18px;margin:0;background:#fff}.vg-p3b{padding:16px 22px 24px}.vg-p3sec{margin-bottom:18px}
+#vg-srch{display:none;position:fixed;inset:0;background:rgba(20,35,59,.5);z-index:10100;justify-content:center;align-items:flex-start;padding-top:9vh}#vg-srch.open{display:flex}
+.vg-sbox{background:#fff;width:680px;max-width:94vw;border-radius:14px;box-shadow:0 14px 60px rgba(0,0,0,.35);overflow:hidden}.vg-sbox input{width:100%;border:none;border-bottom:1px solid #eef1f6;padding:16px 20px;font-size:15px;outline:none;box-sizing:border-box;font-family:inherit}
+.vg-sr{max-height:60vh;overflow:auto;padding-bottom:8px}.vg-sg{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;font-weight:700;color:#8a95a6;padding:10px 20px 3px}.vg-sri{padding:8px 20px;cursor:pointer;font-size:13.5px;color:#14233b}.vg-sri:hover{background:#eef5fc}
+.vg-tbs{display:flex;align-items:center;gap:7px;border:1px solid #dde2ec;background:#fff;border-radius:8px;padding:6px 11px;font-size:12.5px;color:#6b7a90;cursor:pointer;font-family:inherit;margin-right:10px}.vg-tbs kbd{font-size:10px;border:1px solid #dde2ec;border-radius:4px;padding:1px 5px;background:#f4f6fa}
+@media(max-width:700px){.vg-fg{grid-template-columns:1fr}.vg-tbs span,.vg-tbs kbd{display:none}.vg-grid2{grid-template-columns:1fr}.vg-p3b{padding:12px}}
+</style>
 </head>
 <body autocomplete="off">
 <!-- AUTH -->
@@ -8169,7 +8236,7 @@ async function bdAIContext(q){
   }catch(e){return '';}
 }
 
-var APP_VERSION='2.4.0',APP_BUILD_DATE='Oct 23, 2026';
+var APP_VERSION='2.5.0',APP_BUILD_DATE='Oct 24, 2026';
 (function(){function s(){var e=document.getElementById('sb-ver');if(e)e.textContent='Vantage v'+APP_VERSION+' · '+APP_BUILD_DATE;}s();document.addEventListener('DOMContentLoaded',s);})();
 
 </script>
@@ -9286,6 +9353,1112 @@ AIP.learnNow=async function(id){
  bdToast('AI is reading your review...');var ok=await learnJob(j,p);if(!ok)alert('Could not finish learning. See the browser console.');AIP.openJobs();
 };
 })();
+</script>
+<script id="vg-departments">
+/* ===== Vantage Departments (core: settings, visibility, sidebar, helpers) ===== */
+(function(){
+var VG=window.VG={spec:{"tables":{"vg_projects":{"n":"vg_projects","m":"pm","l":"Projects","cols":[{"k":"code","t":"text","l":"Project Code","req":1,"list":1,"ph":"GC26-22-120","uniq":1},{"k":"name","t":"text","l":"Project Name","req":1,"list":1},{"k":"client","t":"text","l":"Client / GC","list":1},{"k":"type","t":"select","l":"Type","opts":["Data","AV","Security","Mixed","Service"],"list":1},{"k":"status","t":"select","l":"Status","opts":["Bidding","Awarded","Pre-Construction","Active","On Hold","Closed Out","Warranty","Lost"],"list":1,"default":"Active"},{"k":"pm_id","t":"user","l":"Project Manager","list":1},{"k":"sales_id","t":"user","l":"Sales Rep"},{"k":"eng_id","t":"user","l":"Engineer"},{"k":"tech_id","t":"user","l":"Lead Technician"},{"k":"contract_value","t":"money","l":"Contract Value","list":1},{"k":"est_cost","t":"money","l":"Estimated Cost"},{"k":"start_date","t":"date","l":"Start"},{"k":"end_date","t":"date","l":"Planned End","list":1},{"k":"address","t":"text","l":"Site Address"},{"k":"city","t":"text","l":"City"},{"k":"state","t":"text","l":"State"},{"k":"bid_ref","t":"text","l":"Bid Ref"},{"k":"build_project_id","t":"text","l":"Build Project Id","hide":1},{"k":"notes","t":"longtext","l":"Notes"}],"project":false,"status":"status","board":1,"title":"name","search":["code","name","client","city"],"sort":"created_at"},"acc_invoices":{"n":"acc_invoices","m":"acc","l":"Invoices","cols":[{"k":"invoice_no","t":"text","l":"Invoice #","req":1,"list":1},{"k":"project_code","t":"project","l":"Project","list":1},{"k":"client","t":"text","l":"Client","list":1},{"k":"type","t":"select","l":"Type","opts":["Progress","Milestone","Deposit","Final","Service","Change Order"]},{"k":"status","t":"select","l":"Status","opts":["Draft","Sent","Partial","Paid","Overdue","Void"],"list":1,"default":"Draft"},{"k":"issue_date","t":"date","l":"Issue Date","list":1},{"k":"due_date","t":"date","l":"Due Date","list":1},{"k":"amount","t":"money","l":"Amount","req":1},{"k":"tax","t":"money","l":"Tax"},{"k":"total","t":"money","l":"Total","list":1,"ro":1},{"k":"paid","t":"money","l":"Paid","ro":1},{"k":"terms","t":"text","l":"Terms","ph":"Net 30"},{"k":"proposal_no","t":"text","l":"Proposal / Estimate #"},{"k":"description","t":"longtext","l":"Description"},{"k":"notes","t":"longtext","l":"Notes"}],"status":"status","title":"invoice_no","search":["invoice_no","client","project_code"],"sort":"issue_date","acc":1},"acc_payments":{"n":"acc_payments","m":"acc","l":"Payments Received","cols":[{"k":"invoice_id","t":"link","l":"Invoice","link":"acc_invoices","show":"invoice_no","req":1,"list":1},{"k":"project_code","t":"project","l":"Project","list":1},{"k":"pay_date","t":"date","l":"Date","req":1,"list":1},{"k":"amount","t":"money","l":"Amount","req":1,"list":1},{"k":"method","t":"select","l":"Method","opts":["Check","ACH","Wire","Card","Cash"],"list":1},{"k":"reference","t":"text","l":"Reference / Check #","list":1},{"k":"notes","t":"longtext","l":"Notes"}],"title":"reference","search":["reference","project_code"],"sort":"pay_date","acc":1},"acc_expenses":{"n":"acc_expenses","m":"acc","l":"Expenses","cols":[{"k":"exp_date","t":"date","l":"Date","req":1,"list":1},{"k":"category","t":"select","l":"Category","opts":["Materials","Labor","Subcontractor","Fuel","Tools & Equipment","Vehicle","Meals","Travel","Insurance","Software","Office","Permits & Fees","Other"],"list":1},{"k":"vendor","t":"text","l":"Vendor","list":1},{"k":"description","t":"text","l":"Description","list":1},{"k":"amount","t":"money","l":"Amount","req":1,"list":1},{"k":"project_code","t":"project","l":"Project","list":1},{"k":"paid_by","t":"user","l":"Paid By"},{"k":"payment_method","t":"select","l":"Payment Method","opts":["Company Card","Cash","Check","Personal (reimburse)","ACH"]},{"k":"reimbursable","t":"bool","l":"Reimbursable"},{"k":"status","t":"select","l":"Status","opts":["Submitted","Approved","Paid","Rejected"],"list":1,"default":"Submitted"},{"k":"receipt","t":"file","l":"Receipt"},{"k":"notes","t":"longtext","l":"Notes"}],"status":"status","title":"description","search":["vendor","description","project_code"],"sort":"exp_date","acc":1},"acc_vendors":{"n":"acc_vendors","m":"acc","l":"Vendors","cols":[{"k":"name","t":"text","l":"Vendor","req":1,"list":1},{"k":"category","t":"text","l":"Category","list":1},{"k":"contact","t":"text","l":"Contact","list":1},{"k":"email","t":"text","l":"Email"},{"k":"phone","t":"text","l":"Phone","list":1},{"k":"terms","t":"text","l":"Payment Terms"},{"k":"w9","t":"bool","l":"W-9 on file"},{"k":"insurance_expiry","t":"date","l":"Insurance Expires"},{"k":"status","t":"select","l":"Status","opts":["Active","Inactive","Do Not Use"],"default":"Active","list":1},{"k":"notes","t":"longtext","l":"Notes"}],"status":"status","title":"name","search":["name","contact","category"],"sort":"name","acc":1},"acc_bills":{"n":"acc_bills","m":"acc","l":"Bills (Payable)","cols":[{"k":"bill_no","t":"text","l":"Bill #","list":1},{"k":"vendor","t":"text","l":"Vendor","req":1,"list":1},{"k":"project_code","t":"project","l":"Project","list":1},{"k":"category","t":"select","l":"Category","opts":["Materials","Subcontractor","Equipment","Services","Other"]},{"k":"bill_date","t":"date","l":"Bill Date"},{"k":"due_date","t":"date","l":"Due Date","list":1},{"k":"amount","t":"money","l":"Amount","req":1,"list":1},{"k":"paid","t":"money","l":"Paid"},{"k":"status","t":"select","l":"Status","opts":["Open","Partial","Paid","Void"],"list":1,"default":"Open"},{"k":"file","t":"file","l":"Bill copy"},{"k":"notes","t":"longtext","l":"Notes"}],"status":"status","title":"bill_no","search":["bill_no","vendor","project_code"],"sort":"due_date","acc":1},"acc_payapps":{"n":"acc_payapps","m":"acc","l":"Pay Applications","cols":[{"k":"project_code","t":"project","l":"Project","req":1,"list":1},{"k":"app_no","t":"int","l":"App #","list":1},{"k":"period_end","t":"date","l":"Period Ending","list":1},{"k":"contract_amount","t":"money","l":"Contract Amount"},{"k":"previous_billed","t":"money","l":"Previously Billed"},{"k":"this_period","t":"money","l":"This Period","list":1},{"k":"retainage_pct","t":"num","l":"Retainage %","default":10},{"k":"retainage_held","t":"money","l":"Retainage Held","ro":1},{"k":"net_due","t":"money","l":"Net Due","list":1,"ro":1},{"k":"status","t":"select","l":"Status","opts":["Draft","Submitted","Approved","Paid"],"list":1,"default":"Draft"},{"k":"notes","t":"longtext","l":"Notes"}],"status":"status","title":"project_code","search":["project_code"],"sort":"period_end","acc":1},"sal_leads":{"n":"sal_leads","m":"sales","l":"Leads & Opportunities","cols":[{"k":"company","t":"text","l":"Company","req":1,"list":1},{"k":"contact","t":"text","l":"Contact","list":1},{"k":"email","t":"text","l":"Email"},{"k":"phone","t":"text","l":"Phone"},{"k":"source","t":"text","l":"Source","list":1},{"k":"stage","t":"select","l":"Stage","opts":["New","Contacted","Qualified","Proposal","Negotiation","Won","Lost"],"list":1,"default":"New"},{"k":"interest","t":"select","l":"Interest","opts":["Data","AV","Security","Wireless","Service","Mixed"]},{"k":"est_value","t":"money","l":"Est. Value","list":1},{"k":"probability","t":"int","l":"Probability %","default":20},{"k":"expected_close","t":"date","l":"Expected Close","list":1},{"k":"owner_id","t":"user","l":"Owner","list":1},{"k":"next_step","t":"text","l":"Next Step"},{"k":"next_date","t":"date","l":"Next Step Date"},{"k":"project_code","t":"project","l":"Linked Project"},{"k":"notes","t":"longtext","l":"Notes"}],"status":"stage","board":1,"title":"company","search":["company","contact","source"],"sort":"created_at"},"sal_accounts":{"n":"sal_accounts","m":"sales","l":"Customers","cols":[{"k":"company","t":"text","l":"Company","req":1,"list":1},{"k":"type","t":"select","l":"Type","opts":["GC","Owner","Property Manager","End User","Government","Other"],"list":1},{"k":"contact","t":"text","l":"Primary Contact","list":1},{"k":"email","t":"text","l":"Email"},{"k":"phone","t":"text","l":"Phone","list":1},{"k":"address","t":"text","l":"Address"},{"k":"city","t":"text","l":"City","list":1},{"k":"state","t":"text","l":"State"},{"k":"payment_terms","t":"text","l":"Payment Terms","ph":"Net 30"},{"k":"tax_exempt","t":"bool","l":"Tax Exempt"},{"k":"credit_status","t":"select","l":"Credit Status","opts":["Good","Watch","On Hold"],"default":"Good","list":1},{"k":"owner_id","t":"user","l":"Account Owner"},{"k":"notes","t":"longtext","l":"Notes"}],"status":"credit_status","title":"company","search":["company","contact","city"],"sort":"company"},"sal_activities":{"n":"sal_activities","m":"sales","l":"Activities","cols":[{"k":"act_date","t":"date","l":"Date","req":1,"list":1},{"k":"type","t":"select","l":"Type","opts":["Call","Email","Meeting","Site Visit","Proposal Sent","Follow-up","Lunch / Event"],"list":1},{"k":"subject","t":"text","l":"Subject","req":1,"list":1},{"k":"company","t":"text","l":"Company","list":1},{"k":"contact","t":"text","l":"Contact"},{"k":"project_code","t":"project","l":"Project"},{"k":"owner_id","t":"user","l":"By","list":1},{"k":"outcome","t":"text","l":"Outcome"},{"k":"notes","t":"longtext","l":"Notes"}],"title":"subject","search":["subject","company","contact"],"sort":"act_date"},"sal_targets":{"n":"sal_targets","m":"sales","l":"Sales Targets","cols":[{"k":"period","t":"text","l":"Month (YYYY-MM)","req":1,"list":1,"ph":"2026-11"},{"k":"owner_id","t":"user","l":"Salesperson (blank = company)","list":1},{"k":"revenue_target","t":"money","l":"Revenue Target","list":1},{"k":"bids_target","t":"int","l":"Bids Target","list":1},{"k":"notes","t":"text","l":"Notes"}],"title":"period","search":["period"],"sort":"period"},"wh_items":{"n":"wh_items","m":"wh","l":"Inventory Items","cols":[{"k":"sku","t":"text","l":"SKU / Part #","req":1,"list":1},{"k":"name","t":"text","l":"Item","req":1,"list":1},{"k":"category","t":"select","l":"Category","opts":["Cable","Jacks & Connectors","Patch Panels","Racks & Enclosures","Network Gear","AV","Security","Fasteners & Supports","Tools","Consumables","Other"],"list":1},{"k":"manufacturer","t":"text","l":"Manufacturer","list":1},{"k":"model","t":"text","l":"Model"},{"k":"unit","t":"select","l":"Unit","opts":["ea","ft","box","roll","spool","pack"],"default":"ea"},{"k":"unit_cost","t":"money","l":"Unit Cost","list":1},{"k":"reorder_point","t":"num","l":"Reorder Point","list":1},{"k":"reorder_qty","t":"num","l":"Reorder Qty"},{"k":"vendor","t":"text","l":"Preferred Vendor"},{"k":"active","t":"bool","l":"Active","default":true},{"k":"notes","t":"longtext","l":"Notes"}],"title":"name","search":["sku","name","manufacturer","category"],"sort":"name"},"wh_locations":{"n":"wh_locations","m":"wh","l":"Locations","cols":[{"k":"name","t":"text","l":"Location","req":1,"list":1},{"k":"type","t":"select","l":"Type","opts":["Warehouse","Truck / Van","Job Site","Shop","Other"],"list":1},{"k":"responsible_id","t":"user","l":"Responsible","list":1},{"k":"address","t":"text","l":"Address"},{"k":"notes","t":"longtext","l":"Notes"}],"title":"name","search":["name"],"sort":"name"},"wh_moves":{"n":"wh_moves","m":"wh","l":"Stock Movements","cols":[{"k":"move_date","t":"date","l":"Date","req":1,"list":1},{"k":"type","t":"select","l":"Type","opts":["Receive","Issue to Project","Transfer","Return","Adjust","Scrap"],"req":1,"list":1},{"k":"item_id","t":"link","l":"Item","link":"wh_items","show":"name","req":1,"list":1},{"k":"qty","t":"num","l":"Quantity","req":1,"list":1,"hint":"Adjust: use a negative number to remove stock"},{"k":"from_loc","t":"text","l":"From Location","list":1},{"k":"to_loc","t":"text","l":"To Location","list":1},{"k":"project_code","t":"project","l":"Project","list":1},{"k":"ref","t":"text","l":"PO / Delivery Ticket #"},{"k":"by_id","t":"user","l":"Done By"},{"k":"notes","t":"longtext","l":"Notes"}],"title":"ref","search":["ref","project_code","from_loc","to_loc"],"sort":"move_date"},"wh_requests":{"n":"wh_requests","m":"wh","l":"Material Requests","cols":[{"k":"req_date","t":"date","l":"Requested","req":1,"list":1},{"k":"project_code","t":"project","l":"Project","req":1,"list":1},{"k":"requested_by","t":"user","l":"Requested By","list":1},{"k":"needed_by","t":"date","l":"Needed By","list":1},{"k":"items","t":"longtext","l":"Items & Quantities","req":1},{"k":"status","t":"select","l":"Status","opts":["Requested","Approved","Picking","Ready","Delivered","Cancelled"],"list":1,"default":"Requested"},{"k":"assigned_to","t":"user","l":"Warehouse Owner"},{"k":"notes","t":"longtext","l":"Notes"}],"status":"status","board":1,"title":"project_code","search":["project_code","items"],"sort":"needed_by"},"ops_schedule":{"n":"ops_schedule","m":"ops","l":"Schedule","cols":[{"k":"work_date","t":"date","l":"Date","req":1,"list":1},{"k":"end_date","t":"date","l":"Through (optional)"},{"k":"project_code","t":"project","l":"Project","list":1},{"k":"task","t":"text","l":"Work","req":1,"list":1},{"k":"assigned_to","t":"user","l":"Lead","list":1},{"k":"crew","t":"text","l":"Crew","list":1,"ph":"Names, comma separated"},{"k":"start_time","t":"text","l":"Start Time","ph":"7:00 AM"},{"k":"est_hours","t":"num","l":"Est. Hours"},{"k":"location","t":"text","l":"Location"},{"k":"status","t":"select","l":"Status","opts":["Scheduled","In Progress","Done","Cancelled"],"list":1,"default":"Scheduled"},{"k":"notes","t":"longtext","l":"Notes"}],"status":"status","board":1,"title":"task","search":["task","project_code","crew","location"],"sort":"work_date"},"ops_timesheets":{"n":"ops_timesheets","m":"ops","l":"Timesheets","cols":[{"k":"work_date","t":"date","l":"Date","req":1,"list":1},{"k":"user_id","t":"user","l":"Employee","req":1,"list":1},{"k":"project_code","t":"project","l":"Project","list":1},{"k":"hours","t":"num","l":"Hours","req":1,"list":1},{"k":"type","t":"select","l":"Type","opts":["Regular","Overtime","Travel","Training","PTO","Holiday"],"default":"Regular","list":1},{"k":"task","t":"text","l":"Work performed"},{"k":"status","t":"select","l":"Status","opts":["Submitted","Approved","Rejected"],"default":"Submitted","list":1},{"k":"notes","t":"longtext","l":"Notes"}],"status":"status","title":"task","search":["task","project_code"],"sort":"work_date"},"ops_assets":{"n":"ops_assets","m":"ops","l":"Vehicles & Equipment","cols":[{"k":"name","t":"text","l":"Asset","req":1,"list":1},{"k":"type","t":"select","l":"Type","opts":["Vehicle","Lift / Ladder","Hand Tools","Test Equipment","Laptop / Device","Trailer","Other"],"list":1},{"k":"tag","t":"text","l":"Tag / Plate","list":1},{"k":"serial","t":"text","l":"Serial #"},{"k":"assigned_to","t":"user","l":"Assigned To","list":1},{"k":"status","t":"select","l":"Status","opts":["Available","In Use","Maintenance","Out of Service"],"default":"Available","list":1},{"k":"last_service","t":"date","l":"Last Service"},{"k":"next_service","t":"date","l":"Next Service Due","list":1},{"k":"mileage","t":"num","l":"Mileage / Hours"},{"k":"notes","t":"longtext","l":"Notes"}],"status":"status","title":"name","search":["name","tag","serial"],"sort":"name"},"ops_safety":{"n":"ops_safety","m":"ops","l":"Safety","cols":[{"k":"date","t":"date","l":"Date","req":1,"list":1},{"k":"type","t":"select","l":"Type","opts":["Toolbox Talk","Site Inspection","Incident","Near Miss","Training","PPE Check"],"list":1},{"k":"title","t":"text","l":"Title","req":1,"list":1},{"k":"project_code","t":"project","l":"Project","list":1},{"k":"reported_by","t":"user","l":"Reported By"},{"k":"severity","t":"select","l":"Severity","opts":["Low","Medium","High"],"default":"Low","list":1},{"k":"status","t":"select","l":"Status","opts":["Open","Closed"],"default":"Open","list":1},{"k":"details","t":"longtext","l":"Details"},{"k":"corrective_action","t":"longtext","l":"Corrective Action"},{"k":"attachment","t":"file","l":"Attachment"}],"status":"status","title":"title","search":["title","project_code","details"],"sort":"date"},"ops_subs":{"n":"ops_subs","m":"ops","l":"Subcontractors","cols":[{"k":"company","t":"text","l":"Company","req":1,"list":1},{"k":"trade","t":"text","l":"Trade","list":1},{"k":"contact","t":"text","l":"Contact","list":1},{"k":"email","t":"text","l":"Email"},{"k":"phone","t":"text","l":"Phone","list":1},{"k":"rate","t":"money","l":"Rate"},{"k":"insurance_expiry","t":"date","l":"Insurance Expires","list":1},{"k":"w9","t":"bool","l":"W-9 on file"},{"k":"status","t":"select","l":"Status","opts":["Active","Inactive","Do Not Use"],"default":"Active","list":1},{"k":"rating","t":"int","l":"Rating (1-5)"},{"k":"notes","t":"longtext","l":"Notes"}],"status":"status","title":"company","search":["company","trade","contact"],"sort":"company"},"ops_sub_work":{"n":"ops_sub_work","m":"ops","l":"Subcontractor Work","cols":[{"k":"project_code","t":"project","l":"Project","req":1,"list":1},{"k":"sub_id","t":"link","l":"Subcontractor","link":"ops_subs","show":"company","req":1,"list":1},{"k":"scope","t":"text","l":"Scope","list":1},{"k":"amount","t":"money","l":"Amount","list":1},{"k":"start_date","t":"date","l":"Start"},{"k":"end_date","t":"date","l":"End"},{"k":"status","t":"select","l":"Status","opts":["Planned","Active","Complete","Paid"],"default":"Planned","list":1},{"k":"notes","t":"longtext","l":"Notes"}],"status":"status","title":"scope","search":["project_code","scope"],"sort":"start_date"},"eng_rfis":{"n":"eng_rfis","m":"eng","l":"RFIs","cols":[{"k":"rfi_no","t":"text","l":"RFI #","req":1,"list":1},{"k":"project_code","t":"project","l":"Project","req":1,"list":1},{"k":"subject","t":"text","l":"Subject","req":1,"list":1},{"k":"question","t":"longtext","l":"Question","req":1},{"k":"asked_by","t":"user","l":"Asked By"},{"k":"ball_in_court","t":"text","l":"Ball In Court","list":1,"ph":"GC / Architect / NetFiber"},{"k":"date_sent","t":"date","l":"Date Sent"},{"k":"due_date","t":"date","l":"Response Due","list":1},{"k":"status","t":"select","l":"Status","opts":["Draft","Open","Answered","Closed"],"default":"Draft","list":1},{"k":"response","t":"longtext","l":"Response"},{"k":"date_answered","t":"date","l":"Date Answered"},{"k":"impact","t":"select","l":"Impact","opts":["None","Cost","Schedule","Both"],"default":"None"},{"k":"attachment","t":"file","l":"Attachment"}],"status":"status","board":1,"title":"subject","search":["rfi_no","subject","project_code","question"],"sort":"due_date"},"eng_submittals":{"n":"eng_submittals","m":"eng","l":"Submittals","cols":[{"k":"submittal_no","t":"text","l":"Submittal #","req":1,"list":1},{"k":"project_code","t":"project","l":"Project","req":1,"list":1},{"k":"spec_section","t":"text","l":"Spec Section","list":1,"ph":"27 15 00"},{"k":"description","t":"text","l":"Description","req":1,"list":1},{"k":"type","t":"select","l":"Type","opts":["Product Data","Shop Drawing","Sample","Test Report","O&M Manual","Warranty"]},{"k":"revision","t":"int","l":"Revision","default":0},{"k":"status","t":"select","l":"Status","opts":["Draft","Submitted","Approved","Approved as Noted","Revise & Resubmit","Rejected"],"default":"Draft","list":1},{"k":"date_submitted","t":"date","l":"Date Submitted"},{"k":"due_date","t":"date","l":"Needed By","list":1},{"k":"reviewer","t":"text","l":"Reviewer"},{"k":"attachment","t":"file","l":"File"},{"k":"notes","t":"longtext","l":"Notes"}],"status":"status","board":1,"title":"description","search":["submittal_no","description","project_code","spec_section"],"sort":"due_date"},"eng_designs":{"n":"eng_designs","m":"eng","l":"Designs & Drawings","cols":[{"k":"project_code","t":"project","l":"Project","req":1,"list":1},{"k":"title","t":"text","l":"Title","req":1,"list":1},{"k":"discipline","t":"select","l":"Discipline","opts":["Data","Wireless","AV","Security","Power & Grounding","Pathways"],"list":1},{"k":"revision","t":"text","l":"Revision","default":"A","list":1},{"k":"status","t":"select","l":"Status","opts":["Concept","In Progress","In Review","Approved for Construction","As-Built"],"default":"Concept","list":1},{"k":"designer","t":"user","l":"Designer","list":1},{"k":"due_date","t":"date","l":"Due"},{"k":"build_path","t":"text","l":"Where in Build","ph":"7.0 REFERENCE.../Drawings/T-101.pdf"},{"k":"attachment","t":"file","l":"File"},{"k":"notes","t":"longtext","l":"Notes"}],"status":"status","board":1,"title":"title","search":["title","project_code","discipline"],"sort":"due_date"},"eng_changes":{"n":"eng_changes","m":"eng","l":"Design Changes","cols":[{"k":"project_code","t":"project","l":"Project","req":1,"list":1},{"k":"change_no","t":"text","l":"Change #","list":1},{"k":"title","t":"text","l":"Title","req":1,"list":1},{"k":"reason","t":"longtext","l":"Reason / Description"},{"k":"cost_impact","t":"money","l":"Cost Impact","list":1},{"k":"schedule_days","t":"int","l":"Schedule Impact (days)"},{"k":"status","t":"select","l":"Status","opts":["Proposed","Approved","Rejected","Implemented"],"default":"Proposed","list":1},{"k":"requested_by","t":"text","l":"Requested By"},{"k":"notes","t":"longtext","l":"Notes"}],"status":"status","title":"title","search":["title","project_code","change_no"],"sort":"created_at"},"eng_surveys":{"n":"eng_surveys","m":"eng","l":"Site Surveys","cols":[{"k":"project_code","t":"project","l":"Project","req":1,"list":1},{"k":"survey_date","t":"date","l":"Date","req":1,"list":1},{"k":"surveyor","t":"user","l":"Surveyor","list":1},{"k":"ceiling_type","t":"text","l":"Ceiling Type"},{"k":"pathways","t":"longtext","l":"Pathways / Conduit"},{"k":"mdf_idf","t":"longtext","l":"MDF / IDF Rooms"},{"k":"site_conditions","t":"longtext","l":"Site Conditions"},{"k":"risks","t":"longtext","l":"Risks & Concerns"},{"k":"status","t":"select","l":"Status","opts":["Scheduled","Complete","Needs Follow-up"],"default":"Scheduled","list":1},{"k":"attachment","t":"file","l":"Report / Photos"}],"status":"status","title":"project_code","search":["project_code","site_conditions"],"sort":"survey_date"},"eng_standards":{"n":"eng_standards","m":"eng","l":"Standards Library","cols":[{"k":"title","t":"text","l":"Title","req":1,"list":1},{"k":"category","t":"select","l":"Category","opts":["Cabling","Labeling","Firestop","Rack Layout","Testing","AV","Security","Wireless","Other"],"list":1},{"k":"version","t":"text","l":"Version","list":1},{"k":"owner","t":"user","l":"Owner"},{"k":"description","t":"longtext","l":"Description"},{"k":"attachment","t":"file","l":"File"},{"k":"link","t":"text","l":"Link"}],"title":"title","search":["title","category","description"],"sort":"title"},"fld_logs":{"n":"fld_logs","m":"fld","l":"Daily Logs","cols":[{"k":"log_date","t":"date","l":"Date","req":1,"list":1},{"k":"project_code","t":"project","l":"Project","req":1,"list":1},{"k":"author","t":"user","l":"By","list":1},{"k":"weather","t":"text","l":"Weather"},{"k":"crew","t":"text","l":"Crew On Site","list":1},{"k":"hours","t":"num","l":"Total Hours"},{"k":"work_done","t":"longtext","l":"Work Completed","req":1},{"k":"issues","t":"longtext","l":"Issues / Delays"},{"k":"materials_used","t":"longtext","l":"Materials Used"},{"k":"percent_complete","t":"int","l":"% Complete","list":1},{"k":"status","t":"select","l":"Status","opts":["Draft","Submitted","Reviewed"],"default":"Submitted","list":1}],"status":"status","title":"project_code","search":["project_code","work_done","issues","crew"],"sort":"log_date"},"fld_photos":{"n":"fld_photos","m":"fld","l":"Photos","cols":[{"k":"project_code","t":"project","l":"Project","req":1,"list":1},{"k":"file_path","t":"file","l":"Photo","req":1},{"k":"caption","t":"text","l":"Caption","list":1},{"k":"area","t":"text","l":"Room / Area","list":1},{"k":"tag","t":"select","l":"Tag","opts":["Progress","Before","After","Issue","Pathway","Rack / IDF","Labeling","Safety","Other"],"list":1,"default":"Progress"},{"k":"taken_by","t":"user","l":"Taken By","list":1},{"k":"taken_at","t":"date","l":"Date","list":1}],"title":"caption","search":["project_code","caption","area","tag"],"sort":"created_at","gallery":1},"fld_notes":{"n":"fld_notes","m":"fld","l":"Field Notes","cols":[{"k":"note_date","t":"date","l":"Date","req":1,"list":1},{"k":"project_code","t":"project","l":"Project","req":1,"list":1},{"k":"author","t":"user","l":"By","list":1},{"k":"category","t":"select","l":"Category","opts":["General","Site Condition","Customer Request","Safety","Change","Reminder"],"default":"General","list":1},{"k":"title","t":"text","l":"Title","req":1,"list":1},{"k":"body","t":"longtext","l":"Note"},{"k":"for_pm","t":"bool","l":"Flag for Project Manager"}],"title":"title","search":["title","body","project_code"],"sort":"note_date"},"fld_shares":{"n":"fld_shares","m":"fld","l":"Shared Drawings","cols":[{"k":"project_code","t":"project","l":"Project","req":1,"list":1},{"k":"title","t":"text","l":"Title","req":1,"list":1},{"k":"message","t":"longtext","l":"Message"},{"k":"file_path","t":"file","l":"Drawing / File","req":1},{"k":"from_id","t":"user","l":"From","list":1},{"k":"to_id","t":"user","l":"Send To","list":1},{"k":"status","t":"select","l":"Status","opts":["Sent","Seen","Replied","Closed"],"default":"Sent","list":1},{"k":"reply","t":"longtext","l":"Reply"}],"status":"status","title":"title","search":["title","project_code","message"],"sort":"created_at"},"fld_punch":{"n":"fld_punch","m":"fld","l":"Punch List","cols":[{"k":"project_code","t":"project","l":"Project","req":1,"list":1},{"k":"location","t":"text","l":"Location","list":1},{"k":"description","t":"text","l":"Item","req":1,"list":1},{"k":"priority","t":"select","l":"Priority","opts":["Low","Normal","High"],"default":"Normal","list":1},{"k":"status","t":"select","l":"Status","opts":["Open","In Progress","Fixed","Verified"],"default":"Open","list":1},{"k":"found_by","t":"user","l":"Found By"},{"k":"assigned_to","t":"user","l":"Assigned To","list":1},{"k":"due_date","t":"date","l":"Due"},{"k":"photo","t":"file","l":"Photo"},{"k":"notes","t":"longtext","l":"Notes"}],"status":"status","board":1,"title":"description","search":["description","location","project_code"],"sort":"created_at"},"fld_tests":{"n":"fld_tests","m":"fld","l":"Cable Tests","cols":[{"k":"project_code","t":"project","l":"Project","req":1,"list":1},{"k":"test_date","t":"date","l":"Date","list":1},{"k":"tester","t":"user","l":"Tester"},{"k":"label","t":"text","l":"Cable / Port Label","req":1,"list":1},{"k":"cable_type","t":"select","l":"Cable Type","opts":["Cat6","Cat6A","Cat5e","Fiber MM","Fiber SM","Coax","Other"],"list":1},{"k":"result","t":"select","l":"Result","opts":["Pass","Fail","Retest"],"default":"Pass","list":1},{"k":"length_ft","t":"num","l":"Length (ft)","list":1},{"k":"notes","t":"text","l":"Notes"},{"k":"report","t":"file","l":"Test Report"}],"status":"result","title":"label","search":["label","project_code"],"sort":"test_date"},"pm_milestones":{"n":"pm_milestones","m":"pm","l":"Milestones","cols":[{"k":"project_code","t":"project","l":"Project","req":1,"list":1},{"k":"name","t":"text","l":"Milestone","req":1,"list":1},{"k":"due_date","t":"date","l":"Due","list":1},{"k":"completed_date","t":"date","l":"Completed"},{"k":"status","t":"select","l":"Status","opts":["Not Started","In Progress","Done","Late","Blocked"],"default":"Not Started","list":1},{"k":"percent","t":"int","l":"% Done","list":1},{"k":"owner_id","t":"user","l":"Owner","list":1},{"k":"notes","t":"longtext","l":"Notes"}],"status":"status","board":1,"title":"name","search":["name","project_code"],"sort":"due_date"},"pm_budget":{"n":"pm_budget","m":"pm","l":"Budget","cols":[{"k":"project_code","t":"project","l":"Project","req":1,"list":1},{"k":"category","t":"select","l":"Category","opts":["Labor","Materials","Subcontractors","Equipment","Permits & Fees","Travel","Other"],"req":1,"list":1},{"k":"description","t":"text","l":"Description","list":1},{"k":"budget","t":"money","l":"Budget","list":1},{"k":"committed","t":"money","l":"Committed (POs/Subs)","list":1},{"k":"actual","t":"money","l":"Actual to Date","list":1},{"k":"notes","t":"longtext","l":"Notes"}],"title":"description","search":["project_code","description","category"],"sort":"project_code"},"pm_change_orders":{"n":"pm_change_orders","m":"pm","l":"Change Orders","cols":[{"k":"project_code","t":"project","l":"Project","req":1,"list":1},{"k":"co_no","t":"text","l":"CO #","list":1},{"k":"title","t":"text","l":"Title","req":1,"list":1},{"k":"description","t":"longtext","l":"Description"},{"k":"amount","t":"money","l":"Amount","list":1},{"k":"days_added","t":"int","l":"Days Added"},{"k":"status","t":"select","l":"Status","opts":["Draft","Submitted","Approved","Rejected","Invoiced"],"default":"Draft","list":1},{"k":"date_submitted","t":"date","l":"Submitted"},{"k":"date_approved","t":"date","l":"Approved"},{"k":"notes","t":"longtext","l":"Notes"}],"status":"status","board":1,"title":"title","search":["title","project_code","co_no"],"sort":"created_at"},"pm_meetings":{"n":"pm_meetings","m":"pm","l":"Meetings","cols":[{"k":"project_code","t":"project","l":"Project","req":1,"list":1},{"k":"meeting_date","t":"date","l":"Date","req":1,"list":1},{"k":"type","t":"select","l":"Type","opts":["Kickoff","Weekly","Coordination","Owner / GC","Closeout","Other"],"list":1},{"k":"attendees","t":"text","l":"Attendees","list":1},{"k":"agenda","t":"longtext","l":"Agenda"},{"k":"minutes","t":"longtext","l":"Minutes"},{"k":"action_items","t":"longtext","l":"Action Items"},{"k":"next_meeting","t":"date","l":"Next Meeting"}],"title":"project_code","search":["project_code","minutes","action_items","attendees"],"sort":"meeting_date"},"pm_risks":{"n":"pm_risks","m":"pm","l":"Risks & Issues","cols":[{"k":"project_code","t":"project","l":"Project","req":1,"list":1},{"k":"title","t":"text","l":"Title","req":1,"list":1},{"k":"type","t":"select","l":"Type","opts":["Risk","Issue"],"list":1},{"k":"probability","t":"select","l":"Probability","opts":["Low","Medium","High"]},{"k":"impact","t":"select","l":"Impact","opts":["Low","Medium","High"],"list":1},{"k":"status","t":"select","l":"Status","opts":["Open","Mitigating","Closed"],"default":"Open","list":1},{"k":"owner_id","t":"user","l":"Owner"},{"k":"due_date","t":"date","l":"Due"},{"k":"mitigation","t":"longtext","l":"Mitigation / Resolution"}],"status":"status","title":"title","search":["title","project_code","mitigation"],"sort":"created_at"},"pm_reports":{"n":"pm_reports","m":"pm","l":"Status Reports","cols":[{"k":"project_code","t":"project","l":"Project","req":1,"list":1},{"k":"week_ending","t":"date","l":"Week Ending","req":1,"list":1},{"k":"overall","t":"select","l":"Overall","opts":["Green","Yellow","Red"],"default":"Green","list":1},{"k":"percent_complete","t":"int","l":"% Complete","list":1},{"k":"budget_status","t":"select","l":"Budget","opts":["On Budget","Watch","Over Budget"]},{"k":"schedule_status","t":"select","l":"Schedule","opts":["On Schedule","Watch","Behind"]},{"k":"summary","t":"longtext","l":"Summary"},{"k":"accomplishments","t":"longtext","l":"Accomplished This Week"},{"k":"upcoming","t":"longtext","l":"Next Week"},{"k":"issues","t":"longtext","l":"Issues / Help Needed"},{"k":"author","t":"user","l":"Author"}],"status":"overall","title":"project_code","search":["project_code","summary"],"sort":"week_ending"},"pm_team":{"n":"pm_team","m":"pm","l":"Project Team","cols":[{"k":"project_code","t":"project","l":"Project","req":1,"list":1},{"k":"user_id","t":"user","l":"Person","req":1,"list":1},{"k":"role","t":"select","l":"Role","opts":["Project Manager","Engineer","Lead Technician","Technician","Sales","Estimator","Accounting","Other"],"list":1},{"k":"notes","t":"text","l":"Notes"}],"title":"role","search":["project_code","role"],"sort":"project_code"},"svc_agreements":{"n":"svc_agreements","m":"svc","l":"Service Agreements","cols":[{"k":"agreement_no","t":"text","l":"Agreement #","req":1,"list":1},{"k":"customer","t":"text","l":"Customer","req":1,"list":1},{"k":"site","t":"text","l":"Site","list":1},{"k":"type","t":"select","l":"Type","opts":["Preventive Maintenance","Full Service","Time & Material","SLA Support","Warranty"],"list":1},{"k":"status","t":"select","l":"Status","opts":["Draft","Active","Expiring","Expired","Cancelled"],"default":"Draft","list":1},{"k":"start_date","t":"date","l":"Start"},{"k":"end_date","t":"date","l":"End","list":1},{"k":"billing","t":"select","l":"Billing","opts":["Monthly","Quarterly","Annual","Per Visit"]},{"k":"amount","t":"money","l":"Amount per Billing Period","list":1},{"k":"response_sla","t":"text","l":"Response SLA","ph":"4 business hours"},{"k":"visits_per_year","t":"int","l":"Visits per Year"},{"k":"auto_renew","t":"bool","l":"Auto-renew"},{"k":"renewal_date","t":"date","l":"Renewal Date"},{"k":"contact","t":"text","l":"Contact"},{"k":"email","t":"text","l":"Email"},{"k":"phone","t":"text","l":"Phone"},{"k":"scope","t":"longtext","l":"Scope Covered"},{"k":"notes","t":"longtext","l":"Notes"},{"k":"attachment","t":"file","l":"Signed Agreement"}],"status":"status","title":"customer","search":["agreement_no","customer","site"],"sort":"end_date"},"svc_tickets":{"n":"svc_tickets","m":"svc","l":"Service Tickets","cols":[{"k":"ticket_no","t":"text","l":"Ticket #","req":1,"list":1},{"k":"customer","t":"text","l":"Customer","req":1,"list":1},{"k":"site","t":"text","l":"Site","list":1},{"k":"title","t":"text","l":"Issue","req":1,"list":1},{"k":"description","t":"longtext","l":"Description"},{"k":"priority","t":"select","l":"Priority","opts":["Low","Normal","High","Emergency"],"default":"Normal","list":1},{"k":"category","t":"select","l":"Category","opts":["Data","Wireless","AV","Security","Other"]},{"k":"status","t":"select","l":"Status","opts":["New","Scheduled","In Progress","Waiting Parts","Completed","Invoiced","Cancelled"],"default":"New","list":1},{"k":"agreement_id","t":"link","l":"Service Agreement","link":"svc_agreements","show":"agreement_no"},{"k":"project_code","t":"project","l":"Related Project"},{"k":"assigned_to","t":"user","l":"Technician","list":1},{"k":"opened_date","t":"date","l":"Opened"},{"k":"scheduled_date","t":"date","l":"Scheduled","list":1},{"k":"completed_date","t":"date","l":"Completed"},{"k":"labor_hours","t":"num","l":"Labor Hours"},{"k":"parts_used","t":"longtext","l":"Parts Used"},{"k":"billable","t":"bool","l":"Billable","default":true},{"k":"amount","t":"money","l":"Billable Amount"},{"k":"resolution","t":"longtext","l":"Resolution"}],"status":"status","board":1,"title":"title","search":["ticket_no","customer","site","title"],"sort":"created_at"},"svc_assets":{"n":"svc_assets","m":"svc","l":"Customer Equipment","cols":[{"k":"customer","t":"text","l":"Customer","req":1,"list":1},{"k":"site","t":"text","l":"Site","list":1},{"k":"type","t":"select","l":"Type","opts":["Switch","Router / Firewall","Wireless AP","Camera","NVR","Access Control","AV Equipment","Rack / UPS","Other"],"list":1},{"k":"make","t":"text","l":"Make","list":1},{"k":"model","t":"text","l":"Model","list":1},{"k":"serial","t":"text","l":"Serial #"},{"k":"location","t":"text","l":"Location / Room"},{"k":"install_date","t":"date","l":"Installed"},{"k":"warranty_end","t":"date","l":"Warranty Ends","list":1},{"k":"agreement_id","t":"link","l":"Service Agreement","link":"svc_agreements","show":"agreement_no"},{"k":"status","t":"select","l":"Status","opts":["In Service","Needs Attention","Retired"],"default":"In Service","list":1},{"k":"notes","t":"longtext","l":"Notes"}],"status":"status","title":"model","search":["customer","site","make","model","serial"],"sort":"customer"},"svc_visits":{"n":"svc_visits","m":"svc","l":"Maintenance Visits","cols":[{"k":"agreement_id","t":"link","l":"Service Agreement","link":"svc_agreements","show":"agreement_no","req":1,"list":1},{"k":"customer","t":"text","l":"Customer","list":1},{"k":"visit_date","t":"date","l":"Visit Date","req":1,"list":1},{"k":"status","t":"select","l":"Status","opts":["Scheduled","Completed","Missed"],"default":"Scheduled","list":1},{"k":"tech_id","t":"user","l":"Technician","list":1},{"k":"checklist","t":"longtext","l":"Checklist"},{"k":"findings","t":"longtext","l":"Findings / Recommendations"},{"k":"report","t":"file","l":"Report"}],"status":"status","title":"customer","search":["customer"],"sort":"visit_date"}},"modules":[{"key":"vg_accounting","label":"Accounting","color":"#0F7B5F","icon":"<line x1=\"12\" y1=\"1\" x2=\"12\" y2=\"23\"/><path d=\"M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6\"/>","groups":["admin","sales"]},{"key":"vg_sales","label":"Sales","color":"#1B5E9B","icon":"<polyline points=\"23 6 13.5 15.5 8.5 10.5 1 18\"/><polyline points=\"17 6 23 6 23 12\"/>","groups":["admin","sales"]},{"key":"vg_warehouse","label":"Warehouse","color":"#8A5A00","icon":"<path d=\"M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z\"/><polyline points=\"3.27 6.96 12 12.01 20.73 6.96\"/><line x1=\"12\" y1=\"22.08\" x2=\"12\" y2=\"12\"/>","groups":["admin","sales","staff","field"]},{"key":"vg_operations","label":"Operations","color":"#6B4FBB","icon":"<rect x=\"3\" y=\"4\" width=\"18\" height=\"18\" rx=\"2\"/><line x1=\"16\" y1=\"2\" x2=\"16\" y2=\"6\"/><line x1=\"8\" y1=\"2\" x2=\"8\" y2=\"6\"/><line x1=\"3\" y1=\"10\" x2=\"21\" y2=\"10\"/>","groups":["admin","sales","staff"]},{"key":"vg_engineering","label":"Engineering","color":"#B03A6B","icon":"<path d=\"M12 20h9\"/><path d=\"M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z\"/>","groups":["admin","sales","staff"]},{"key":"vg_technician","label":"Technician","color":"#D1570D","icon":"<path d=\"M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z\"/><circle cx=\"12\" cy=\"13\" r=\"4\"/>","groups":["admin","sales","staff","field"]},{"key":"vg_pm","label":"Project Management","color":"#2A6F97","icon":"<rect x=\"2\" y=\"7\" width=\"20\" height=\"14\" rx=\"2\"/><path d=\"M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16\"/>","groups":["admin","sales","staff"]},{"key":"vg_service","label":"Service","color":"#3A7D44","icon":"<circle cx=\"12\" cy=\"12\" r=\"10\"/><circle cx=\"12\" cy=\"12\" r=\"4\"/><line x1=\"4.93\" y1=\"4.93\" x2=\"9.17\" y2=\"9.17\"/><line x1=\"14.83\" y1=\"14.83\" x2=\"19.07\" y2=\"19.07\"/><line x1=\"14.83\" y1=\"9.17\" x2=\"19.07\" y2=\"4.93\"/><line x1=\"4.93\" y1=\"19.07\" x2=\"9.17\" y2=\"14.83\"/>","groups":["admin","sales","staff"]}],"mkey":{"acc":"vg_accounting","sales":"vg_sales","wh":"vg_warehouse","ops":"vg_operations","eng":"vg_engineering","fld":"vg_technician","pm":"vg_pm","svc":"vg_service"}},S:{hidden:null,configured:[],loaded:false},preview:{},refs:{projects:[],profiles:{},profList:[],t:0},ts:{},cache:{},hooks:{},acts:{},tools:{},virt:{},auto:{}};
+var MODS={};VG.spec.modules.forEach(function(m){MODS[m.key]=m;});VG.MODS=MODS;
+var NEWKEYS=VG.spec.modules.map(function(m){return m.key;});
+var CORE_LOCK={dashboard:1,mgmt:1};
+var LEGACY=[['bids','Bid Opportunities'],['gc','GC Contacts'],['retail','GC Watchlist'],['proposals','Proposals'],['purchases','Purchases'],['tasks','Taskflow'],['build','Build'],['pipeline','Pipeline Report'],['ai','AI Advisor'],['inbox','Quick Save'],['log','Activity Log']];
+VG.LEGACY=LEGACY;
+function E(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+VG.E=E;
+VG.money=function(n){n=Number(n)||0;return (n<0?'-':'')+'$'+Math.abs(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});};
+VG.money0=function(n){n=Number(n)||0;return (n<0?'-':'')+'$'+Math.abs(Math.round(n)).toLocaleString('en-US');};
+VG.d=function(v){if(!v)return '';var s=String(v).slice(0,10),p=s.split('-');if(p.length!==3)return E(v);var m=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+p[1]-1];return m+' '+(+p[2])+', '+p[0].slice(2);};
+VG.today=function(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
+VG.addDays=function(s,n){var d=new Date((s||VG.today())+'T00:00:00');d.setDate(d.getDate()+n);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
+VG.diff=function(s){if(!s)return 9999;return Math.round((new Date(String(s).slice(0,10)+'T00:00:00')-new Date(VG.today()+'T00:00:00'))/86400000);};
+VG.num=function(v){var n=parseFloat(v);return isFinite(n)?n:0;};
+VG.uid=function(){return (window.crypto&&crypto.randomUUID)?crypto.randomUUID():'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,function(c){var r=Math.random()*16|0;return(c==='x'?r:(r&3|8)).toString(16);});};
+VG.safe=function(n){return String(n||'file').replace(/[^A-Za-z0-9._-]+/g,'_').slice(-100);};
+VG.toast=function(m,bad){try{showToast(m,bad?'#c0392b':'#1D9E75');}catch(e){}};
+VG.badge=function(v){
+ if(v==null||v==='')return '';var s=String(v).toLowerCase(),c='#6b7a90',bg='#eef1f6';
+ if(/^(paid|done|approved|completed|active|answered|closed|verified|fixed|delivered|pass|won|green|complete|reviewed|implemented|in service|good|available|on budget|on schedule|approved for construction|as-built|approved as noted|ready)$/.test(s)){c='#1b7a3d';bg='#dff5e6';}
+ else if(/^(overdue|rejected|lost|fail|emergency|red|high|behind|over budget|missed|do not use|out of service|late|blocked|expired|needs attention|on hold|revise & resubmit)$/.test(s)){c='#b3261e';bg='#fde3e1';}
+ else if(/^(draft|submitted|pending|open|new|partial|yellow|watch|requested|proposal|negotiation|expiring|in review|waiting parts|retest|mitigating|needs follow-up|medium|sent|picking|proposed|bidding|awarded|pre-construction)$/.test(s)){c='#8a5a00';bg='#fff1cc';}
+ else if(/^(scheduled|in progress|invoiced|normal|contacted|qualified|replied|seen|planned|concept|maintenance|in use|warranty)$/.test(s)){c='#1B5E9B';bg='#e3effa';}
+ return '<span class="vg-bd" style="color:'+c+';background:'+bg+'">'+E(v)+'</span>';
+};
+VG.canRaw=function(page){ // group permission ignoring module visibility
+ if(CP&&CP.disabled)return false;var g=getGroups(),gn=CP?CP.group_name||'staff':'staff';return (g[gn]||['dashboard']).indexOf(page)>=0;
+};
+VG.isHidden=function(p){
+ if(CORE_LOCK[p])return false;
+ if(!VG.S.loaded)return NEWKEYS.indexOf(p)>=0;
+ var h=VG.S.hidden;return !!(h&&h.indexOf(p)>=0);
+};
+VG.isAdmin=function(){return !!(CP&&CP.group_name==='admin');};
+
+/* ---------- settings ---------- */
+VG.loadSettings=async function(){
+ try{
+  var r=await sb.from('vg_settings').select('*').eq('key','modules').maybeSingle();
+  if(r.error&&/does not exist|relation/i.test(r.error.message||'')){VG.S.hidden=NEWKEYS.slice();VG.S.loaded=true;VG.S.missing=true;return;}
+  var v=r.data&&r.data.value;
+  VG.S.hidden=(v&&Array.isArray(v.hidden))?v.hidden:NEWKEYS.slice();
+  VG.S.configured=(v&&Array.isArray(v.configured))?v.configured:[];
+ }catch(e){VG.S.hidden=NEWKEYS.slice();}
+ VG.S.loaded=true;
+};
+VG.saveSettings=async function(){
+ var r=await sb.from('vg_settings').upsert({key:'modules',value:{hidden:VG.S.hidden,configured:VG.S.configured},updated_by:CU.id,updated_at:new Date().toISOString()});
+ if(r.error){alert('Could not save: '+r.error.message+'\n\nHave you run SQL_departments.sql in Supabase?');return false;}
+ return true;
+};
+VG.applyAll=function(){
+ try{applyPermissions();}catch(e){}
+ var any=false;document.querySelectorAll('.sb-item[data-page^="vg_"]').forEach(function(el){if(el.style.display!=='none')any=true;});
+ var sec=document.getElementById('vg-sec');if(sec)sec.style.display=any?'':'none';
+};
+
+/* ---------- permissions hooks ---------- */
+var _ca=window.canAccess;
+window.canAccess=function(p){
+ if(p&&p!=='dashboard'&&p!=='mgmt'&&VG.isHidden(p)&&!(VG.preview[p]&&VG.isAdmin()))return false;
+ if(NEWKEYS.indexOf(p)>=0&&VG.isAdmin()){return !(CP&&CP.disabled);}
+ return _ca(p);
+};
+var _gg=window.getGroups;
+window.getGroups=function(){
+ var g=_gg();
+ try{
+  if(g.admin){NEWKEYS.forEach(function(k){if(g.admin.indexOf(k)<0)g.admin.push(k);});}
+  NEWKEYS.forEach(function(k){
+   if(VG.S.configured.indexOf(k)>=0)return;
+   var used=Object.keys(g).some(function(n){return n!=='admin'&&(g[n]||[]).indexOf(k)>=0;});
+   if(used)return;
+   (MODS[k].groups||[]).forEach(function(n){if(n!=='admin'&&g[n]&&g[n].indexOf(k)<0)g[n].push(k);});
+  });
+ }catch(e){}
+ return g;
+};
+try{NEWKEYS.forEach(function(k,i){if(ALL_PAGES.indexOf(k)<0){ALL_PAGES.push(k);PAGE_LABELS.push(MODS[k].label);}});}catch(e){}
+
+/* ---------- routing ---------- */
+var _sp=window.showPage;
+window.showPage=function(p){
+ if(p&&p.indexOf('vg_')===0&&MODS[p]){
+  if(!canAccess(p)){return _sp('dashboard');}
+  document.querySelectorAll('.sb-item').forEach(function(el){el.classList.toggle('on',el.dataset.page===p);});
+  VG.lastPage=p;VG.render(p);return;
+ }
+ return _sp(p);
+};
+var _ap=window.applyPermissions;
+window.applyPermissions=function(){
+ _ap();
+ document.querySelectorAll('.sb-item[data-page^="vg_"]').forEach(function(el){el.style.display=canAccess(el.dataset.page)?'flex':'none';});
+ var any=false;document.querySelectorAll('.sb-item[data-page^="vg_"]').forEach(function(el){if(el.style.display!=='none')any=true;});
+ var sec=document.getElementById('vg-sec');if(sec)sec.style.display=any?'':'none';
+ if(!VG._boot){VG._boot=true;VG.boot();}
+};
+
+VG.buildSidebar=function(){
+ if(document.getElementById('vg-sec'))return;
+ var secs=document.querySelectorAll('#sidebar .sb-sec'),adm=null;
+ secs.forEach(function(s){if(s.textContent.trim()==='Admin')adm=s;});
+ if(!adm)return;
+ var h='<div class="sb-sec" id="vg-sec" style="display:none">Departments</div>';
+ VG.spec.modules.forEach(function(m){
+  h+='<div class="sb-item" data-page="'+m.key+'" style="display:none" onclick="showPage(\''+m.key+'\')"><span class="sb-dot"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">'+m.icon+'</svg></span>'+E(m.label)+'</div>';
+ });
+ adm.insertAdjacentHTML('beforebegin',h);
+};
+VG.buildTopSearch=function(){
+ if(document.getElementById('vg-tbs'))return;
+ var r=document.querySelector('.topbar .tb-right');if(!r)return;
+ var b=document.createElement('button');b.id='vg-tbs';b.className='vg-tbs';b.title='Search everything (Ctrl+K)';
+ b.innerHTML='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><span>Search everything</span><kbd>Ctrl K</kbd>';
+ b.onclick=function(){VG.openSearch();};
+ r.insertBefore(b,r.firstChild);
+};
+document.addEventListener('keydown',function(e){if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'&&CU){e.preventDefault();VG.openSearch();}});
+
+VG.boot=async function(){
+ VG.buildSidebar();VG.buildTopSearch();
+ await VG.loadSettings();
+ VG.applyAll();
+};
+
+/* ---------- reference data ---------- */
+VG.loadRefs=async function(force){
+ if(!force&&Date.now()-VG.refs.t<20000)return VG.refs;
+ var a=await Promise.all([sb.from('vg_projects').select('*').order('code'),sb.from('profiles').select('id,full_name')]);
+ VG.refs.projects=a[0].data||[];VG.refs.profiles={};VG.refs.profList=(a[1].data||[]).filter(function(p){return p.full_name;});
+ VG.refs.profList.forEach(function(p){VG.refs.profiles[p.id]=p.full_name;});
+ VG.refs.t=Date.now();return VG.refs;
+};
+VG.uname=function(id){return id?(VG.refs.profiles[id]||''):'';};
+VG.pname=function(code){var p=VG.refs.projects.find(function(x){return x.code===code;});return p?p.name:'';};
+VG.rows=async function(t,force){
+ var c=VG.cache[t];if(!force&&c&&Date.now()-c.t<15000)return c.rows;
+ var r=await sb.from(t).select('*').limit(5000);
+ var rows=r.data||[];VG.cache[t]={t:Date.now(),rows:rows};return rows;
+};
+VG.bust=function(t){delete VG.cache[t];};
+
+/* ---------- files ---------- */
+VG.BUCKET='module-files';
+VG.upload=async function(file,folder,compress){
+ var blob=file;
+ if(compress&&/^image\//.test(file.type||'')&&typeof bdShrink==='function'){try{blob=await bdShrink(file,1900);}catch(e){blob=file;}}
+ var name=VG.safe(file.name||'photo.jpg');if(blob!==file&&!/\.jpe?g$/i.test(name))name=name.replace(/\.[^.]+$/,'')+'.jpg';
+ var path=folder+'/'+VG.uid().slice(0,8)+'-'+name;
+ var r=await sb.storage.from(VG.BUCKET).upload(path,blob,{contentType:blob.type||file.type||'application/octet-stream',upsert:false});
+ if(r.error)throw r.error;return path;
+};
+VG.urls={};
+VG.url=async function(path){
+ if(!path)return '';var c=VG.urls[path];if(c&&Date.now()-c.t<45*60000)return c.u;
+ var r=await sb.storage.from(VG.BUCKET).createSignedUrl(path,3600);if(r.error)return '';
+ VG.urls[path]={u:r.data.signedUrl,t:Date.now()};return r.data.signedUrl;
+};
+VG.openFile=async function(path){var u=await VG.url(path);if(u)window.open(u,'_blank');};
+
+/* ---------- overlay ---------- */
+VG.ov=function(html,cls){
+ var o=document.getElementById('vg-ov');if(!o){o=document.createElement('div');o.id='vg-ov';document.body.appendChild(o);}
+ o.className='open '+(cls||'');o.innerHTML=html;o.onmousedown=function(e){if(e.target===o&&!o.classList.contains('lock'))VG.close();};return o;
+};
+VG.close=function(){var o=document.getElementById('vg-ov');if(o){o.className='';o.innerHTML='';}};
+VG.confirm=function(msg){return window.confirm(msg);};
+})();
+
+/* ===== Vantage Departments (generic list / form / board engine) ===== */
+(function(){
+var VG=window.VG,E=VG.E,SP=VG.spec.tables;
+VG.auto={acc_invoices:['invoice_no','INV-'],eng_rfis:['rfi_no','RFI-'],eng_submittals:['submittal_no','SUB-'],svc_tickets:['ticket_no','TKT-'],svc_agreements:['agreement_no','SA-'],pm_change_orders:['co_no','CO-'],eng_changes:['change_no','DC-']};
+var ME_FIELDS={by_id:1,author:1,requested_by:1,taken_by:1,from_id:1,found_by:1,tester:1,surveyor:1,reported_by:1,paid_by:1,user_id:1,owner_id:1,designer:1};
+VG.pre={};
+VG.singular=function(l){return l.replace(/ies$/,'y').replace(/s$/,'');};
+VG.col=function(t,k){return SP[t].cols.find(function(c){return c.k===k;});};
+VG.cell=function(t,col,row,forExport){
+ var v=row[col.k],ty=col.t;
+ if(ty==='money')return forExport?(v==null?'':v):(v==null||v===''?'':VG.money(v));
+ if(ty==='date')return forExport?(v||''):VG.d(v);
+ if(ty==='bool')return v?(forExport?'Yes':'<span style="color:#1b7a3d">&#10003;</span>'):'';
+ if(ty==='user')return E(VG.uname(v));
+ if(ty==='link'){var lr=(VG.linkRows[col.link]||[]).find(function(x){return x.id===v;});return E(lr?lr[col.show]:'');}
+ if(ty==='file')return v?(forExport?v:'<a href="#" onclick="VG.openFile(\''+E(v)+'\');return false" style="color:#1B5E9B">Open</a>'):'';
+ if(ty==='select'&&!forExport)return VG.badge(v);
+ if(ty==='project'&&!forExport&&v){return '<a href="#" onclick="VG.openProject(\''+E(v)+'\');return false" style="color:#1B5E9B;font-weight:600">'+E(v)+'</a>';}
+ if(ty==='longtext'&&!forExport)return E(String(v||'').slice(0,90));
+ return forExport?(v==null?'':v):E(v);
+};
+VG.linkRows={};
+VG.loadLinks=async function(t){
+ var need={};SP[t].cols.forEach(function(c){if(c.t==='link')need[c.link]=1;});
+ for(var k in need){VG.linkRows[k]=await VG.rows(k);}
+};
+function defaultsFor(t,preset){
+ var o={};SP[t].cols.forEach(function(c){
+  if(c.default!==undefined)o[c.k]=c.default;
+  else if(c.t==='bool')o[c.k]=false;
+  else if(c.t==='select'&&c.opts&&c.opts.length&&c.req)o[c.k]=c.opts[0];
+  if(c.t==='user'&&ME_FIELDS[c.k])o[c.k]=CU.id;
+  if(c.t==='date'&&/^(date|issue_date|exp_date|work_date|log_date|note_date|move_date|req_date|pay_date|act_date|visit_date|survey_date|test_date|meeting_date|week_ending|taken_at|opened_date)$/.test(c.k))o[c.k]=VG.today();
+ });
+ return Object.assign(o,preset||{});
+}
+/* ---------- list ---------- */
+VG.tbl=async function(host,t,opt){
+ opt=opt||{};var S=SP[t];var st=VG.ts[t]=VG.ts[t]||{q:'',status:'',project:'',view:'list',sk:S.sort||'created_at',sd:-1};
+ if(!host)return;host.innerHTML='<div class="vg-load">Loading...</div>';
+ await Promise.all([VG.loadRefs(),VG.loadLinks(t)]);
+ var rows=await VG.rows(t,true);
+ if(opt.filter){rows=rows.filter(function(r){return Object.keys(opt.filter).every(function(k){return r[k]===opt.filter[k];});});}
+ VG._tb[t]={host:host,opt:opt,rows:rows};VG.drawTbl(t);
+};
+VG._tb={};
+VG.sortBy=function(t,k){var s=VG.ts[t];if(s.sk===k)s.sd=-s.sd;else{s.sk=k;s.sd=1;}VG.drawTbl(t);};
+VG.setF=function(t,k,v){VG.ts[t][k]=v;VG.drawTbl(t);};
+VG.drawTbl=function(t){
+ var B=VG._tb[t];if(!B)return;var S=SP[t],st=VG.ts[t],opt=B.opt,rows=B.rows.slice();
+ var q=(st.q||'').toLowerCase();
+ if(q)rows=rows.filter(function(r){return (S.search||[]).some(function(k){return String(r[k]||'').toLowerCase().indexOf(q)>=0;})||S.cols.some(function(c){return c.t==='user'&&VG.uname(r[c.k]).toLowerCase().indexOf(q)>=0;});});
+ if(S.status&&st.status)rows=rows.filter(function(r){return r[S.status]===st.status;});
+ if(!opt.noProject&&st.project)rows=rows.filter(function(r){return (r.project_code||r.code)===st.project;});
+ var sk=st.sk,sc=VG.col(t,sk);
+ rows.sort(function(a,b){var x=a[sk],y=b[sk];if(sc&&(sc.t==='money'||sc.t==='num'||sc.t==='int')){x=+x||0;y=+y||0;}else{x=String(x==null?'':x).toLowerCase();y=String(y==null?'':y).toLowerCase();}return x<y?-st.sd:x>y?st.sd:0;});
+ var lc=S.cols.filter(function(c){return c.list;});
+ if(opt.compact)lc=lc.slice(0,5);
+ var virt=(VG.virt[t]||[]);
+ var h='<div class="vg-tbar">';
+ if(!opt.compact){
+  h+='<input class="vg-in" placeholder="Search '+E(S.l.toLowerCase())+'..." value="'+E(st.q)+'" oninput="VG.setQ(\''+t+'\',this.value)">';
+  if(S.status){var sc2=VG.col(t,S.status);h+='<select class="vg-in" onchange="VG.setF(\''+t+'\',\'status\',this.value)"><option value="">All '+E(sc2.l.toLowerCase())+'</option>'+sc2.opts.map(function(o){return '<option'+(st.status===o?' selected':'')+'>'+E(o)+'</option>';}).join('')+'</select>';}
+  if(S.cols.some(function(c){return c.t==='project';})||t==='vg_projects'){h+='<select class="vg-in" onchange="VG.setF(\''+t+'\',\'project\',this.value)"><option value="">All projects</option>'+VG.refs.projects.map(function(p){return '<option value="'+E(p.code)+'"'+(st.project===p.code?' selected':'')+'>'+E(p.code+' - '+p.name)+'</option>';}).join('')+'</select>';}
+  if(S.board){h+='<div class="vg-seg"><button class="'+(st.view==='list'?'on':'')+'" onclick="VG.setF(\''+t+'\',\'view\',\'list\')">List</button><button class="'+(st.view==='board'?'on':'')+'" onclick="VG.setF(\''+t+'\',\'view\',\'board\')">Board</button></div>';}
+  h+='<div style="flex:1"></div>';
+  (VG.tools[t]||[]).forEach(function(b,i){h+='<button class="vg-btn" onclick="VG.tool(\''+t+'\','+i+')">'+E(b.l)+'</button>';});
+  h+='<button class="vg-btn" onclick="VG.exportCsv(\''+t+'\')">Export</button>';
+  h+='<button class="vg-btn pri" onclick="VG.edit(\''+t+'\')">+ New '+E(VG.singular(S.l))+'</button>';
+ }else{h+='<div style="font-weight:700">'+E(S.l)+'</div><div style="flex:1"></div><button class="vg-btn pri" onclick="VG.edit(\''+t+'\',null,'+E(JSON.stringify(opt.preset||{}))+')">+ Add</button>';}
+ h+='</div>';
+ if(!opt.compact&&VG.summary&&VG.summary[t])h+='<div class="vg-sum">'+VG.summary[t](rows,B.rows)+'</div>';
+ if(S.board&&st.view==='board'&&!opt.compact){h+=VG.boardHtml(t,rows);}
+ else if(S.gallery&&!opt.compact){h+='<div id="vg-gal-'+t+'"></div>';}
+ else{
+  h+='<div class="vg-wrap"><table class="vg-t"><thead><tr>';
+  lc.forEach(function(c){h+='<th onclick="VG.sortBy(\''+t+'\',\''+c.k+'\')" class="'+(c.t==='money'||c.t==='num'||c.t==='int'?'r':'')+'">'+E(c.l)+(st.sk===c.k?(st.sd>0?' &uarr;':' &darr;'):'')+'</th>';});
+  virt.forEach(function(v){h+='<th class="'+(v.money?'r':'')+'">'+E(v.l)+'</th>';});
+  h+='</tr></thead><tbody>';
+  rows.slice(0,opt.compact?50:500).forEach(function(r){
+   h+='<tr onclick="VG.edit(\''+t+'\',\''+r.id+'\')">';
+   lc.forEach(function(c){h+='<td class="'+(c.t==='money'||c.t==='num'||c.t==='int'?'r':'')+'">'+VG.cell(t,c,r)+'</td>';});
+   virt.forEach(function(v){h+='<td class="'+(v.money?'r':'')+'">'+(v.html?v.fn(r):E(v.money?VG.money(v.fn(r)):v.fn(r)))+'</td>';});
+   h+='</tr>';
+  });
+  if(!rows.length)h+='<tr><td colspan="'+(lc.length+virt.length)+'" class="vg-empty">Nothing here yet.</td></tr>';
+  h+='</tbody></table></div><div class="vg-count">'+rows.length+' record'+(rows.length===1?'':'s')+(rows.length>500&&!opt.compact?' (showing first 500)':'')+'</div>';
+ }
+ var keep=B.host.querySelector('.vg-tbar input.vg-in'),hadFocus=keep&&document.activeElement===keep,pos=hadFocus?keep.selectionStart:0;
+ B.host.innerHTML=h;
+ if(hadFocus){var ni=B.host.querySelector('.vg-tbar input.vg-in');if(ni){ni.focus();try{ni.setSelectionRange(pos,pos);}catch(e){}}}
+ if(S.gallery&&!opt.compact&&VG.drawGallery)VG.drawGallery(t,rows);
+};
+VG.setQ=function(t,v){VG.ts[t].q=v;clearTimeout(VG._qt);VG._qt=setTimeout(function(){VG.drawTbl(t);},180);};
+VG.tool=function(t,i){VG.tools[t][i].fn(VG._tb[t]&&VG._tb[t].rows||[]);};
+VG.exportCsv=function(t){
+ var S=SP[t],B=VG._tb[t];if(!B)return;var cols=S.cols;
+ var lines=[cols.map(function(c){return '"'+c.l.replace(/"/g,'""')+'"';}).join(',')];
+ B.rows.forEach(function(r){lines.push(cols.map(function(c){var v=VG.cell(t,c,r,true);return '"'+String(v==null?'':v).replace(/"/g,'""')+'"';}).join(','));});
+ var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([lines.join('\n')],{type:'text/csv'}));a.download='Vantage_'+t+'_'+VG.today()+'.csv';document.body.appendChild(a);a.click();a.remove();
+};
+/* ---------- board ---------- */
+VG.boardHtml=function(t,rows){
+ var S=SP[t],sc=VG.col(t,S.status),h='<div class="vg-board">';
+ sc.opts.forEach(function(o){
+  var items=rows.filter(function(r){return r[S.status]===o;});
+  h+='<div class="vg-col" ondragover="event.preventDefault();this.classList.add(\'ov\')" ondragleave="this.classList.remove(\'ov\')" ondrop="VG.drop(event,\''+t+'\',\''+E(o).replace(/&#39;/g,"\\'")+'\')"><div class="vg-ch">'+E(o)+' <span>'+items.length+'</span></div>';
+  items.slice(0,80).forEach(function(r){
+   var sub=[];if(r.project_code)sub.push(r.project_code);S.cols.filter(function(c){return c.list&&c.k!==S.status&&c.k!==S.title&&c.k!=='project_code';}).slice(0,2).forEach(function(c){var v=VG.cell(t,c,r,true);if(v!=='')sub.push(c.t==='money'?VG.money(v):c.t==='date'?VG.d(v):(c.t==='user'?VG.uname(v):v));});
+   h+='<div class="vg-card" draggable="true" ondragstart="event.dataTransfer.setData(\'text/plain\',\''+r.id+'\')" onclick="VG.edit(\''+t+'\',\''+r.id+'\')"><div class="vg-ct">'+E(VG.rowTitle?VG.rowTitle(t,r):(r[S.title]||'(untitled)'))+'</div><div class="vg-cs">'+sub.map(E).join(' &middot; ')+'</div></div>';
+  });
+  h+='</div>';
+ });
+ return h+'</div>';
+};
+VG.drop=async function(ev,t,val){
+ ev.preventDefault();var id=ev.dataTransfer.getData('text/plain'),S=SP[t];
+ if(!guardWrite('You cannot change records in view-only mode.'))return;
+ var B=VG._tb[t],row=B.rows.find(function(r){return r.id===id;});if(!row||row[S.status]===val)return;
+ var old=Object.assign({},row),patch={};patch[S.status]=val;patch.updated_by=CU.id;
+ var r=await sb.from(t).update(patch).eq('id',id);if(r.error){VG.toast(r.error.message,1);return;}
+ row[S.status]=val;VG.bust(t);try{await logAct('Moved '+VG.singular(S.l),t,id,(row[S.title]||'')+' -> '+val);}catch(e){}
+ if(VG.hooks[t]&&VG.hooks[t].after)await VG.hooks[t].after(row,false,old);
+ VG.drawTbl(t);
+};
+/* ---------- form ---------- */
+VG.edit=async function(t,id,preset){
+ var S=SP[t];await VG.loadRefs();await VG.loadLinks(t);
+ if(VG.pre&&VG.pre[t])await VG.pre[t]();
+ var row=null;
+ if(id){var r=await sb.from(t).select('*').eq('id',id).maybeSingle();row=r.data;if(!row){VG.toast('Record not found',1);return;}}
+ var isNew=!row;if(typeof preset==='string'){try{preset=JSON.parse(preset);}catch(e){preset={};}}
+ var vals=row?Object.assign({},row):defaultsFor(t,preset);
+ VG._ed={t:t,id:id,row:row,isNew:isNew,files:{}};
+ var h='<div class="vg-dlg"><div class="vg-dh">'+(isNew?'New ':'')+E(VG.singular(S.l))+(isNew?'':' <span class="vg-dm">'+E(VG.rowTitle?VG.rowTitle(t,row):(row[S.title]||''))+'</span>')+'<button class="vg-x" onclick="VG.close()">&times;</button></div><div class="vg-db"><div class="vg-fg">';
+ S.cols.forEach(function(c){
+  if(c.hide)return;
+  var v=vals[c.k],wide=(c.t==='longtext'),ro=c.ro;
+  var ph=c.ph?' placeholder="'+E(c.ph)+'"':'';
+  var a=VG.auto[t];if(a&&a[0]===c.k&&isNew)ph=' placeholder="auto-number"';
+  h+='<div class="vg-f'+(wide?' w':'')+'"><label>'+E(c.l)+(c.req&&!(a&&a[0]===c.k)?' *':'')+'</label>';
+  var idn='vgf_'+c.k;
+  if(c.t==='longtext')h+='<textarea id="'+idn+'" rows="3"'+ph+'>'+E(v||'')+'</textarea>';
+  else if(t==='wh_moves'&&(c.k==='from_loc'||c.k==='to_loc'))h+='<select id="'+idn+'"><option value=""></option>'+(VG.locNames||[]).map(function(o){return '<option'+(v===o?' selected':'')+'>'+E(o)+'</option>';}).join('')+'</select>';
+  else if(c.t==='select')h+='<select id="'+idn+'"><option value=""></option>'+c.opts.map(function(o){return '<option'+(v===o?' selected':'')+'>'+E(o)+'</option>';}).join('')+'</select>';
+  else if(c.t==='user')h+='<select id="'+idn+'"><option value=""></option>'+VG.refs.profList.map(function(p){return '<option value="'+p.id+'"'+(v===p.id?' selected':'')+'>'+E(p.full_name)+'</option>';}).join('')+'</select>';
+  else if(c.t==='project'){var has=VG.refs.projects.some(function(p){return p.code===v;});h+='<select id="'+idn+'"><option value=""></option>'+VG.refs.projects.map(function(p){return '<option value="'+E(p.code)+'"'+(v===p.code?' selected':'')+'>'+E(p.code+' - '+p.name)+'</option>';}).join('')+(v&&!has?'<option selected>'+E(v)+'</option>':'')+'</select>';}
+  else if(c.t==='link'){var lr=VG.linkRows[c.link]||[];h+='<select id="'+idn+'"><option value=""></option>'+lr.map(function(x){return '<option value="'+x.id+'"'+(v===x.id?' selected':'')+'>'+E(x[c.show])+'</option>';}).join('')+'</select>';}
+  else if(c.t==='bool')h+='<label class="vg-chk"><input type="checkbox" id="'+idn+'"'+(v?' checked':'')+'> Yes</label>';
+  else if(c.t==='file')h+='<div><input type="file" id="'+idn+'" '+(t==='fld_photos'||c.k==='photo'||c.k==='receipt'?'accept="image/*,application/pdf"':'')+'>'+(v?'<div class="vg-fl"><a href="#" onclick="VG.openFile(\''+E(v)+'\');return false">Open current file</a></div>':'')+'</div>';
+  else if(c.t==='date')h+='<input type="date" id="'+idn+'" value="'+E(v||'')+'">';
+  else if(c.t==='num'||c.t==='money'||c.t==='int')h+='<input type="number" step="'+(c.t==='int'?'1':'any')+'" id="'+idn+'" value="'+(v==null?'':E(v))+'"'+(ro?' readonly style="background:#f3f5f9"':'')+ph+'>';
+  else h+='<input type="text" id="'+idn+'" value="'+E(v||'')+'"'+ph+(ro?' readonly':'')+'>';
+  if(c.hint)h+='<div class="vg-hint">'+E(c.hint)+'</div>';
+  h+='</div>';
+ });
+ h+='</div><div id="vg-err" class="vg-err"></div></div><div class="vg-df">';
+ if(!isNew)h+='<button class="vg-btn dng" onclick="VG.del()">Delete</button>';
+ (VG.acts[t]||[]).forEach(function(a,i){if(!isNew||a.newOk)h+='<button class="vg-btn" onclick="VG.act('+i+')">'+E(a.l)+'</button>';});
+ h+='<div style="flex:1"></div><button class="vg-btn" onclick="VG.close()">Cancel</button><button class="vg-btn pri" id="vg-save" onclick="VG.save()">Save</button></div></div>';
+ VG.ov(h,'lock');
+ if(!isNew&&t==='fld_shares'&&row.status==='Sent'&&row.to_id===CU.id){sb.from(t).update({status:'Seen'}).eq('id',id).then(function(){VG.bust(t);});}
+};
+VG.collect=function(t){
+ var S=SP[t],o={};
+ S.cols.forEach(function(c){
+  if(c.hide)return;var el=document.getElementById('vgf_'+c.k);if(!el)return;
+  var v;
+  if(c.t==='bool')v=el.checked;
+  else if(c.t==='file'){v=VG._ed.row?VG._ed.row[c.k]:null;if(el.files&&el.files[0])VG._ed.files[c.k]=el.files[0];}
+  else{v=el.value;if(c.t==='num'||c.t==='money'){v=v===''?null:parseFloat(v);}else if(c.t==='int'){v=v===''?null:parseInt(v,10);}else if(v===''){v=null;}}
+  o[c.k]=v;
+ });
+ return o;
+};
+VG.save=async function(){
+ var ed=VG._ed,t=ed.t,S=SP[t];if(!guardWrite('You cannot save in view-only mode.'))return;
+ var err=document.getElementById('vg-err'),btn=document.getElementById('vg-save');err.textContent='';
+ var o=VG.collect(t),a=VG.auto[t];
+ for(var i=0;i<S.cols.length;i++){var c=S.cols[i];if(!c.req||c.hide)continue;if(a&&a[0]===c.k&&ed.isNew)continue;
+  var v=o[c.k];if(c.t==='file'&&ed.files[c.k])continue;
+  if(v==null||v===''){err.textContent=c.l+' is required.';return;}}
+ btn.disabled=true;btn.textContent='Saving...';
+ try{
+  if(a&&ed.isNew&&!o[a[0]]){o[a[0]]=await VG.nextNo(t,a[0],a[1]);}
+  for(var k in ed.files){o[k]=await VG.upload(ed.files[k],t,true);}
+  var old=ed.row?Object.assign({},ed.row):null;
+  var hk=VG.hooks[t];if(hk&&hk.before){var res=await hk.before(o,ed.isNew,old);if(res===false){btn.disabled=false;btn.textContent='Save';return;}}
+  o.updated_by=CU.id;var saved;
+  if(ed.isNew){o.created_by=CU.id;var r=await sb.from(t).insert(o).select().single();if(r.error)throw r.error;saved=r.data;}
+  else{var r2=await sb.from(t).update(o).eq('id',ed.id).select().single();if(r2.error)throw r2.error;saved=r2.data||Object.assign({id:ed.id},o);}
+  VG.bust(t);
+  try{await logAct((ed.isNew?'Created ':'Updated ')+VG.singular(S.l),t,saved.id,String(saved[S.title]||saved.code||'').slice(0,120));}catch(e){}
+  if(hk&&hk.after)await hk.after(saved,ed.isNew,old);
+  VG.close();VG.refresh(t);
+ }catch(e){err.textContent=(e&&e.message)||String(e);btn.disabled=false;btn.textContent='Save';}
+};
+VG.nextNo=async function(t,k,prefix){
+ var r=await sb.from(t).select(k).limit(5000),max=0;
+ (r.data||[]).forEach(function(x){var m=String(x[k]||'').match(/(\d+)\s*$/);if(m&&String(x[k]).indexOf(prefix)===0)max=Math.max(max,parseInt(m[1],10));});
+ return prefix+String(max+1).padStart(4,'0');
+};
+VG.del=async function(){
+ var ed=VG._ed,t=ed.t,S=SP[t];if(!guardWrite('You cannot delete in view-only mode.'))return;
+ if(!VG.confirm('Delete this '+VG.singular(S.l).toLowerCase()+'? This cannot be undone.'))return;
+ try{await logDeletionSnapshot(t,ed.id,'Deleted '+VG.singular(S.l),String(ed.row[S.title]||''));}catch(e){}
+ var r=await sb.from(t).delete().eq('id',ed.id);if(r.error){document.getElementById('vg-err').textContent=r.error.message;return;}
+ VG.bust(t);if(VG.hooks[t]&&VG.hooks[t].afterDelete)await VG.hooks[t].afterDelete(ed.row);
+ VG.close();VG.refresh(t);
+};
+VG.act=async function(i){var ed=VG._ed;var a=VG.acts[ed.t][i];var row=ed.isNew?VG.collect(ed.t):Object.assign({},ed.row,VG.collect(ed.t));await a.fn(row,ed);};
+/* after a save/delete, redraw whatever is on screen */
+VG.refresh=function(t){
+ if(VG.onChange)VG.onChange(t);
+ if(VG._tb[t]&&document.body.contains(VG._tb[t].host)){VG.tbl(VG._tb[t].host,t,VG._tb[t].opt);}
+ if(VG.cur&&VG.cur.redraw)VG.cur.redraw();
+};
+})();
+
+/* ===== Vantage Departments (module pages, dashboards, business rules) ===== */
+(function(){
+var VG=window.VG,E=VG.E,SP=VG.spec.tables,V={};VG.views=V;
+function sum(a,f){return a.reduce(function(s,x){return s+(parseFloat(typeof f==='function'?f(x):x[f])||0);},0);}
+VG.sum=sum;
+VG.kpi=function(l,v,sub,col){return '<div class="vg-kpi"><div class="vg-kl">'+E(l)+'</div><div class="vg-kv"'+(col?' style="color:'+col+'"':'')+'>'+v+'</div>'+(sub?'<div class="vg-ks">'+sub+'</div>':'')+'</div>';};
+VG.panel=function(title,body,right){return '<div class="vg-pn"><div class="vg-pt">'+E(title)+(right?'<span>'+right+'</span>':'')+'</div><div class="vg-pb">'+body+'</div></div>';};
+VG.bars=function(items,money){var mx=Math.max.apply(null,items.map(function(i){return Math.abs(i.v);}).concat([1]));return '<div class="vg-bars">'+items.map(function(i){return '<div class="vg-br"><div class="vg-bl">'+E(i.l)+'</div><div class="vg-bt"><div class="vg-bf" style="width:'+Math.max(2,Math.round(Math.abs(i.v)/mx*100))+'%;background:'+(i.c||'#1B5E9B')+'"></div></div><div class="vg-bv">'+(money?VG.money0(i.v):i.v)+'</div></div>';}).join('')+'</div>';};
+VG.list=function(rows,fn,empty){return rows.length?'<div class="vg-lst">'+rows.map(fn).join('')+'</div>':'<div class="vg-empty2">'+E(empty||'Nothing to show')+'</div>';};
+VG.li=function(main,sub,right,click){return '<div class="vg-li"'+(click?' onclick="'+click+'" style="cursor:pointer"':'')+'><div><div class="vg-lm">'+main+'</div>'+(sub?'<div class="vg-ls">'+sub+'</div>':'')+'</div><div class="vg-lr">'+(right||'')+'</div></div>';};
+VG.edl=function(t,id){return "VG.edit('"+t+"','"+id+"')";};
+function monthKey(d){return String(d||'').slice(0,7);}
+function thisMonth(){return VG.today().slice(0,7);}
+
+/* ---------- module definitions ---------- */
+VG.def={
+ vg_accounting:{sub:'Invoices, payments, expenses, bills and project profit',tabs:[{id:'dash',l:'Overview',v:'accDash'},{id:'inv',l:'Invoices',t:'acc_invoices'},{id:'pay',l:'Payments',t:'acc_payments'},{id:'exp',l:'Expenses',t:'acc_expenses'},{id:'bill',l:'Bills',t:'acc_bills'},{id:'pa',l:'Pay Apps',t:'acc_payapps'},{id:'ven',l:'Vendors',t:'acc_vendors'},{id:'prof',l:'Project Profit',v:'accProfit'}]},
+ vg_sales:{sub:'Leads, customers, activity and targets',tabs:[{id:'dash',l:'Overview',v:'salDash'},{id:'leads',l:'Leads',t:'sal_leads'},{id:'cust',l:'Customers',t:'sal_accounts'},{id:'act',l:'Activities',t:'sal_activities'},{id:'tgt',l:'Targets',t:'sal_targets'}]},
+ vg_warehouse:{sub:'Inventory, stock movements and material requests',tabs:[{id:'dash',l:'Overview',v:'whDash'},{id:'stock',l:'Stock',v:'whStock'},{id:'items',l:'Items',t:'wh_items'},{id:'moves',l:'Movements',t:'wh_moves'},{id:'req',l:'Requests',t:'wh_requests'},{id:'loc',l:'Locations',t:'wh_locations'}]},
+ vg_operations:{sub:'Scheduling, timesheets, equipment, safety and subcontractors',tabs:[{id:'dash',l:'Overview',v:'opsDash'},{id:'week',l:'Schedule',v:'opsWeek'},{id:'sched',l:'All Jobs',t:'ops_schedule'},{id:'time',l:'Timesheets',t:'ops_timesheets'},{id:'assets',l:'Vehicles & Equipment',t:'ops_assets'},{id:'safety',l:'Safety',t:'ops_safety'},{id:'subs',l:'Subcontractors',t:'ops_subs'},{id:'subw',l:'Sub Work',t:'ops_sub_work'}]},
+ vg_engineering:{sub:'Designs, RFIs, submittals, surveys and standards',tabs:[{id:'dash',l:'Overview',v:'engDash'},{id:'rfi',l:'RFIs',t:'eng_rfis'},{id:'sub',l:'Submittals',t:'eng_submittals'},{id:'des',l:'Designs',t:'eng_designs'},{id:'chg',l:'Design Changes',t:'eng_changes'},{id:'sur',l:'Site Surveys',t:'eng_surveys'},{id:'std',l:'Standards',t:'eng_standards'}]},
+ vg_technician:{sub:'Photos, notes, daily logs and drawings from the field',tabs:[{id:'dash',l:'My Day',v:'techDash'},{id:'photos',l:'Photos',t:'fld_photos'},{id:'logs',l:'Daily Logs',t:'fld_logs'},{id:'notes',l:'Notes',t:'fld_notes'},{id:'share',l:'Shared Drawings',t:'fld_shares'},{id:'punch',l:'Punch List',t:'fld_punch'},{id:'tests',l:'Cable Tests',t:'fld_tests'},{id:'time',l:'My Hours',t:'ops_timesheets'}]},
+ vg_pm:{sub:'Projects, schedules, budgets, change orders and reports',tabs:[{id:'dash',l:'Portfolio',v:'pmDash'},{id:'proj',l:'Projects',t:'vg_projects'},{id:'ms',l:'Milestones',t:'pm_milestones'},{id:'bud',l:'Budget',t:'pm_budget'},{id:'co',l:'Change Orders',t:'pm_change_orders'},{id:'meet',l:'Meetings',t:'pm_meetings'},{id:'risk',l:'Risks & Issues',t:'pm_risks'},{id:'rep',l:'Status Reports',t:'pm_reports'},{id:'team',l:'Teams',t:'pm_team'}]},
+ vg_service:{sub:'Service agreements, tickets, customer equipment and maintenance',tabs:[{id:'dash',l:'Overview',v:'svcDash'},{id:'tix',l:'Tickets',t:'svc_tickets'},{id:'agr',l:'Agreements',t:'svc_agreements'},{id:'vis',l:'Maintenance Visits',t:'svc_visits'},{id:'ast',l:'Customer Equipment',t:'svc_assets'}]}
+};
+VG.tab={};
+VG.render=async function(page){
+ var m=VG.MODS[page],def=VG.def[page],mc=document.getElementById('main-content');
+ var tab=VG.tab[page]||def.tabs[0].id;var tb=def.tabs.find(function(x){return x.id===tab;})||def.tabs[0];
+ var hid=VG.isHidden(page);
+ var h='<div class="vg-page"><div class="page-hdr"><div><div class="page-title"><span class="vg-pdot" style="background:'+m.color+'"></span>'+E(m.label)+'</div><div class="page-sub">'+E(def.sub)+'</div></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" onclick="VG.openSearch()">Search everything</button></div></div>';
+ if(hid)h+='<div class="vg-prev">Preview. This department is <b>hidden</b> from everyone else. Show it from Management &rsaquo; Modules when you are ready to launch.</div>';
+ if(VG.S.missing)h+='<div class="vg-prev" style="background:#fde3e1;color:#8a1c14">The department tables are not in the database yet. Run <b>SQL_departments.sql</b> in the Supabase SQL Editor.</div>';
+ h+='<div class="vg-tabs">'+def.tabs.map(function(x){return '<button class="'+(x.id===tb.id?'on':'')+'" onclick="VG.go(\''+page+'\',\''+x.id+'\')">'+E(x.l)+'</button>';}).join('')+'</div><div id="vg-body"></div></div>';
+ mc.innerHTML=h;
+ var host=document.getElementById('vg-body');
+ VG.cur={page:page,tab:tb.id,redraw:function(){if(tb.v)V[tb.v](host);}};
+ try{
+  await VG.loadRefs();
+  if(tb.t)await VG.tbl(host,tb.t,{});else await V[tb.v](host);
+ }catch(e){host.innerHTML='<div class="vg-empty2">Could not load: '+E(e.message||e)+'</div>';}
+};
+VG.go=function(page,tab){VG.tab[page]=tab;VG.render(page);};
+VG.onChange=function(){};
+
+/* ---------- business rules ---------- */
+function effInv(r){var bal=(+r.total||0)-(+r.paid||0);if(r.status==='Void'||r.status==='Draft'||r.status==='Paid')return r.status;if(bal<=0.005)return 'Paid';if(r.due_date&&r.due_date<VG.today())return 'Overdue';return r.status;}
+VG.effInv=effInv;
+VG.virt.acc_invoices=[{k:'bal',l:'Balance',money:1,fn:function(r){return Math.max(0,(+r.total||0)-(+r.paid||0));}}];
+VG.virt.acc_bills=[{k:'bal',l:'Balance',money:1,fn:function(r){return Math.max(0,(+r.amount||0)-(+r.paid||0));}}];
+VG.virt.wh_items=[{k:'oh',l:'On Hand',html:1,fn:function(r){var s=VG._stock&&VG._stock[r.id];return s?'<b>'+s.total+'</b> '+E(r.unit||''):'';}}];
+VG.virt.ops_subs=[{k:'ins',l:'Insurance',html:1,fn:function(r){if(!r.insurance_expiry)return '';var d=VG.diff(r.insurance_expiry);return d<0?VG.badge('Expired'):d<=60?VG.badge('Expiring'):'<span style="color:#1b7a3d">OK</span>';}}];
+VG.virt.vg_projects=[{k:'health',l:'Health',html:1,fn:function(r){return VG.badge(VG.health(r.code));}}];
+VG.hooks.acc_invoices={
+ before:async function(o){o.total=Math.round(((+o.amount||0)+(+o.tax||0))*100)/100;if(o.status==='Draft'&&o.paid>0)o.status='Partial';if(o.total>0&&(+o.paid||0)>=o.total)o.status='Paid';},
+};
+async function recalcInvoice(id){
+ if(!id)return;var p=await sb.from('acc_payments').select('amount').eq('invoice_id',id);var paid=Math.round(sum(p.data||[],'amount')*100)/100;
+ var iv=(await sb.from('acc_invoices').select('*').eq('id',id).maybeSingle()).data;if(!iv)return;
+ var st=iv.status;if(st!=='Void'){if(paid>=iv.total&&iv.total>0)st='Paid';else if(paid>0)st='Partial';else if(st==='Paid'||st==='Partial')st='Sent';}
+ await sb.from('acc_invoices').update({paid:paid,status:st}).eq('id',id);VG.bust('acc_invoices');
+}
+VG.hooks.acc_payments={after:async function(r){await recalcInvoice(r.invoice_id);},afterDelete:async function(r){await recalcInvoice(r.invoice_id);},
+ before:async function(o){if(o.invoice_id&&!o.project_code){var iv=(await sb.from('acc_invoices').select('project_code').eq('id',o.invoice_id).maybeSingle()).data;if(iv)o.project_code=iv.project_code;}}};
+VG.hooks.acc_payapps={before:async function(o){o.retainage_held=Math.round((+o.this_period||0)*(+o.retainage_pct||0))/100;o.net_due=Math.round(((+o.this_period||0)-o.retainage_held)*100)/100;}};
+VG.hooks.vg_projects={before:async function(o,isNew){o.code=String(o.code||'').trim().toUpperCase();if(isNew){var x=await sb.from('vg_projects').select('id').eq('code',o.code).maybeSingle();if(x.data){document.getElementById('vg-err').textContent='A project with code '+o.code+' already exists.';return false;}}}};
+VG.hooks.svc_tickets={before:async function(o,isNew){if(!o.opened_date)o.opened_date=VG.today();if((o.status==='Completed'||o.status==='Invoiced')&&!o.completed_date)o.completed_date=VG.today();}};
+VG.pre.wh_moves=async function(){VG.locNames=(await VG.rows('wh_locations',true)).map(function(l){return l.name;}).sort();};
+VG.hooks.wh_moves={before:async function(o){
+ var err=document.getElementById('vg-err'),t=o.type,q=+o.qty||0;
+ if(t!=='Adjust'&&q<=0){err.textContent='Quantity must be greater than zero.';return false;}
+ if((t==='Receive'||t==='Return')&&!o.to_loc){err.textContent='Choose the To Location.';return false;}
+ if((t==='Issue to Project'||t==='Scrap'||t==='Transfer')&&!o.from_loc){err.textContent='Choose the From Location.';return false;}
+ if(t==='Transfer'&&!o.to_loc){err.textContent='Choose the To Location.';return false;}
+ if(t==='Issue to Project'&&!o.project_code){err.textContent='Choose the Project the material is issued to.';return false;}
+ if(t==='Issue to Project'||t==='Transfer'||t==='Scrap'){
+  var moves=await VG.rows('wh_moves',true),st=stockCalc(moves,[]);var ed=VG._ed&&VG._ed.row;
+  var have=((st[o.item_id]||{}).loc||{})[o.from_loc]||0;if(ed&&ed.item_id===o.item_id&&ed.from_loc===o.from_loc)have+=(+ed.qty||0);
+  if(q>have+1e-9){err.textContent='Only '+have+' on hand at '+o.from_loc+'. Receive stock first or choose another location.';return false;}
+ }}};
+VG.tools.vg_projects=[{l:'Import from Bids & Build',fn:function(){VG.syncProjects();}}];
+VG.acts.vg_projects=[{l:'Open project page',fn:function(row){VG.close();VG.openProject(row.code);}}];
+VG.tools.acc_invoices=[{l:'New from proposal',fn:function(){VG.invFromProposal();}}];
+VG.acts.acc_invoices=[{l:'Record payment',fn:function(row,ed){VG.close();setTimeout(function(){VG.edit('acc_payments',null,{invoice_id:row.id,project_code:row.project_code,amount:Math.max(0,(+row.total||0)-(+row.paid||0)),pay_date:VG.today()});},50);}}];
+VG.acts.svc_tickets=[{l:'Create invoice',fn:async function(row){
+ var no=await VG.nextNo('acc_invoices','invoice_no','INV-');
+ var r=await sb.from('acc_invoices').insert({invoice_no:no,project_code:row.project_code||null,client:row.customer,type:'Service',status:'Draft',issue_date:VG.today(),due_date:VG.addDays(VG.today(),30),amount:+row.amount||0,tax:0,total:+row.amount||0,paid:0,description:'Service ticket '+(row.ticket_no||'')+': '+(row.title||''),created_by:CU.id}).select().single();
+ if(r.error){VG.toast(r.error.message,1);return;}await sb.from('svc_tickets').update({status:'Invoiced'}).eq('id',row.id);VG.bust('svc_tickets');VG.bust('acc_invoices');VG.close();VG.toast('Draft invoice '+no+' created in Accounting');VG.refresh('svc_tickets');}}];
+VG.acts.sal_leads=[{l:'Convert to customer',fn:async function(row){
+ var r=await sb.from('sal_accounts').insert({company:row.company,contact:row.contact,email:row.email,phone:row.phone,type:'GC',owner_id:row.owner_id||CU.id,created_by:CU.id}).select().single();
+ if(r.error){VG.toast(r.error.message,1);return;}VG.bust('sal_accounts');VG.toast('Customer created');}},
+ {l:'Create project',fn:async function(row){VG.close();setTimeout(function(){VG.edit('vg_projects',null,{name:row.company,client:row.company,sales_id:row.owner_id,contract_value:row.est_value,status:'Bidding'});},60);}}];
+VG.acts.eng_rfis=[{l:'Mark answered',fn:async function(row){await sb.from('eng_rfis').update({status:'Answered',date_answered:VG.today()}).eq('id',row.id);VG.bust('eng_rfis');VG.close();VG.refresh('eng_rfis');}}];
+VG.tools.ops_timesheets=[{l:'Approve all submitted',fn:async function(rows){
+ if(!VG.isAdmin()){alert('Only admins can approve timesheets.');return;}var ids=rows.filter(function(r){return r.status==='Submitted';}).map(function(r){return r.id;});
+ if(!ids.length){VG.toast('Nothing waiting for approval');return;}if(!confirm('Approve '+ids.length+' timesheet(s)?'))return;
+ await sb.from('ops_timesheets').update({status:'Approved'}).in('id',ids);VG.bust('ops_timesheets');VG.refresh('ops_timesheets');}}];
+VG.summary={
+ acc_invoices:function(rows){var open=rows.filter(function(r){return ['Sent','Partial','Overdue'].indexOf(effInv(r))>=0;});var od=open.filter(function(r){return effInv(r)==='Overdue';});return '<span>Outstanding <b>'+VG.money0(sum(open,function(r){return (+r.total||0)-(+r.paid||0);}))+'</b></span><span>Overdue <b style="color:#b3261e">'+VG.money0(sum(od,function(r){return (+r.total||0)-(+r.paid||0);}))+'</b></span><span>Collected <b style="color:#1b7a3d">'+VG.money0(sum(rows,'paid'))+'</b></span>';},
+ acc_expenses:function(rows){var m=rows.filter(function(r){return monthKey(r.exp_date)===thisMonth()&&r.status!=='Rejected';});return '<span>This month <b>'+VG.money0(sum(m,'amount'))+'</b></span><span>Awaiting approval <b>'+rows.filter(function(r){return r.status==='Submitted';}).length+'</b></span>';},
+ acc_bills:function(rows){var o=rows.filter(function(r){return r.status==='Open'||r.status==='Partial';});return '<span>Owed <b>'+VG.money0(sum(o,function(r){return (+r.amount||0)-(+r.paid||0);}))+'</b></span><span>Past due <b style="color:#b3261e">'+VG.money0(sum(o.filter(function(r){return r.due_date&&r.due_date<VG.today();},0),function(r){return (+r.amount||0)-(+r.paid||0);}))+'</b></span>';},
+ ops_timesheets:function(rows){return '<span>Hours shown <b>'+sum(rows,'hours').toFixed(1)+'</b></span><span>Waiting approval <b>'+rows.filter(function(r){return r.status==='Submitted';}).length+'</b></span>';},
+ svc_tickets:function(rows){var o=rows.filter(function(r){return ['Completed','Invoiced','Cancelled'].indexOf(r.status)<0;});return '<span>Open <b>'+o.length+'</b></span><span>Emergency / High <b style="color:#b3261e">'+o.filter(function(r){return r.priority==='Emergency'||r.priority==='High';}).length+'</b></span>';}
+};
+
+/* ---------- ACCOUNTING ---------- */
+V.accDash=async function(host){
+ var a=await Promise.all([VG.rows('acc_invoices',true),VG.rows('acc_payments',true),VG.rows('acc_expenses',true),VG.rows('acc_bills',true)]);
+ var inv=a[0],pay=a[1],exp=a[2],bills=a[3],today=VG.today();
+ var open=inv.filter(function(r){return ['Sent','Partial','Overdue'].indexOf(effInv(r))>=0;});
+ var bal=function(r){return (+r.total||0)-(+r.paid||0);};
+ var od=open.filter(function(r){return effInv(r)==='Overdue';});
+ var ar=sum(open,bal),arOd=sum(od,bal);
+ var cm=sum(pay.filter(function(p){return monthKey(p.pay_date)===thisMonth();}),'amount');
+ var em=sum(exp.filter(function(p){return monthKey(p.exp_date)===thisMonth()&&p.status!=='Rejected';}),'amount');
+ var apOpen=bills.filter(function(b){return b.status==='Open'||b.status==='Partial';});var ap=sum(apOpen,function(b){return (+b.amount||0)-(+b.paid||0);});
+ var buckets={'Current':0,'1-30':0,'31-60':0,'61-90':0,'90+':0};
+ open.forEach(function(r){var d=r.due_date?-VG.diff(r.due_date):0,b=bal(r);if(d<=0)buckets['Current']+=b;else if(d<=30)buckets['1-30']+=b;else if(d<=60)buckets['31-60']+=b;else if(d<=90)buckets['61-90']+=b;else buckets['90+']+=b;});
+ var months=[];for(var i=5;i>=0;i--){var d=new Date();d.setDate(1);d.setMonth(d.getMonth()-i);months.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'));}
+ var cash=months.map(function(m){return {l:m,v:sum(pay.filter(function(p){return monthKey(p.pay_date)===m;}),'amount'),c:'#1D9E75'};});
+ var spend=months.map(function(m){return {l:m,v:sum(exp.filter(function(p){return monthKey(p.exp_date)===m&&p.status!=='Rejected';}),'amount')+sum(bills.filter(function(p){return monthKey(p.bill_date)===m;}),'amount'),c:'#D65A31'};});
+ var cat={};exp.filter(function(p){return monthKey(p.exp_date)===thisMonth()&&p.status!=='Rejected';}).forEach(function(p){cat[p.category||'Other']=(cat[p.category||'Other']||0)+(+p.amount||0);});
+ host.innerHTML='<div class="vg-kpis">'+VG.kpi('Outstanding (A/R)',VG.money0(ar),open.length+' open invoices')+VG.kpi('Overdue',VG.money0(arOd),od.length+' invoices','#b3261e')+VG.kpi('Collected this month',VG.money0(cm),'','#1b7a3d')+VG.kpi('Expenses this month',VG.money0(em))+VG.kpi('Bills owed (A/P)',VG.money0(ap),apOpen.length+' open bills')+'</div>'
+ +'<div class="vg-grid2">'+VG.panel('Receivables aging',VG.bars(Object.keys(buckets).map(function(k){return {l:k,v:buckets[k],c:k==='Current'?'#1D9E75':k==='1-30'?'#E8A33D':'#D65A31'};}),1))
+ +VG.panel('Overdue invoices',VG.list(od.sort(function(x,y){return x.due_date<y.due_date?-1:1;}).slice(0,7),function(r){return VG.li(E(r.invoice_no+' - '+(r.client||'')),'Due '+VG.d(r.due_date)+(r.project_code?' &middot; '+E(r.project_code):''),'<b>'+VG.money0(bal(r))+'</b>',VG.edl('acc_invoices',r.id));},'No overdue invoices'))
+ +VG.panel('Cash in, last 6 months',VG.bars(cash,1))+VG.panel('Money out (expenses + bills)',VG.bars(spend,1))
+ +VG.panel('Bills due soon',VG.list(apOpen.filter(function(b){return b.due_date&&VG.diff(b.due_date)<=14;}).sort(function(x,y){return x.due_date<y.due_date?-1:1;}).slice(0,7),function(b){return VG.li(E(b.vendor+(b.bill_no?' #'+b.bill_no:'')),'Due '+VG.d(b.due_date),'<b>'+VG.money0((+b.amount||0)-(+b.paid||0))+'</b>',VG.edl('acc_bills',b.id));},'Nothing due in the next 14 days'))
+ +VG.panel('This month by category',Object.keys(cat).length?VG.bars(Object.keys(cat).map(function(k){return {l:k,v:cat[k],c:'#6B4FBB'};}).sort(function(x,y){return y.v-x.v;}),1):'<div class="vg-empty2">No expenses yet</div>')+'</div>';
+};
+VG.projectCosts=async function(){
+ var a=await Promise.all([VG.rows('acc_invoices'),VG.rows('acc_payments'),VG.rows('acc_expenses'),VG.rows('acc_bills'),sb.from('purchase_projects').select('*'),VG.rows('wh_moves'),VG.rows('wh_items')]);
+ var out={};function g(c){if(!c)return null;return out[c]=out[c]||{code:c,invoiced:0,collected:0,expenses:0,bills:0,purchases:0,stock:0};}
+ a[0].forEach(function(r){var o=g(r.project_code);if(o&&r.status!=='Void'&&r.status!=='Draft')o.invoiced+=+r.total||0;});
+ a[1].forEach(function(r){var o=g(r.project_code);if(o)o.collected+=+r.amount||0;});
+ a[2].forEach(function(r){var o=g(r.project_code);if(o&&r.status!=='Rejected')o.expenses+=+r.amount||0;});
+ a[3].forEach(function(r){var o=g(r.project_code);if(o&&r.status!=='Void')o.bills+=+r.amount||0;});
+ (a[4].data||[]).forEach(function(r){var o=g(r.estimate_no);if(o){o.purchases+=+r.total_cost||0;o.sold=+r.sold_amount||0;}});
+ var uc={};a[6].forEach(function(i){uc[i.id]=+i.unit_cost||0;});
+ a[5].forEach(function(m){if(m.type==='Issue to Project'){var o=g(m.project_code);if(o)o.stock+=(+m.qty||0)*(uc[m.item_id]||0);}});
+ return out;
+};
+V.accProfit=async function(host){
+ var pc=await VG.projectCosts();VG.refs.projects.forEach(function(p){if(!pc[p.code])pc[p.code]={code:p.code,invoiced:0,collected:0,expenses:0,bills:0,purchases:0};});
+ var rows=Object.keys(pc).map(function(k){var o=pc[k],p=VG.refs.projects.find(function(x){return x.code===k;})||{};o.name=p.name||'';o.contract=+p.contract_value||o.sold||0;o.cost=o.expenses+o.bills+o.purchases+o.stock;o.margin=o.invoiced?(o.invoiced-o.cost)/o.invoiced:null;return o;}).filter(function(o){return o.invoiced||o.cost||o.contract;}).sort(function(a,b){return b.invoiced-a.invoiced;});
+ var h='<div class="vg-sum"><span>Projects <b>'+rows.length+'</b></span><span>Invoiced <b>'+VG.money0(sum(rows,'invoiced'))+'</b></span><span>Costs <b>'+VG.money0(sum(rows,'cost'))+'</b></span></div><div class="vg-wrap"><table class="vg-t"><thead><tr><th>Project</th><th>Name</th><th class="r">Contract</th><th class="r">Invoiced</th><th class="r">Collected</th><th class="r">Materials / POs</th><th class="r">From stock</th><th class="r">Expenses</th><th class="r">Bills</th><th class="r">Margin</th></tr></thead><tbody>';
+ rows.forEach(function(o){h+='<tr onclick="VG.openProject(\''+E(o.code)+'\')"><td><b>'+E(o.code)+'</b></td><td>'+E(o.name)+'</td><td class="r">'+VG.money0(o.contract)+'</td><td class="r">'+VG.money0(o.invoiced)+'</td><td class="r">'+VG.money0(o.collected)+'</td><td class="r">'+VG.money0(o.purchases)+'</td><td class="r">'+VG.money0(o.stock)+'</td><td class="r">'+VG.money0(o.expenses)+'</td><td class="r">'+VG.money0(o.bills)+'</td><td class="r">'+(o.margin==null?'':'<b style="color:'+(o.margin<0.15?'#b3261e':'#1b7a3d')+'">'+Math.round(o.margin*100)+'%</b>')+'</td></tr>';});
+ if(!rows.length)h+='<tr><td colspan="10" class="vg-empty">Add invoices, expenses or bills with a project code and profit shows here.</td></tr>';
+ host.innerHTML=h+'</tbody></table></div><div class="vg-count">Margin = (invoiced - costs) / invoiced. Costs = purchases + material issued from warehouse stock + expenses + bills with this project code.</div>';
+};
+VG.invFromProposal=async function(){
+ var r=await sb.from('proposals').select('id,estimate_no,project_name,bill_to_company,subtotal,tax_amount,total,status').in('status',['Approved','Sent']).order('created_at',{ascending:false}).limit(60);
+ var ps=r.data||[];
+ VG.ov('<div class="vg-dlg"><div class="vg-dh">New invoice from a proposal<button class="vg-x" onclick="VG.close()">&times;</button></div><div class="vg-db">'+VG.list(ps,function(p){return VG.li(E((p.estimate_no||'')+' - '+(p.project_name||'')),E(p.bill_to_company||'')+' &middot; '+E(p.status),'<b>'+VG.money0(p.total)+'</b>',"VG.invFromProposal2('"+p.id+"')");},'No sent or approved proposals yet')+'</div></div>');
+};
+VG.invFromProposal2=async function(id){
+ var p=(await sb.from('proposals').select('*').eq('id',id).single()).data;VG.close();if(!p)return;
+ setTimeout(function(){VG.edit('acc_invoices',null,{project_code:p.estimate_no,client:p.bill_to_company,amount:p.subtotal,tax:p.tax_amount,proposal_no:p.estimate_no,description:p.project_name,issue_date:VG.today(),due_date:VG.addDays(VG.today(),30),terms:'Net 30'});},60);
+};
+
+/* ---------- SALES ---------- */
+V.salDash=async function(host){
+ var a=await Promise.all([VG.rows('sal_leads',true),VG.rows('sal_activities',true),VG.rows('sal_targets',true),sb.from('bids').select('*')]);
+ var leads=a[0],acts=a[1],tg=a[2],bids=a[3].data||[],stages=SP.sal_leads.cols.find(function(c){return c.k==='stage';}).opts;
+ var open=leads.filter(function(l){return l.stage!=='Won'&&l.stage!=='Lost';});
+ var weighted=sum(open,function(l){return (+l.est_value||0)*(+l.probability||0)/100;});
+ var won=bids.filter(function(b){return b.status==='Win'||b.status==='Won';}),lost=bids.filter(function(b){return b.status==='Lost';}),sent=bids.filter(function(b){return b.status==='Bid Sent';}),under=bids.filter(function(b){return b.status==='Under Review';});
+ var wr=won.length+lost.length?Math.round(won.length/(won.length+lost.length)*100):0;
+ var wk=VG.addDays(VG.today(),-7);var recent=acts.filter(function(x){return x.act_date>=wk;});
+ var byType={};recent.forEach(function(x){byType[x.type||'Other']=(byType[x.type||'Other']||0)+1;});
+ var due=bids.filter(function(b){return b.due_date&&b.status==='Under Review'&&VG.diff(b.due_date)<=14;}).sort(function(x,y){return x.due_date<y.due_date?-1:1;});
+ var m=thisMonth(),mt=tg.filter(function(t){return t.period===m;}),target=sum(mt,'revenue_target');
+ var wonM=sum(won.filter(function(b){return monthKey(b.updated_at)===m;}),'price');
+ host.innerHTML='<div class="vg-kpis">'+VG.kpi('Open leads',open.length,VG.money0(sum(open,'est_value'))+' total value')+VG.kpi('Weighted forecast',VG.money0(weighted),'leads x probability')+VG.kpi('Bids out (sent)',sent.length,VG.money0(sum(sent,'price')))+VG.kpi('Win rate',wr+'%',won.length+' won / '+lost.length+' lost')+VG.kpi('Month target',target?Math.min(100,Math.round(wonM/target*100))+'%':'-',target?VG.money0(wonM)+' of '+VG.money0(target):'No target set')+'</div>'
+ +'<div class="vg-grid2">'+VG.panel('Lead pipeline',VG.bars(stages.filter(function(s){return s!=='Lost';}).map(function(s){return {l:s,v:leads.filter(function(l){return l.stage===s;}).length,c:s==='Won'?'#1D9E75':'#1B5E9B'};})))
+ +VG.panel('Bids due in the next 14 days',VG.list(due.slice(0,8),function(b){return VG.li(E(b.ref+' - '+(b.project||'')),E(b.gc||'')+' &middot; due '+VG.d(b.due_date),VG.money0(b.price),"showPage('bids')");},'No bids due soon'),'<a href="#" onclick="showPage(\'bids\');return false">Open Bid Opportunities</a>')
+ +VG.panel('Activity, last 7 days ('+recent.length+')',Object.keys(byType).length?VG.bars(Object.keys(byType).map(function(k){return {l:k,v:byType[k],c:'#6B4FBB'};})):'<div class="vg-empty2">No activity logged</div>')
+ +VG.panel('Follow-ups due',VG.list(open.filter(function(l){return l.next_date&&VG.diff(l.next_date)<=3;}).sort(function(x,y){return x.next_date<y.next_date?-1:1;}).slice(0,8),function(l){return VG.li(E(l.company),E(l.next_step||'')+' &middot; '+VG.d(l.next_date),VG.badge(l.stage),VG.edl('sal_leads',l.id));},'No lead follow-ups due'))+'</div>';
+};
+
+/* ---------- WAREHOUSE ---------- */
+function stockCalc(moves,items){
+ var st={};function g(id){return st[id]=st[id]||{total:0,loc:{}};}
+ function add(id,loc,q){var s=g(id);s.loc[loc||'(none)']=(s.loc[loc||'(none)']||0)+q;}
+ moves.forEach(function(m){
+  var q=+m.qty||0,id=m.item_id;if(!id)return;var s=g(id);
+  if(m.type==='Receive'||m.type==='Return'){add(id,m.to_loc,q);s.total+=q;}
+  else if(m.type==='Adjust'){add(id,m.to_loc||m.from_loc,q);s.total+=q;}
+  else if(m.type==='Issue to Project'||m.type==='Scrap'){add(id,m.from_loc,-q);s.total-=q;}
+  else if(m.type==='Transfer'){add(id,m.from_loc,-q);add(id,m.to_loc,q);}
+ });
+ return st;
+}
+VG.stockCalc=stockCalc;
+V.whStock=async function(host){
+ var a=await Promise.all([VG.rows('wh_items',true),VG.rows('wh_moves',true)]);var items=a[0],st=stockCalc(a[1],items);VG._stock=st;
+ var q=(VG._stockQ||'').toLowerCase();
+ var rows=items.filter(function(i){return i.active!==false&&(!q||(i.sku+' '+i.name+' '+(i.category||'')).toLowerCase().indexOf(q)>=0);}).sort(function(x,y){return String(x.name).localeCompare(String(y.name));});
+ var h='<div class="vg-tbar"><input class="vg-in" placeholder="Search stock..." value="'+E(VG._stockQ||'')+'" oninput="VG._stockQ=this.value;clearTimeout(VG._st);VG._st=setTimeout(VG.cur.redraw,200)"><div style="flex:1"></div><button class="vg-btn" onclick="VG.edit(\'wh_moves\',null,{type:\'Receive\'})">Receive stock</button><button class="vg-btn" onclick="VG.edit(\'wh_moves\',null,{type:\'Issue to Project\'})">Issue to project</button><button class="vg-btn" onclick="VG.edit(\'wh_moves\',null,{type:\'Transfer\'})">Transfer</button><button class="vg-btn pri" onclick="VG.edit(\'wh_items\')">+ New item</button></div>';
+ h+='<div class="vg-wrap"><table class="vg-t"><thead><tr><th>SKU</th><th>Item</th><th>Category</th><th class="r">On hand</th><th>By location</th><th class="r">Reorder at</th><th class="r">Value</th><th>Status</th></tr></thead><tbody>';
+ rows.forEach(function(i){var s=st[i.id]||{total:0,loc:{}},oh=Math.round(s.total*100)/100,rp=+i.reorder_point||0,low=rp>0&&oh<=rp;
+  var locs=Object.keys(s.loc).filter(function(k){return Math.abs(s.loc[k])>0.0001;}).map(function(k){return E(k)+': <b>'+Math.round(s.loc[k]*100)/100+'</b>';}).join(' &middot; ');
+  h+='<tr onclick="VG.edit(\'wh_items\',\''+i.id+'\')"><td><b>'+E(i.sku)+'</b></td><td>'+E(i.name)+'</td><td>'+E(i.category||'')+'</td><td class="r"><b>'+oh+'</b> '+E(i.unit||'')+'</td><td>'+locs+'</td><td class="r">'+(rp||'')+'</td><td class="r">'+VG.money0(oh*(+i.unit_cost||0))+'</td><td>'+(oh<=0?VG.badge('Out'):low?VG.badge('Low'):VG.badge('OK'))+'</td></tr>';});
+ if(!rows.length)h+='<tr><td colspan="8" class="vg-empty">No items yet. Add items, then receive stock.</td></tr>';
+ host.innerHTML=h+'</tbody></table></div>';
+};
+V.whDash=async function(host){
+ var a=await Promise.all([VG.rows('wh_items',true),VG.rows('wh_moves',true),VG.rows('wh_requests',true)]);var items=a[0],moves=a[1],reqs=a[2],st=stockCalc(moves,items);VG._stock=st;
+ var act=items.filter(function(i){return i.active!==false;});
+ var low=act.filter(function(i){var rp=+i.reorder_point||0,oh=(st[i.id]||{total:0}).total;return rp>0&&oh<=rp;});
+ var value=sum(act,function(i){return ((st[i.id]||{total:0}).total)*(+i.unit_cost||0);});
+ var openReq=reqs.filter(function(r){return ['Delivered','Cancelled'].indexOf(r.status)<0;});
+ var recent=moves.slice().sort(function(x,y){return (y.move_date||'')>(x.move_date||'')?1:-1;}).slice(0,8);
+ var nm={};items.forEach(function(i){nm[i.id]=i.name;});
+ host.innerHTML='<div class="vg-kpis">'+VG.kpi('Items',act.length)+VG.kpi('Stock value',VG.money0(value))+VG.kpi('Low / out of stock',low.length,'below reorder point',low.length?'#b3261e':'')+VG.kpi('Open requests',openReq.length)+VG.kpi('Movements this month',moves.filter(function(m){return monthKey(m.move_date)===thisMonth();}).length)+'</div>'
+ +'<div class="vg-grid2">'+VG.panel('Reorder needed',VG.list(low.slice(0,8),function(i){var oh=Math.round((st[i.id]||{total:0}).total*100)/100;return VG.li(E(i.name),E(i.sku)+' &middot; reorder at '+i.reorder_point,'<b style="color:#b3261e">'+oh+'</b>',VG.edl('wh_items',i.id));},'Everything is above its reorder point'))
+ +VG.panel('Material requests waiting',VG.list(openReq.sort(function(x,y){return (x.needed_by||'9')<(y.needed_by||'9')?-1:1;}).slice(0,8),function(r){return VG.li(E(r.project_code),'Needed '+VG.d(r.needed_by)+' &middot; '+E(VG.uname(r.requested_by)),VG.badge(r.status),VG.edl('wh_requests',r.id));},'No open requests'))
+ +VG.panel('Recent movements',VG.list(recent,function(m){return VG.li(E(m.type+': '+(nm[m.item_id]||'')),VG.d(m.move_date)+(m.project_code?' &middot; '+E(m.project_code):'')+(m.to_loc?' &rarr; '+E(m.to_loc):''),'<b>'+(+m.qty||0)+'</b>',VG.edl('wh_moves',m.id));},'No movements yet'))+'</div>';
+};
+
+/* ---------- OPERATIONS ---------- */
+VG.weekStart=function(off){var d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()-((d.getDay()+6)%7)+7*(off||0));return d;};
+function ds(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+VG.weekOff=0;
+V.opsWeek=async function(host){
+ var rows=await VG.rows('ops_schedule',true),ws=VG.weekStart(VG.weekOff),days=[];
+ for(var i=0;i<7;i++){var d=new Date(ws);d.setDate(ws.getDate()+i);days.push(d);}
+ var h='<div class="vg-tbar"><button class="vg-btn" onclick="VG.weekOff--;VG.cur.redraw()">&larr; Prev</button><button class="vg-btn" onclick="VG.weekOff=0;VG.cur.redraw()">This week</button><button class="vg-btn" onclick="VG.weekOff++;VG.cur.redraw()">Next &rarr;</button><b style="margin-left:8px">Week of '+VG.d(ds(ws))+'</b><div style="flex:1"></div><button class="vg-btn pri" onclick="VG.edit(\'ops_schedule\')">+ Schedule work</button></div><div class="vg-week">';
+ days.forEach(function(d){
+  var k=ds(d),items=rows.filter(function(r){return r.work_date<=k&&(r.end_date||r.work_date)>=k&&r.status!=='Cancelled';});
+  h+='<div class="vg-day'+(k===VG.today()?' tod':'')+'"><div class="vg-dn">'+['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][(d.getDay()+6)%7]+' '+(d.getMonth()+1)+'/'+d.getDate()+'<a href="#" onclick="VG.edit(\'ops_schedule\',null,{work_date:\''+k+'\'});return false">+</a></div>';
+  items.forEach(function(r){h+='<div class="vg-ev" onclick="VG.edit(\'ops_schedule\',\''+r.id+'\')"><b>'+E(r.task)+'</b><div>'+E(r.project_code||'')+'</div><div class="vg-evs">'+E(r.start_time||'')+' '+E(VG.uname(r.assigned_to))+(r.crew?' + '+E(r.crew):'')+'</div></div>';});
+  h+='</div>';
+ });
+ host.innerHTML=h+'</div>';
+};
+V.opsDash=async function(host){
+ var a=await Promise.all([VG.rows('ops_schedule',true),VG.rows('ops_timesheets',true),VG.rows('ops_assets',true),VG.rows('ops_safety',true),VG.rows('ops_subs',true)]);
+ var sch=a[0],ts=a[1],as=a[2],sf=a[3],subs=a[4],t=VG.today(),w0=ds(VG.weekStart(0));
+ var today=sch.filter(function(r){return r.work_date<=t&&(r.end_date||r.work_date)>=t&&r.status!=='Cancelled';});
+ var wkh=ts.filter(function(r){return r.work_date>=w0&&r.status!=='Rejected';});var byU={};wkh.forEach(function(r){var n=VG.uname(r.user_id)||'?';byU[n]=(byU[n]||0)+(+r.hours||0);});
+ var svc=as.filter(function(x){return x.next_service&&VG.diff(x.next_service)<=30;});var ins=subs.filter(function(s){return s.status==='Active'&&s.insurance_expiry&&VG.diff(s.insurance_expiry)<=60;});
+ var openSf=sf.filter(function(s){return s.status==='Open';});var pend=ts.filter(function(r){return r.status==='Submitted';});
+ host.innerHTML='<div class="vg-kpis">'+VG.kpi('Jobs today',today.length)+VG.kpi('Hours this week',sum(wkh,'hours').toFixed(1))+VG.kpi('Timesheets to approve',pend.length)+VG.kpi('Equipment service due',svc.length,'next 30 days',svc.length?'#8a5a00':'')+VG.kpi('Open safety items',openSf.length,'',openSf.length?'#b3261e':'')+'</div>'
+ +'<div class="vg-grid2">'+VG.panel('Today\'s schedule',VG.list(today,function(r){return VG.li(E(r.task),E(r.project_code||'')+' &middot; '+E(VG.uname(r.assigned_to))+(r.crew?' + '+E(r.crew):''),VG.badge(r.status),VG.edl('ops_schedule',r.id));},'Nothing scheduled today'),'<a href="#" onclick="VG.go(\'vg_operations\',\'week\');return false">Week view</a>')
+ +VG.panel('Hours this week',Object.keys(byU).length?VG.bars(Object.keys(byU).map(function(k){return {l:k,v:Math.round(byU[k]*10)/10,c:'#6B4FBB'};})):'<div class="vg-empty2">No hours logged</div>')
+ +VG.panel('Equipment & vehicle service',VG.list(svc.slice(0,7),function(x){return VG.li(E(x.name),'Due '+VG.d(x.next_service),VG.badge(VG.diff(x.next_service)<0?'Overdue':'Scheduled'),VG.edl('ops_assets',x.id));},'Nothing due'))
+ +VG.panel('Subcontractor insurance expiring',VG.list(ins.slice(0,7),function(s){return VG.li(E(s.company),E(s.trade||'')+' &middot; expires '+VG.d(s.insurance_expiry),VG.badge(VG.diff(s.insurance_expiry)<0?'Expired':'Expiring'),VG.edl('ops_subs',s.id));},'All current'))+'</div>';
+};
+
+/* ---------- ENGINEERING ---------- */
+V.engDash=async function(host){
+ var a=await Promise.all([VG.rows('eng_rfis',true),VG.rows('eng_submittals',true),VG.rows('eng_designs',true),VG.rows('eng_changes',true),sb.from('ai_proposal_jobs').select('*').order('created_at',{ascending:false}).limit(6)]);
+ var rfi=a[0],sub=a[1],des=a[2],chg=a[3],jobs=a[4].data||[];
+ var openR=rfi.filter(function(r){return r.status==='Open'||r.status==='Draft';}),odR=openR.filter(function(r){return r.due_date&&VG.diff(r.due_date)<0;});
+ var pendS=sub.filter(function(s){return ['Draft','Submitted','Revise & Resubmit'].indexOf(s.status)>=0;});
+ var rev=des.filter(function(d){return d.status==='In Review';});
+ host.innerHTML='<div class="vg-kpis">'+VG.kpi('Open RFIs',openR.length,odR.length+' overdue',odR.length?'#b3261e':'')+VG.kpi('Submittals pending',pendS.length)+VG.kpi('Designs in review',rev.length)+VG.kpi('Design changes open',chg.filter(function(c){return c.status==='Proposed';}).length)+VG.kpi('Cost impact pending',VG.money0(sum(chg.filter(function(c){return c.status==='Proposed';}),'cost_impact')))+'</div>'
+ +'<div class="vg-grid2">'+VG.panel('RFIs needing attention',VG.list(openR.sort(function(x,y){return (x.due_date||'9')<(y.due_date||'9')?-1:1;}).slice(0,8),function(r){return VG.li(E(r.rfi_no+' '+(r.subject||'')),E(r.project_code)+' &middot; '+E(r.ball_in_court||'')+' &middot; due '+VG.d(r.due_date),VG.badge(r.due_date&&VG.diff(r.due_date)<0?'Overdue':r.status),VG.edl('eng_rfis',r.id));},'No open RFIs'))
+ +VG.panel('Submittals in progress',VG.list(pendS.slice(0,8),function(s){return VG.li(E(s.submittal_no+' '+(s.description||'')),E(s.project_code)+' &middot; '+E(s.spec_section||''),VG.badge(s.status),VG.edl('eng_submittals',s.id));},'No pending submittals'))
+ +VG.panel('Design status',VG.bars(['Concept','In Progress','In Review','Approved for Construction','As-Built'].map(function(s){return {l:s,v:des.filter(function(d){return d.status===s;}).length,c:'#B03A6B'};})))
+ +VG.panel('Latest AI takeoffs (from Vantage AI)',VG.list(jobs.filter(function(j){return j.status==='done';}).slice(0,6),function(j){var tt=(j.result&&j.result.totals)||{},n=Object.keys(tt).reduce(function(s,k){return s+tt[k];},0);return VG.li(E(j.project_name||j.bid_ref),(j.mode==='training'?'Training':'Real')+' &middot; '+n+' devices found &middot; confidence '+(j.result&&j.result.confidence!=null?j.result.confidence+'%':'-'),'',"showPage('ai')");},'No AI takeoffs yet'))+'</div>';
+};
+
+/* ---------- TECHNICIAN ---------- */
+V.techDash=async function(host){
+ var me=CU.id,t=VG.today();
+ var a=await Promise.all([VG.rows('ops_schedule',true),VG.rows('fld_shares',true),VG.rows('fld_punch',true),VG.rows('ops_timesheets',true),sb.from('tasks').select('*')]);
+ var sch=a[0].filter(function(r){return r.work_date<=t&&(r.end_date||r.work_date)>=t&&r.status!=='Cancelled'&&(r.assigned_to===me||String(r.crew||'').toLowerCase().indexOf((VG.uname(me)||'~').split(' ')[0].toLowerCase())>=0);});
+ var sh=a[1].filter(function(s){return s.from_id===me||s.to_id===me;}).slice(0,6);
+ var pu=a[2].filter(function(p){return p.assigned_to===me&&p.status!=='Verified'&&p.status!=='Fixed';});
+ var w0=ds(VG.weekStart(0)),mine=a[3].filter(function(r){return r.user_id===me&&r.work_date>=w0;});
+ var myn=(VG.uname(me)||'').toLowerCase(),tasks=(a[4].data||[]).filter(function(x){return !x.done&&myn&&String(x.assigned_name||'').toLowerCase().indexOf(myn)>=0;}).slice(0,6);
+ host.innerHTML='<div class="vg-quick"><button onclick="VG.photoDialog()"><span>&#128247;</span>Add photos</button><button onclick="VG.edit(\'fld_logs\')"><span>&#128221;</span>Daily log</button><button onclick="VG.edit(\'fld_notes\')"><span>&#128172;</span>Note</button><button onclick="VG.shareDialog()"><span>&#128228;</span>Share drawing</button><button onclick="VG.edit(\'ops_timesheets\')"><span>&#9201;</span>Log hours</button><button onclick="VG.edit(\'fld_punch\')"><span>&#9989;</span>Punch item</button></div>'
+ +'<div class="vg-kpis">'+VG.kpi('Jobs today',sch.length)+VG.kpi('My hours this week',sum(mine,'hours').toFixed(1))+VG.kpi('My punch items',pu.length)+VG.kpi('My open tasks',tasks.length)+'</div>'
+ +'<div class="vg-grid2">'+VG.panel('My jobs today',VG.list(sch,function(r){return VG.li(E(r.task),E(r.project_code||'')+' &middot; '+E(r.start_time||'')+' '+E(r.location||''),VG.badge(r.status),r.project_code?"VG.openProject('"+E(r.project_code)+"')":''); },'Nothing scheduled for you today'))
+ +VG.panel('Drawings shared',VG.list(sh,function(s){return VG.li(E(s.title),E(s.project_code)+' &middot; '+(s.from_id===me?'to '+E(VG.uname(s.to_id)):'from '+E(VG.uname(s.from_id))),VG.badge(s.status),VG.edl('fld_shares',s.id));},'Nothing shared yet'),'<a href="#" onclick="VG.go(\'vg_technician\',\'share\');return false">All</a>')
+ +VG.panel('My punch items',VG.list(pu.slice(0,6),function(p){return VG.li(E(p.description),E(p.project_code)+' &middot; '+E(p.location||''),VG.badge(p.status),VG.edl('fld_punch',p.id));},'No open punch items'))
+ +VG.panel('My Taskflow tasks',VG.list(tasks,function(x){return VG.li(E(x.name),'Due '+VG.d(x.deadline),VG.badge(x.priority||'normal'),"showPage('tasks')");},'No open tasks'))+'</div>';
+};
+
+/* ---------- PROJECT MANAGEMENT ---------- */
+VG.health=function(code){
+ var s=VG._hc&&VG._hc[code];return s||'Green';
+};
+V.pmDash=async function(host){
+ var a=await Promise.all([VG.rows('vg_projects',true),VG.rows('pm_risks',true),VG.rows('pm_reports',true),VG.rows('pm_milestones',true),VG.rows('pm_change_orders',true),VG.rows('acc_invoices',true)]);
+ var pr=a[0],risks=a[1],reps=a[2],ms=a[3],cos=a[4],inv=a[5];VG._hc={};
+ pr.forEach(function(p){var c='Green',lr=reps.filter(function(r){return r.project_code===p.code;}).sort(function(x,y){return x.week_ending<y.week_ending?1:-1;})[0];
+  if(lr&&lr.overall==='Yellow')c='Yellow';if(lr&&lr.overall==='Red')c='Red';
+  if(risks.some(function(r){return r.project_code===p.code&&r.status!=='Closed'&&r.impact==='High';}))c=c==='Red'?c:'Red';
+  if(ms.some(function(m){return m.project_code===p.code&&m.status!=='Done'&&m.due_date&&VG.diff(m.due_date)<0;}))c=c==='Green'?'Yellow':c;
+  if(p.status==='Active'&&p.end_date&&VG.diff(p.end_date)<0)c=c==='Green'?'Yellow':c;
+  if(inv.some(function(i){return i.project_code===p.code&&effInv(i)==='Overdue';}))c=c==='Green'?'Yellow':c;
+  VG._hc[p.code]=c;});
+ var act=pr.filter(function(p){return ['Active','Pre-Construction','Awarded'].indexOf(p.status)>=0;});
+ var late=ms.filter(function(m){return m.status!=='Done'&&m.due_date&&VG.diff(m.due_date)<0;});
+ var coP=cos.filter(function(c){return c.status==='Submitted';});
+ host.innerHTML='<div class="vg-kpis">'+VG.kpi('Active projects',act.length)+VG.kpi('Portfolio value',VG.money0(sum(act,'contract_value')))+VG.kpi('At risk (red)',act.filter(function(p){return VG._hc[p.code]==='Red';}).length,'',act.some(function(p){return VG._hc[p.code]==='Red';})?'#b3261e':'')+VG.kpi('Late milestones',late.length)+VG.kpi('Change orders pending',coP.length,VG.money0(sum(coP,'amount')))+'</div>'
+ +'<div class="vg-grid2">'+VG.panel('Projects',VG.list(act.slice(0,12),function(p){return VG.li('<b>'+E(p.code)+'</b> '+E(p.name),E(p.client||'')+' &middot; PM '+E(VG.uname(p.pm_id)||'unassigned')+' &middot; ends '+VG.d(p.end_date),VG.badge(VG._hc[p.code]),"VG.openProject('"+E(p.code)+"')");},'No active projects. Use Projects > Import from Bids & Build.'),'<a href="#" onclick="VG.go(\'vg_pm\',\'proj\');return false">All projects</a>')
+ +VG.panel('Late milestones',VG.list(late.slice(0,8),function(m){return VG.li(E(m.name),E(m.project_code)+' &middot; due '+VG.d(m.due_date),VG.badge('Late'),VG.edl('pm_milestones',m.id));},'Nothing late'))
+ +VG.panel('Open risks & issues',VG.list(risks.filter(function(r){return r.status!=='Closed';}).slice(0,8),function(r){return VG.li(E(r.title),E(r.project_code)+' &middot; '+E(r.type||''),VG.badge(r.impact||''),VG.edl('pm_risks',r.id));},'No open risks'))
+ +VG.panel('Change orders awaiting approval',VG.list(coP.slice(0,8),function(c){return VG.li(E((c.co_no||'')+' '+(c.title||'')),E(c.project_code),'<b>'+VG.money0(c.amount)+'</b>',VG.edl('pm_change_orders',c.id));},'None pending'))+'</div>';
+};
+VG.syncProjects=async function(){
+ var a=await Promise.all([sb.from('bids').select('*'),sb.from('build_projects').select('*'),VG.rows('vg_projects',true)]);
+ var bids=a[0].data||[],bp=a[1].data||[],have={};a[2].forEach(function(p){have[p.code]=1;});
+ var add=[];
+ bids.filter(function(b){return b.ref&&['Win','Won','Bid Sent','Under Review'].indexOf(b.status)>=0;}).forEach(function(b){
+  var c=String(b.ref).trim().toUpperCase();if(!c||have[c]||/^testing/i.test(c))return;have[c]=1;
+  add.push({code:c,name:b.project||c,client:b.gc,address:b.address,city:b.city,state:b.state,contract_value:+b.price||null,type:/av/i.test(b.scope||'')?'AV':/sec/i.test(b.scope||'')?'Security':'Data',status:(b.status==='Win'||b.status==='Won')?'Awarded':'Bidding',sales_id:b.assigned_to||null,bid_ref:b.ref});});
+ bp.forEach(function(p){var c=String(p.code||'').trim().toUpperCase();if(!c||/^testing/i.test(c)||/^testing/i.test(p.name||''))return;
+  if(have[c]){var ex=a[2].find(function(x){return x.code===c;});if(ex&&!ex.build_project_id){sb.from('vg_projects').update({build_project_id:p.id}).eq('id',ex.id).then(function(){});}
+   var ad=add.find(function(x){return x.code===c;});if(ad)ad.build_project_id=p.id;return;}
+  have[c]=1;add.push({code:c,name:p.name||c,client:p.client,address:p.address,status:'Active',build_project_id:p.id});});
+ if(!add.length){VG.toast('Everything is already imported');return;}
+ if(!confirm('Create '+add.length+' project record(s) from your bids and Build projects?'))return;
+ for(var i=0;i<add.length;i+=50){var r=await sb.from('vg_projects').insert(add.slice(i,i+50).map(function(x){return Object.assign({created_by:CU.id},x);}));if(r.error){alert(r.error.message);return;}}
+ VG.bust('vg_projects');VG.refs.t=0;VG.toast(add.length+' projects imported');VG.refresh('vg_projects');
+};
+
+/* ---------- SERVICE ---------- */
+V.svcDash=async function(host){
+ var a=await Promise.all([VG.rows('svc_tickets',true),VG.rows('svc_agreements',true),VG.rows('svc_visits',true),VG.rows('svc_assets',true)]);
+ var tk=a[0],ag=a[1],vs=a[2],as=a[3],fac={Monthly:1,Quarterly:1/3,Annual:1/12};
+ var open=tk.filter(function(x){return ['Completed','Invoiced','Cancelled'].indexOf(x.status)<0;});
+ var act=ag.filter(function(x){return x.status==='Active'||x.status==='Expiring';});
+ var mrr=sum(act,function(x){return (+x.amount||0)*(x.billing==='Per Visit'?((+x.visits_per_year||0)/12):(fac[x.billing]||1));});
+ var exp=act.filter(function(x){return x.end_date&&VG.diff(x.end_date)<=60;});var due=vs.filter(function(v){return v.status==='Scheduled'&&VG.diff(v.visit_date)<=14;});
+ var pr={Emergency:0,High:0,Normal:0,Low:0};open.forEach(function(x){pr[x.priority||'Normal']=(pr[x.priority||'Normal']||0)+1;});
+ var warr=as.filter(function(x){return x.warranty_end&&VG.diff(x.warranty_end)>=0&&VG.diff(x.warranty_end)<=60;});
+ host.innerHTML='<div class="vg-kpis">'+VG.kpi('Open tickets',open.length,pr.Emergency+' emergency, '+pr.High+' high',pr.Emergency?'#b3261e':'')+VG.kpi('Active agreements',act.length)+VG.kpi('Monthly recurring revenue',VG.money0(mrr),VG.money0(mrr*12)+' / year','#1b7a3d')+VG.kpi('Agreements expiring',exp.length,'next 60 days',exp.length?'#8a5a00':'')+VG.kpi('Visits due',due.length,'next 14 days')+'</div>'
+ +'<div class="vg-grid2">'+VG.panel('Open tickets by priority',VG.bars(Object.keys(pr).map(function(k){return {l:k,v:pr[k],c:k==='Emergency'?'#b3261e':k==='High'?'#E8A33D':'#1B5E9B'};})))
+ +VG.panel('Tickets needing action',VG.list(open.sort(function(x,y){return ['Emergency','High','Normal','Low'].indexOf(x.priority)-['Emergency','High','Normal','Low'].indexOf(y.priority);}).slice(0,8),function(x){return VG.li(E((x.ticket_no||'')+' '+(x.title||'')),E(x.customer)+' &middot; '+E(VG.uname(x.assigned_to)||'unassigned'),VG.badge(x.priority)+' '+VG.badge(x.status),VG.edl('svc_tickets',x.id));},'No open tickets'))
+ +VG.panel('Agreements to renew',VG.list(exp.sort(function(x,y){return x.end_date<y.end_date?-1:1;}).slice(0,8),function(x){return VG.li(E(x.customer+' ('+x.agreement_no+')'),'Ends '+VG.d(x.end_date)+(x.auto_renew?' &middot; auto-renew':''),'<b>'+VG.money0(x.amount)+'</b>',VG.edl('svc_agreements',x.id));},'No renewals soon'))
+ +VG.panel('Maintenance visits due',VG.list(due.sort(function(x,y){return x.visit_date<y.visit_date?-1:1;}).slice(0,8),function(v){return VG.li(E(v.customer||''),VG.d(v.visit_date)+' &middot; '+E(VG.uname(v.tech_id)||'unassigned'),VG.badge(v.status),VG.edl('svc_visits',v.id));},'No visits due'))
+ +VG.panel('Equipment warranties ending',VG.list(warr.slice(0,6),function(x){return VG.li(E((x.make||'')+' '+(x.model||'')),E(x.customer)+' &middot; ends '+VG.d(x.warranty_end),'',VG.edl('svc_assets',x.id));},'None in the next 60 days'))+'</div>';
+};
+})();
+
+/* ===== Vantage Departments (Project 360, global search, AI access) ===== */
+(function(){
+var VG=window.VG,E=VG.E,SP=VG.spec.tables,MK=VG.spec.mkey;
+VG.rowTitle=function(t,r){var S=SP[t],v=r[S.title];if(v!=null&&v!=='')return String(v);
+ var cs=S.cols.filter(function(c){return c.list&&c.k!==S.title&&c.t!=='link'&&c.t!=='file'&&c.t!=='bool'&&c.t!=='project';});
+ for(var i=0;i<cs.length;i++){var x=VG.cell(t,cs[i],r,true);if(x!==''&&x!=null&&!/^[0-9a-f]{8}-[0-9a-f]{4}-/.test(String(x)))return (cs[i].t==='money'?VG.money(x):cs[i].t==='date'?VG.d(x):String(x));}
+ return '(untitled)';};
+function tablesOf(m){return Object.keys(SP).filter(function(t){return SP[t].m===m&&t!=='vg_projects';});}
+function modKeyOf(t){return MK[SP[t].m];}
+function hasProj(t){return SP[t].cols.some(function(c){return c.k==='project_code';});}
+function sum(a,f){return a.reduce(function(s,x){return s+(parseFloat(x[f])||0);},0);}
+
+/* ---------- Project 360 ---------- */
+var P360_TABS=[
+ {id:'ov',l:'Overview'},
+ {id:'sales',l:'Sales',m:'sales'},{id:'acc',l:'Accounting',m:'acc'},{id:'wh',l:'Warehouse',m:'wh'},{id:'ops',l:'Operations',m:'ops'},
+ {id:'eng',l:'Engineering',m:'eng'},{id:'fld',l:'Technician',m:'fld'},{id:'pm',l:'Management',m:'pm'},{id:'svc',l:'Service',m:'svc'}
+];
+VG.p360={code:null,tab:'ov'};
+VG.openProject=async function(code){
+ code=String(code||'').trim();if(!code)return;
+ VG.close();VG.p360={code:code,tab:'ov'};
+ var o=document.getElementById('vg-p360');if(!o){o=document.createElement('div');o.id='vg-p360';document.body.appendChild(o);}
+ o.className='open';o.innerHTML='<div class="vg-p3"><div class="vg-load" style="padding:40px">Loading project...</div></div>';
+ o.onmousedown=function(e){if(e.target===o)VG.closeProject();};
+ await VG.loadRefs(true);VG.drawP360();
+};
+VG.closeProject=function(){var o=document.getElementById('vg-p360');if(o){o.className='';o.innerHTML='';}};
+document.addEventListener('keydown',function(e){if(e.key==='Escape'){var ov=document.getElementById('vg-ov');if(ov&&ov.classList.contains('open')&&!ov.classList.contains('lock'))VG.close();else if(!(ov&&ov.classList.contains('open'))){var s=document.getElementById('vg-srch');if(s&&s.classList.contains('open'))VG.closeSearch();else VG.closeProject();}}});
+VG.p360Tab=function(id){VG.p360.tab=id;VG.drawP360();};
+VG.drawP360=async function(){
+ var o=document.getElementById('vg-p360');if(!o||!o.classList.contains('open'))return;
+ var code=VG.p360.code,tab=VG.p360.tab,p=VG.refs.projects.find(function(x){return x.code===code;});
+ var legacy=await VG.legacyFor(code);
+ var name=(p&&p.name)||(legacy.bid&&legacy.bid.project)||(legacy.build&&legacy.build.name)||(legacy.prop&&legacy.prop.project_name)||'';
+ var h='<div class="vg-p3"><div class="vg-p3h"><div><div class="vg-p3t">'+E(code)+(name?' &middot; '+E(name):'')+'</div><div class="vg-p3s">'+E((p&&p.client)||(legacy.bid&&legacy.bid.gc)||'')+(p&&p.city?' &middot; '+E(p.city):'')+(p&&p.pm_id?' &middot; PM '+E(VG.uname(p.pm_id)):'')+'</div></div><div style="display:flex;gap:8px;align-items:center">'
+ +(p?VG.badge(VG.health(code))+VG.badge(p.status):'')
+ +'<button class="vg-btn" onclick="VG.askAIAbout(\''+E(code)+'\')">Ask AI</button>'
+ +(p?'<button class="vg-btn" onclick="VG.edit(\'vg_projects\',\''+p.id+'\')">Edit</button>':'<button class="vg-btn pri" onclick="VG.edit(\'vg_projects\',null,{code:\''+E(code)+'\',name:\''+E(name).replace(/'/g,'')+'\'})">Create project record</button>')
+ +'<button class="vg-x" onclick="VG.closeProject()">&times;</button></div></div><div class="vg-tabs p3">';
+ P360_TABS.forEach(function(t){if(t.m&&!VG.canRaw(MK[t.m])&&!VG.isAdmin())return;h+='<button class="'+(t.id===tab?'on':'')+'" onclick="VG.p360Tab(\''+t.id+'\')">'+E(t.l)+'</button>';});
+ h+='</div><div class="vg-p3b" id="vg-p3b"></div></div>';
+ o.innerHTML=h;
+ var host=document.getElementById('vg-p3b');
+ if(tab==='ov'){await VG.p360Overview(host,code,p,legacy);return;}
+ var tdef=P360_TABS.find(function(x){return x.id===tab;});var ts=tablesOf(tdef.m).filter(function(t){return hasProj(t);});
+ host.innerHTML='';
+ for(var i=0;i<ts.length;i++){var d=document.createElement('div');d.className='vg-p3sec';host.appendChild(d);await VG.tbl(d,ts[i],{compact:true,filter:{project_code:code},preset:{project_code:code},noProject:true});}
+ if(tdef.m==='acc'){var pp=document.createElement('div');pp.className='vg-p3sec';host.appendChild(pp);
+  var pc=(await VG.projectCosts())[code]||{invoiced:0,collected:0,expenses:0,bills:0,purchases:0};
+  pp.innerHTML='<div class="vg-kpis">'+VG.kpi('Invoiced',VG.money0(pc.invoiced))+VG.kpi('Collected',VG.money0(pc.collected))+VG.kpi('Materials / POs',VG.money0(pc.purchases))+VG.kpi('From stock',VG.money0(pc.stock||0))+VG.kpi('Expenses',VG.money0(pc.expenses))+VG.kpi('Bills',VG.money0(pc.bills))+'</div>';host.insertBefore(pp,host.firstChild);}
+};
+VG.legacyFor=async function(code){
+ var out={};
+ try{
+  var a=await Promise.all([sb.from('bids').select('*').eq('ref',code).limit(1),sb.from('proposals').select('*').eq('estimate_no',code).limit(1),sb.from('build_projects').select('*').eq('code',code).limit(1),sb.from('purchase_projects').select('*').eq('estimate_no',code).limit(1)]);
+  out.bid=(a[0].data||[])[0];out.prop=(a[1].data||[])[0];out.build=(a[2].data||[])[0];out.purch=(a[3].data||[])[0];
+ }catch(e){}
+ return out;
+};
+VG.p360Overview=async function(host,code,p,lg){
+ var ts=Object.keys(SP).filter(function(t){return t!=='vg_projects'&&hasProj(t);});
+ var rs=await Promise.all(ts.map(function(t){return sb.from(t).select('*').eq('project_code',code).limit(500).then(function(r){return r.data||[];});}));
+ var D={};ts.forEach(function(t,i){D[t]=rs[i];});
+ var inv=D.acc_invoices||[],bal=function(r){return (+r.total||0)-(+r.paid||0);};
+ var invd=sum(inv.filter(function(r){return r.status!=='Void'&&r.status!=='Draft';}),'total'),coll=sum(D.acc_payments||[],'amount');
+ var pc0=(await VG.projectCosts())[code]||{stock:0};var cost=sum((D.acc_expenses||[]).filter(function(r){return r.status!=='Rejected';}),'amount')+sum(D.acc_bills||[],'amount')+((lg.purch&&+lg.purch.total_cost)||0)+(pc0.stock||0);
+ var contract=(p&&+p.contract_value)||(lg.bid&&+lg.bid.price)||(lg.prop&&+lg.prop.total)||0;
+ var openR=(D.eng_rfis||[]).filter(function(r){return r.status==='Open'||r.status==='Draft';}).length;
+ var punch=(D.fld_punch||[]).filter(function(r){return r.status!=='Verified'&&r.status!=='Fixed';}).length;
+ var hours=sum(D.ops_timesheets||[],'hours');
+ var late=(D.pm_milestones||[]).filter(function(m){return m.status!=='Done'&&m.due_date&&VG.diff(m.due_date)<0;});
+ var risks=(D.pm_risks||[]).filter(function(r){return r.status!=='Closed';});
+ var next=(D.ops_schedule||[]).filter(function(r){return r.work_date>=VG.today()&&r.status!=='Cancelled';}).sort(function(x,y){return x.work_date<y.work_date?-1:1;}).slice(0,4);
+ var h='<div class="vg-kpis">'+VG.kpi('Contract',VG.money0(contract))+VG.kpi('Invoiced',VG.money0(invd),contract?Math.round(invd/contract*100)+'% of contract':'')+VG.kpi('Collected',VG.money0(coll))+VG.kpi('Costs so far',VG.money0(cost))+VG.kpi('Margin',invd?Math.round((invd-cost)/invd*100)+'%':'-',invd?VG.money0(invd-cost):'')+VG.kpi('Hours logged',hours.toFixed(1))+'</div>';
+ var L=[];
+ if(lg.bid)L.push(VG.li('Bid opportunity: '+E(lg.bid.project||lg.bid.ref),E(lg.bid.gc||'')+' &middot; '+E(lg.bid.status||'')+' &middot; '+VG.money0(lg.bid.price),'',"VG.closeProject();showPage('bids')"));
+ if(lg.prop)L.push(VG.li('Proposal '+E(lg.prop.estimate_no),E(lg.prop.status||'')+' &middot; '+VG.money0(lg.prop.total),'',"VG.closeProject();showPage('proposals')"));
+ if(lg.build)L.push(VG.li('Build files: '+E(lg.build.name||lg.build.code),'Drawings, specs, hand-off docs','',"VG.closeProject();showPage('build')"));
+ if(lg.purch)L.push(VG.li('Purchasing: '+E(lg.purch.name||lg.purch.estimate_no),'Cost '+VG.money0(lg.purch.total_cost),'',"VG.closeProject();showPage('purchases')"));
+ h+='<div class="vg-grid2">'+VG.panel('Connected records',L.length?'<div class="vg-lst">'+L.join('')+'</div>':'<div class="vg-empty2">No bid, proposal, build or purchasing record uses this project code.</div>')
+ +VG.panel('Needs attention',VG.list([].concat(
+   late.map(function(m){return {a:'Late milestone: '+m.name,b:'due '+VG.d(m.due_date),t:'pm_milestones',id:m.id};}),
+   risks.map(function(r){return {a:'Risk: '+r.title,b:(r.impact||'')+' impact',t:'pm_risks',id:r.id};}),
+   inv.filter(function(r){return VG.effInv(r)==='Overdue';}).map(function(r){return {a:'Overdue invoice '+r.invoice_no,b:VG.money0(bal(r)),t:'acc_invoices',id:r.id};}),
+   (D.eng_rfis||[]).filter(function(r){return r.status==='Open'&&r.due_date&&VG.diff(r.due_date)<0;}).map(function(r){return {a:'RFI overdue: '+r.rfi_no,b:r.subject||'',t:'eng_rfis',id:r.id};})
+  ).slice(0,8),function(x){return VG.li(E(x.a),E(x.b),'',VG.edl(x.t,x.id));},'Nothing needs attention'))
+ +VG.panel('Coming up on the schedule',VG.list(next,function(r){return VG.li(E(r.task),VG.d(r.work_date)+' &middot; '+E(VG.uname(r.assigned_to)||r.crew||''),VG.badge(r.status),VG.edl('ops_schedule',r.id));},'Nothing scheduled'))
+ +VG.panel('Open items',[['Open RFIs',openR],['Punch items',punch],['Submittals pending',(D.eng_submittals||[]).filter(function(s){return ['Draft','Submitted','Revise & Resubmit'].indexOf(s.status)>=0;}).length],['Open change orders',(D.pm_change_orders||[]).filter(function(c){return c.status==='Submitted'||c.status==='Draft';}).length],['Service tickets',(D.svc_tickets||[]).filter(function(c){return ['Completed','Invoiced','Cancelled'].indexOf(c.status)<0;}).length],['Photos',(D.fld_photos||[]).length]].map(function(x){return '<div class="vg-kv"><span>'+x[0]+'</span><b>'+x[1]+'</b></div>';}).join(''))+'</div>';
+ // everything on the project, newest first
+ var all=[];ts.forEach(function(t){D[t].forEach(function(r){all.push({t:t,r:r,d:r.created_at||''});});});
+ all.sort(function(x,y){return x.d<y.d?1:-1;});
+ h+=VG.panel('Everything on this project (latest 15 of '+all.length+')',VG.list(all.slice(0,15),function(x){var S=SP[x.t];return VG.li(E(VG.singular(S.l))+': '+E(VG.rowTitle(x.t,x.r)),E(VG.d(x.d))+' &middot; '+E(VG.uname(x.r.created_by)||''),'',VG.edl(x.t,x.r.id));},'No records yet'));
+ host.innerHTML=h;
+};
+VG.askAIAbout=function(code){
+ VG.closeProject();showPage('ai');
+ setTimeout(function(){var i=document.getElementById('ai-input');if(i){i.value='Give me a full status review of project '+code+': money, schedule, risks, open items, and what I should do next.';i.focus();}},300);
+};
+
+/* ---------- Global search ---------- */
+var LEGACY_Q=[
+ {t:'bids',cols:['ref','project','gc'],label:'Bid Opportunity',page:'bids',title:function(r){return (r.ref||'')+' - '+(r.project||'');},sub:function(r){return (r.gc||'')+' - '+(r.status||'');},code:function(r){return r.ref;}},
+ {t:'proposals',cols:['estimate_no','project_name','bill_to_company'],label:'Proposal',page:'proposals',title:function(r){return (r.estimate_no||'')+' - '+(r.project_name||'');},sub:function(r){return (r.bill_to_company||'')+' - '+(r.status||'');},code:function(r){return r.estimate_no;}},
+ {t:'build_projects',cols:['code','name','client'],label:'Build Project',page:'build',title:function(r){return (r.code||'')+' - '+(r.name||'');},sub:function(r){return r.client||'';},code:function(r){return r.code;}},
+ {t:'purchase_projects',cols:['estimate_no','name'],label:'Purchasing',page:'purchases',title:function(r){return (r.estimate_no||'')+' - '+(r.name||'');},sub:function(){return '';},code:function(r){return r.estimate_no;}},
+ {t:'tasks',cols:['name','notes'],label:'Task',page:'tasks',title:function(r){return r.name||'';},sub:function(r){return r.assigned_name||'';}},
+ {t:'gc_contacts',cols:['company','contact_name','name'],label:'GC Contact',page:'gc',title:function(r){return r.company||r.name||'';},sub:function(r){return r.contact_name||r.email||'';}}
+];
+VG.openSearch=function(){
+ if(!CU)return;
+ var o=document.getElementById('vg-srch');if(!o){o=document.createElement('div');o.id='vg-srch';document.body.appendChild(o);}
+ o.className='open';
+ o.innerHTML='<div class="vg-sbox"><input id="vg-sq" placeholder="Search projects, invoices, RFIs, tickets, photos, notes, customers... (try a project code)" autocomplete="off"><div id="vg-sr" class="vg-sr"><div class="vg-empty2">Type at least 2 letters. Searches every department and Bids, Proposals, Build, Purchasing and Tasks.</div></div></div>';
+ o.onmousedown=function(e){if(e.target===o)VG.closeSearch();};
+ var i=document.getElementById('vg-sq');i.focus();i.oninput=function(){clearTimeout(VG._sqt);var v=i.value;VG._sqt=setTimeout(function(){VG.runSearch(v);},280);};
+};
+VG.closeSearch=function(){var o=document.getElementById('vg-srch');if(o){o.className='';o.innerHTML='';}};
+function esc4or(v){return String(v).replace(/[,()%*]/g,' ').trim();}
+VG.runSearch=async function(q){
+ var out=document.getElementById('vg-sr');if(!out)return;q=esc4or(q);
+ if(q.length<2){out.innerHTML='<div class="vg-empty2">Type at least 2 letters.</div>';return;}
+ var seq=VG._sseq=(VG._sseq||0)+1;out.innerHTML='<div class="vg-load">Searching...</div>';
+ await VG.loadRefs();
+ var jobs=[];
+ Object.keys(SP).forEach(function(t){var S=SP[t],mk=modKeyOf(t);if(!(VG.isAdmin()||canAccess(mk)))return;
+  var f=(S.search||[]).map(function(c){return c+'.ilike.%'+q+'%';}).join(',');if(!f)return;
+  jobs.push(sb.from(t).select('*').or(f).limit(6).then(function(r){return {kind:'vg',t:t,rows:r.data||[]};},function(){return {kind:'vg',t:t,rows:[]};}));});
+ LEGACY_Q.forEach(function(L){if(!canAccess(L.page))return;
+  var f=L.cols.map(function(c){return c+'.ilike.%'+q+'%';}).join(',');
+  jobs.push(sb.from(L.t).select('*').or(f).limit(6).then(function(r){return {kind:'lg',L:L,rows:r.data||[]};},function(){return {kind:'lg',L:L,rows:[]};}));});
+ var res=await Promise.all(jobs);if(seq!==VG._sseq)return;
+ var h='',n=0,ql=q.toLowerCase();
+ var pr=VG.refs.projects.filter(function(p){return (p.code+' '+p.name+' '+(p.client||'')).toLowerCase().indexOf(ql)>=0;}).slice(0,5);
+ var codes={};
+ res.forEach(function(g){g.rows.forEach(function(r){var c=g.kind==='vg'?r.project_code:g.L.code&&g.L.code(r);if(c)codes[c]=1;});});
+ pr.forEach(function(p){codes[p.code]=1;});
+ var codeList=Object.keys(codes).filter(function(c){return c.toLowerCase().indexOf(ql)>=0&&!pr.some(function(p){return p.code===c;})}).slice(0,3);
+ if(pr.length||codeList.length){h+='<div class="vg-sg">Projects</div>';
+  pr.forEach(function(p){n++;h+='<div class="vg-sri" onclick="VG.closeSearch();VG.openProject(\''+E(p.code)+'\')"><div><b>'+E(p.code)+'</b> '+E(p.name)+'</div><div class="vg-ls">'+E(p.client||'')+' &middot; open the full project page</div></div>';});
+  codeList.forEach(function(c){n++;h+='<div class="vg-sri" onclick="VG.closeSearch();VG.openProject(\''+E(c)+'\')"><div><b>'+E(c)+'</b></div><div class="vg-ls">open everything linked to this code</div></div>';});}
+ res.forEach(function(g){
+  if(!g.rows.length)return;
+  if(g.kind==='vg'){var S=SP[g.t],mk=modKeyOf(g.t);h+='<div class="vg-sg">'+E(VG.MODS[mk].label)+' &rsaquo; '+E(S.l)+'</div>';
+   g.rows.forEach(function(r){n++;var sub=[];if(r.project_code)sub.push(r.project_code);if(S.status&&r[S.status])sub.push(r[S.status]);var lc=S.cols.filter(function(c){return c.list&&c.k!==S.title&&c.k!==S.status&&c.k!=='project_code'&&c.t!=='money'&&c.t!=='file'&&c.t!=='user'&&c.t!=='bool'&&c.t!=='link';})[0];if(lc&&r[lc.k])sub.push(String(r[lc.k]).slice(0,60));
+    h+='<div class="vg-sri" onclick="VG.closeSearch();VG.jumpTo(\''+g.t+'\',\''+r.id+'\')"><div>'+E(VG.rowTitle(g.t,r))+'</div><div class="vg-ls">'+E(sub.join(' - '))+'</div></div>';});
+  }else{var L=g.L;h+='<div class="vg-sg">'+E(L.label)+'</div>';
+   g.rows.forEach(function(r){n++;var c=L.code&&L.code(r);h+='<div class="vg-sri" onclick="VG.closeSearch();'+(c?"VG.openProject('"+E(c)+"')":"showPage('"+L.page+"')")+'"><div>'+E(L.title(r))+'</div><div class="vg-ls">'+E(L.sub(r))+'</div></div>';});}
+ });
+ out.innerHTML=n?h:'<div class="vg-empty2">No results for "'+E(q)+'"</div>';
+};
+VG.jumpTo=function(t,id){
+ var mk=modKeyOf(t);
+ if(!VG.cur||VG.cur.page!==mk){VG.tab[mk]=null;showPage(mk);}
+ setTimeout(function(){VG.edit(t,id);},350);
+};
+
+/* ---------- AI access to everything ---------- */
+function rowLine(t,r){
+ var S=SP[t],parts=[];
+ S.cols.forEach(function(c){
+  if(c.k==='project_code'||c.hide||c.t==='file')return;var v=r[c.k];if(v==null||v==='')return;
+  if(c.t==='user')v=VG.uname(v);else if(c.t==='bool')v=v?'yes':'';else if(c.t==='link')return;
+  if(v==='')return;parts.push(c.l+': '+String(v).replace(/\s+/g,' ').slice(0,110));
+ });
+ return '  - '+parts.join('; ').slice(0,420);
+}
+VG._aiC={t:0,s:''};
+VG.aiOverview=async function(){
+ if(Date.now()-VG._aiC.t<60000)return VG._aiC.s;
+ var need=['vg_projects','acc_invoices','acc_bills','acc_expenses','sal_leads','wh_items','wh_moves','wh_requests','ops_schedule','ops_timesheets','ops_subs','ops_assets','ops_safety','eng_rfis','eng_submittals','eng_designs','fld_punch','pm_milestones','pm_risks','pm_change_orders','pm_reports','svc_tickets','svc_agreements','svc_visits'];
+ var rs=await Promise.all(need.map(function(t){return sb.from(t).select('*').limit(3000).then(function(r){return r.data||[];},function(){return [];});}));
+ var D={};need.forEach(function(t,i){D[t]=rs[i];});
+ var td=VG.today(),L=[];
+ var pr=D.vg_projects,byS={};pr.forEach(function(p){byS[p.status]=(byS[p.status]||0)+1;});
+ L.push('Projects ('+pr.length+'): '+Object.keys(byS).map(function(k){return k+' '+byS[k];}).join(', ')+'. Active contract value '+VG.money0(sum(pr.filter(function(p){return p.status==='Active';}),'contract_value'))+'.');
+ var inv=D.acc_invoices,open=inv.filter(function(r){return ['Sent','Partial','Overdue'].indexOf(VG.effInv(r))>=0;}),od=open.filter(function(r){return VG.effInv(r)==='Overdue';}),bal=function(r){return (+r.total||0)-(+r.paid||0);};
+ if(inv.length||D.acc_bills.length)L.push('Accounting: '+open.length+' open invoices ('+VG.money0(open.reduce(function(s,r){return s+bal(r);},0))+' outstanding), '+od.length+' overdue ('+VG.money0(od.reduce(function(s,r){return s+bal(r);},0))+')'+(od.length?': '+od.slice(0,5).map(function(r){return r.invoice_no+' '+(r.client||'')+' '+VG.money0(bal(r))+' project '+(r.project_code||'-');}).join('; '):'')+'. Bills owed '+VG.money0(D.acc_bills.filter(function(b){return b.status==='Open'||b.status==='Partial';}).reduce(function(s,b){return s+(+b.amount||0)-(+b.paid||0);},0))+'.');
+ var ol=D.sal_leads.filter(function(l){return l.stage!=='Won'&&l.stage!=='Lost';});if(D.sal_leads.length)L.push('Sales leads: '+ol.length+' open worth '+VG.money0(sum(ol,'est_value'))+'.');
+ if(D.wh_items.length){var st=VG.stockCalc(D.wh_moves,D.wh_items);var low=D.wh_items.filter(function(i){return i.active!==false&&(+i.reorder_point||0)>0&&((st[i.id]||{total:0}).total)<=+i.reorder_point;});L.push('Warehouse: '+D.wh_items.length+' items, '+low.length+' at or below reorder point'+(low.length?' ('+low.slice(0,6).map(function(i){return i.name;}).join(', ')+')':'')+'; '+D.wh_requests.filter(function(r){return ['Delivered','Cancelled'].indexOf(r.status)<0;}).length+' open material requests.');}
+ var tj=D.ops_schedule.filter(function(r){return r.work_date<=td&&(r.end_date||r.work_date)>=td&&r.status!=='Cancelled';});
+ L.push('Operations: '+tj.length+' jobs scheduled today'+(tj.length?' ('+tj.slice(0,6).map(function(r){return r.task+' '+(r.project_code||'');}).join('; ')+')':'')+'; '+D.ops_timesheets.filter(function(r){return r.status==='Submitted';}).length+' timesheets awaiting approval; '+D.ops_safety.filter(function(s){return s.status==='Open';}).length+' open safety items; '+D.ops_subs.filter(function(s){return s.insurance_expiry&&VG.diff(s.insurance_expiry)<=30;}).length+' subcontractor insurance expiring within 30 days.');
+ var oR=D.eng_rfis.filter(function(r){return r.status==='Open';});L.push('Engineering: '+oR.length+' open RFIs ('+oR.filter(function(r){return r.due_date&&VG.diff(r.due_date)<0;}).length+' overdue), '+D.eng_submittals.filter(function(s){return ['Draft','Submitted','Revise & Resubmit'].indexOf(s.status)>=0;}).length+' submittals pending, '+D.eng_designs.filter(function(d){return d.status==='In Review';}).length+' designs in review.');
+ L.push('Field: '+D.fld_punch.filter(function(p){return p.status!=='Verified'&&p.status!=='Fixed';}).length+' open punch items.');
+ var late=D.pm_milestones.filter(function(m){return m.status!=='Done'&&m.due_date&&VG.diff(m.due_date)<0;});
+ L.push('Project management: '+late.length+' late milestones'+(late.length?' ('+late.slice(0,5).map(function(m){return m.project_code+' '+m.name;}).join('; ')+')':'')+', '+D.pm_risks.filter(function(r){return r.status!=='Closed';}).length+' open risks, '+D.pm_change_orders.filter(function(c){return c.status==='Submitted';}).length+' change orders awaiting approval.');
+ var ot=D.svc_tickets.filter(function(x){return ['Completed','Invoiced','Cancelled'].indexOf(x.status)<0;});
+ L.push('Service: '+ot.length+' open tickets ('+ot.filter(function(x){return x.priority==='Emergency'||x.priority==='High';}).length+' high/emergency), '+D.svc_agreements.filter(function(a){return a.status==='Active';}).length+' active agreements, '+D.svc_visits.filter(function(v){return v.status==='Scheduled'&&VG.diff(v.visit_date)<=14;}).length+' maintenance visits due in 14 days.');
+ VG._aiC={t:Date.now(),s:L.join('\n')};return VG._aiC.s;
+};
+VG.aiProject=async function(code){
+ var ts=Object.keys(SP).filter(function(t){return hasProj(t);});
+ var rs=await Promise.all(ts.map(function(t){return sb.from(t).select('*').eq('project_code',code).order('created_at',{ascending:false}).limit(12).then(function(r){return r.data||[];},function(){return [];});}));
+ var lg=await VG.legacyFor(code),p=VG.refs.projects.find(function(x){return x.code===code;}),o=['PROJECT '+code+(p?' - '+p.name+' ('+p.status+', client '+(p.client||'?')+', contract '+VG.money0(p.contract_value)+', PM '+(VG.uname(p.pm_id)||'none')+')':'')];
+ if(lg.bid)o.push('  Bid: '+(lg.bid.project||'')+' / '+(lg.bid.gc||'')+' / status '+lg.bid.status+' / price '+VG.money0(lg.bid.price)+' / cost '+VG.money0(lg.bid.cost));
+ if(lg.prop)o.push('  Proposal: status '+lg.prop.status+' total '+VG.money0(lg.prop.total));
+ if(lg.purch)o.push('  Purchasing: cost '+VG.money0(lg.purch.total_cost)+' sold '+VG.money0(lg.purch.sold_amount));
+ ts.forEach(function(t,i){if(!rs[i].length)return;o.push(' '+SP[t].l+' ('+rs[i].length+(rs[i].length>=12?'+':'')+'):');rs[i].slice(0,8).forEach(function(r){o.push(rowLine(t,r));});});
+ return o.join('\n');
+};
+VG.aiContext=async function(q){
+ if(!CU)return '';
+ try{await VG.loadRefs();}catch(e){}
+ var s='\n\n=== VANTAGE DEPARTMENT DATA (Accounting, Sales, Warehouse, Operations, Engineering, Technician, Project Management, Service) ===\n';
+ try{s+=await VG.aiOverview();}catch(e){s+='(department summary unavailable)';}
+ var ql=String(q||'').toLowerCase(),hit=[];
+ VG.refs.projects.forEach(function(p){if(hit.length<2&&((ql.indexOf(String(p.code).toLowerCase())>=0)||(p.name&&p.name.length>5&&ql.indexOf(p.name.toLowerCase())>=0)))hit.push(p.code);});
+ if(!hit.length){var m=ql.match(/[a-z]{2}\d{2}-\d{2}-\d{2,4}/g);if(m)m.slice(0,2).forEach(function(c){hit.push(c.toUpperCase());});}
+ for(var i=0;i<hit.length;i++){try{s+='\n\n'+await VG.aiProject(hit[i]);}catch(e){}}
+ s+='\n=== END DEPARTMENT DATA. Use it together with the bid data above. Every record is linked by project code, so connect Sales, Accounting, Operations, Engineering, Field and Service when advising. ===\n';
+ return s.slice(0,14000);
+};
+var _bd=window.bdAIContext;
+if(typeof _bd==='function'){window.bdAIContext=async function(q){var s='';try{s=await _bd(q);}catch(e){}try{s+=await VG.aiContext(q);}catch(e){}return s;};}
+else{window.bdAIContext=async function(q){try{return await VG.aiContext(q);}catch(e){return '';}};}
+})();
+
+/* ===== Vantage Departments (field tools, gallery, Modules visibility dropdown) ===== */
+(function(){
+var VG=window.VG,E=VG.E,SP=VG.spec.tables;
+function projOpts(sel){return '<option value=""></option>'+VG.refs.projects.map(function(p){return '<option value="'+E(p.code)+'"'+(sel===p.code?' selected':'')+'>'+E(p.code+' - '+p.name)+'</option>';}).join('');}
+
+/* ---------- photos ---------- */
+VG.photoDialog=async function(code){
+ await VG.loadRefs();
+ VG.ov('<div class="vg-dlg"><div class="vg-dh">Add photos<button class="vg-x" onclick="VG.close()">&times;</button></div><div class="vg-db"><div class="vg-fg">'
+ +'<div class="vg-f w"><label>Project *</label><select id="vp-proj">'+projOpts(code)+'</select></div>'
+ +'<div class="vg-f"><label>Area / room</label><input id="vp-area" placeholder="IDF 2, 3rd floor"></div>'
+ +'<div class="vg-f"><label>Type</label><select id="vp-tag">'+SP.fld_photos.cols.find(function(c){return c.k==='tag';}).opts.map(function(o){return '<option>'+E(o)+'</option>';}).join('')+'</select></div>'
+ +'<div class="vg-f w"><label>Caption / note (applies to all)</label><input id="vp-cap" placeholder="What does this show?"></div>'
+ +'<div class="vg-f w"><label>Photos *</label><input type="file" id="vp-files" accept="image/*" multiple><div class="vg-hint">On a phone this opens the camera or your gallery. Photos are shrunk automatically.</div></div>'
+ +'</div><div id="vg-err" class="vg-err"></div></div><div class="vg-df"><div style="flex:1"></div><button class="vg-btn" onclick="VG.close()">Cancel</button><button class="vg-btn pri" id="vp-go" onclick="VG.photoSave()">Upload</button></div></div>','lock');
+};
+VG.photoSave=async function(){
+ if(!guardWrite('You cannot upload in view-only mode.'))return;
+ var code=document.getElementById('vp-proj').value,fs=document.getElementById('vp-files').files,err=document.getElementById('vg-err'),btn=document.getElementById('vp-go');
+ if(!code){err.textContent='Choose the project.';return;}if(!fs.length){err.textContent='Choose at least one photo.';return;}
+ btn.disabled=true;var area=document.getElementById('vp-area').value||null,tag=document.getElementById('vp-tag').value,cap=document.getElementById('vp-cap').value||null,n=0;
+ try{
+  for(var i=0;i<fs.length;i++){btn.textContent='Uploading '+(i+1)+' of '+fs.length+'...';
+   var path=await VG.upload(fs[i],'photos/'+VG.safe(code),true);
+   var r=await sb.from('fld_photos').insert({project_code:code,file_path:path,caption:cap,area:area,tag:tag,taken_by:CU.id,taken_at:VG.today(),created_by:CU.id,updated_by:CU.id});
+   if(r.error)throw r.error;n++;}
+  VG.bust('fld_photos');try{await logAct('Added photos','fld_photos',null,n+' photo(s) on '+code);}catch(e){}
+  VG.close();VG.toast(n+' photo'+(n===1?'':'s')+' added');VG.refresh('fld_photos');
+ }catch(e){err.textContent=(e&&e.message)||String(e);btn.disabled=false;btn.textContent='Upload';VG.bust('fld_photos');}
+};
+VG.drawGallery=async function(t,rows){
+ var host=document.getElementById('vg-gal-'+t);if(!host)return;
+ if(!rows.length){host.innerHTML='<div class="vg-empty2">No photos yet. Use "Add photos".</div>';return;}
+ var h='<div class="vg-gal">';rows.slice(0,120).forEach(function(r,i){h+='<div class="vg-gi" onclick="VG.lightbox(\''+r.id+'\')"><div class="vg-gph" id="vgph-'+r.id+'"></div><div class="vg-gc"><b>'+E(r.project_code||'')+'</b> '+E(r.caption||'')+'<div class="vg-ls">'+E((r.tag||'')+(r.area?' - '+r.area:''))+' &middot; '+VG.d(r.taken_at)+'</div></div></div>';});
+ host.innerHTML=h+'</div>';
+ rows.slice(0,120).forEach(function(r){VG.url(r.file_path).then(function(u){var el=document.getElementById('vgph-'+r.id);if(el&&u)el.style.backgroundImage='url("'+u+'")';});});
+};
+VG.lightbox=async function(id){
+ var r=(VG._tb.fld_photos&&VG._tb.fld_photos.rows||[]).find(function(x){return x.id===id;});if(!r)return;var u=await VG.url(r.file_path);
+ VG.ov('<div class="vg-lbx"><button class="vg-x" onclick="VG.close()" style="position:absolute;right:14px;top:10px;color:#fff;font-size:28px">&times;</button><img src="'+u+'"><div class="vg-lbc"><b>'+E(r.project_code||'')+'</b> '+E(r.caption||'')+' <span style="opacity:.7">'+E(r.tag||'')+' '+E(r.area||'')+' &middot; '+E(VG.uname(r.taken_by))+' &middot; '+VG.d(r.taken_at)+'</span><div style="margin-top:8px"><button class="vg-btn" onclick="VG.edit(\'fld_photos\',\''+r.id+'\')">Edit / delete</button> <button class="vg-btn" onclick="VG.shareDialog(\''+E(r.project_code||'')+'\',\''+E(r.file_path)+'\')">Share with PM</button> <button class="vg-btn" onclick="window.open(\''+E(u)+'\',\'_blank\')">Open full size</button></div></div></div>','dark');
+};
+
+/* ---------- share drawing with PM (with markup) ---------- */
+VG.shareDialog=async function(code,existingPath){
+ await VG.loadRefs();VG._shr={path:existingPath||null,ann:null};
+ var pmOf=function(c){var p=VG.refs.projects.find(function(x){return x.code===c;});return p&&p.pm_id||'';};
+ VG.ov('<div class="vg-dlg wide"><div class="vg-dh">Share a drawing with the project manager<button class="vg-x" onclick="VG.close()">&times;</button></div><div class="vg-db"><div class="vg-fg">'
+ +'<div class="vg-f"><label>Project *</label><select id="vs-proj" onchange="VG.shareProj()">'+projOpts(code)+'</select></div>'
+ +'<div class="vg-f"><label>Send to *</label><select id="vs-to"><option value=""></option>'+VG.refs.profList.map(function(p){return '<option value="'+p.id+'"'+(p.id===pmOf(code)?' selected':'')+'>'+E(p.full_name)+'</option>';}).join('')+'</select><div class="vg-hint">Defaults to the project manager.</div></div>'
+ +'<div class="vg-f w"><label>Title *</label><input id="vs-title" placeholder="IDF-2 rack elevation: conflict with conduit"></div>'
+ +'<div class="vg-f w"><label>Message</label><textarea id="vs-msg" rows="2" placeholder="What should the PM look at?"></textarea></div>'
+ +'<div class="vg-f w"><label>Drawing / photo / PDF'+(existingPath?' (using the selected photo)':' *')+'</label>'+(existingPath?'<div class="vg-hint">Photo attached. You can still mark it up after choosing another file.</div>':'')+'<input type="file" id="vs-file" accept="image/*,application/pdf" onchange="VG.shareFile(this)"></div>'
+ +'<div class="vg-f w" id="vs-annwrap" style="display:none"><label>Mark it up (draw with your finger or mouse)</label><div class="vg-annt"><button class="vg-btn" onclick="VG.annColor(\'#e53935\')" style="border-color:#e53935;color:#e53935">Red</button><button class="vg-btn" onclick="VG.annColor(\'#1565c0\')" style="border-color:#1565c0;color:#1565c0">Blue</button><button class="vg-btn" onclick="VG.annColor(\'#2e7d32\')" style="border-color:#2e7d32;color:#2e7d32">Green</button><button class="vg-btn" onclick="VG.annUndo()">Undo</button><button class="vg-btn" onclick="VG.annClear()">Clear</button></div><canvas id="vs-cv" class="vg-cv"></canvas></div>'
+ +'</div><div id="vg-err" class="vg-err"></div></div><div class="vg-df"><div style="flex:1"></div><button class="vg-btn" onclick="VG.close()">Cancel</button><button class="vg-btn pri" id="vs-go" onclick="VG.shareSend()">Send</button></div></div>','lock');
+};
+VG.shareProj=function(){var c=document.getElementById('vs-proj').value,p=VG.refs.projects.find(function(x){return x.code===c;});if(p&&p.pm_id)document.getElementById('vs-to').value=p.pm_id;};
+var A={strokes:[],cur:null,col:'#e53935',img:null,w:0,h:0};
+VG.shareFile=function(inp){
+ var f=inp.files[0],w=document.getElementById('vs-annwrap');VG._shr.path=null;
+ if(!f||!/^image\//.test(f.type)){w.style.display='none';VG._shr.ann=null;return;}
+ var img=new Image();img.onload=function(){
+  var mx=1600,sc=Math.min(1,mx/Math.max(img.width,img.height));A.w=Math.round(img.width*sc);A.h=Math.round(img.height*sc);A.img=img;A.strokes=[];
+  var cv=document.getElementById('vs-cv');cv.width=A.w;cv.height=A.h;w.style.display='';VG._shr.ann=true;VG.annDraw();VG.annBind(cv);};
+ img.src=URL.createObjectURL(f);
+};
+VG.annDraw=function(){
+ var cv=document.getElementById('vs-cv');if(!cv)return;var x=cv.getContext('2d');x.clearRect(0,0,A.w,A.h);x.drawImage(A.img,0,0,A.w,A.h);
+ x.lineCap='round';x.lineJoin='round';x.lineWidth=Math.max(3,A.w/260);
+ A.strokes.concat(A.cur?[A.cur]:[]).forEach(function(s){x.strokeStyle=s.c;x.beginPath();s.p.forEach(function(p,i){if(i)x.lineTo(p[0],p[1]);else x.moveTo(p[0],p[1]);});if(s.p.length===1)x.lineTo(s.p[0][0]+0.1,s.p[0][1]);x.stroke();});
+};
+VG.annBind=function(cv){
+ function pt(e){var r=cv.getBoundingClientRect(),t=e.touches?e.touches[0]:e;return [(t.clientX-r.left)*cv.width/r.width,(t.clientY-r.top)*cv.height/r.height];}
+ function dn(e){e.preventDefault();A.cur={c:A.col,p:[pt(e)]};}
+ function mv(e){if(!A.cur)return;e.preventDefault();A.cur.p.push(pt(e));VG.annDraw();}
+ function up(){if(A.cur){A.strokes.push(A.cur);A.cur=null;VG.annDraw();}}
+ cv.onmousedown=dn;cv.onmousemove=mv;window.onmouseup=up;cv.ontouchstart=dn;cv.ontouchmove=mv;cv.ontouchend=up;
+};
+VG.annColor=function(c){A.col=c;};VG.annUndo=function(){A.strokes.pop();VG.annDraw();};VG.annClear=function(){A.strokes=[];VG.annDraw();};
+VG.shareSend=async function(){
+ if(!guardWrite('You cannot share in view-only mode.'))return;
+ var g=function(i){return document.getElementById(i).value;},err=document.getElementById('vg-err'),btn=document.getElementById('vs-go');
+ var code=g('vs-proj'),to=g('vs-to'),title=g('vs-title').trim(),f=document.getElementById('vs-file').files[0];err.textContent='';
+ if(!code||!to||!title){err.textContent='Project, recipient and title are required.';return;}
+ if(!f&&!VG._shr.path){err.textContent='Choose a drawing, photo or PDF.';return;}
+ btn.disabled=true;btn.textContent='Sending...';
+ try{
+  var path=VG._shr.path;
+  if(f){
+   if(VG._shr.ann&&A.img&&A.strokes.length){var blob=await new Promise(function(res){document.getElementById('vs-cv').toBlob(res,'image/jpeg',0.85);});path=await VG.upload(new File([blob],(f.name||'drawing').replace(/\.[^.]+$/,'')+'-marked.jpg',{type:'image/jpeg'}),'shares/'+VG.safe(code),false);}
+   else path=await VG.upload(f,'shares/'+VG.safe(code),true);
+  }
+  var r=await sb.from('fld_shares').insert({project_code:code,title:title,message:g('vs-msg')||null,file_path:path,from_id:CU.id,to_id:to,status:'Sent',created_by:CU.id,updated_by:CU.id});
+  if(r.error)throw r.error;
+  VG.bust('fld_shares');try{await logAct('Shared drawing','fld_shares',null,title+' ('+code+') to '+VG.uname(to));}catch(e){}
+  VG.close();VG.toast('Sent to '+VG.uname(to));VG.refresh('fld_shares');
+ }catch(e){err.textContent=(e&&e.message)||String(e);btn.disabled=false;btn.textContent='Send';}
+};
+
+/* ---------- Modules visibility dropdown (Management) ---------- */
+var _rm=window.renderMgmt;
+window.renderMgmt=async function(){
+ await _rm.apply(this,arguments);
+ try{await VG.loadSettings();}catch(e){}
+ VG.mountModBar();
+};
+VG.pages=function(){return ALL_PAGES.map(function(p,i){return {k:p,l:PAGE_LABELS[i]};}).filter(function(x){return x.k!=='dashboard'&&x.k!=='mgmt';});};
+VG.mountModBar=function(){
+ var tbl=document.getElementById('group-perms-table');if(!tbl)return;
+ var sec=tbl.closest('.mgmt-sec');var hdr=sec&&sec.querySelector('.mgmt-hdr h3');if(hdr)hdr.textContent='Modules & Group Permissions';if(sec)sec.style.overflow='visible';
+ if(document.getElementById('vg-modbar'))document.getElementById('vg-modbar').remove();
+ var bar=document.createElement('div');bar.id='vg-modbar';bar.className='vg-modbar';
+ tbl.parentNode.insertBefore(bar,tbl);
+ VG.draftHidden=(VG.S.hidden||[]).slice();VG.drawModBar();VG.hideCols();
+};
+VG.drawModBar=function(){
+ var bar=document.getElementById('vg-modbar');if(!bar)return;
+ var pg=VG.pages(),vis=pg.filter(function(x){return VG.draftHidden.indexOf(x.k)<0;}).length,dirty=JSON.stringify(VG.draftHidden.slice().sort())!==JSON.stringify((VG.S.hidden||[]).slice().sort());
+ bar.innerHTML='<div class="vg-mb-l"><b>Modules</b><span>Choose which sections are visible or hidden. Hidden sections disappear for everyone, but nothing is lost.</span></div>'
+ +'<div class="vg-dd"><button class="vg-btn" onclick="VG.toggleModDD(event)">Visible sections: '+vis+' of '+pg.length+' &#9662;</button><div class="vg-ddp" id="vg-ddp" style="display:'+(VG._ddOpen?'block':'none')+'" onclick="event.stopPropagation()">'+VG.modDDHtml()+'</div></div>'
+ +(dirty?'<button class="vg-btn pri" onclick="VG.saveMods()">Save visibility</button><button class="vg-btn" onclick="VG.draftHidden=(VG.S.hidden||[]).slice();VG.drawModBar();VG.hideCols()">Undo</button>':'');
+};
+VG.modDDHtml=function(){
+ var core=VG.pages().filter(function(x){return !VG.MODS[x.k];}),nw=VG.pages().filter(function(x){return !!VG.MODS[x.k];});
+ function row(x){var hid=VG.draftHidden.indexOf(x.k)>=0,isNew=!!VG.MODS[x.k];
+  return '<label class="vg-ddr"><input type="checkbox" '+(hid?'':'checked ')+'onchange="VG.togMod(\''+x.k+'\',this.checked)"><span>'+E(x.l)+'</span>'+(isNew?'<em>'+(hid?'built, hidden':'live')+'</em>':'')+(hid&&VG.S.hidden.indexOf(x.k)>=0&&VG.isAdmin()?'<a href="#" onclick="VG.prevMod(\''+x.k+'\');return false">Preview</a>':'')+'</label>';}
+ return '<div class="vg-ddh">New departments</div>'+nw.map(row).join('')+'<div class="vg-ddh">Existing sections</div>'+core.map(row).join('')+'<div class="vg-ddf">Checked = visible. Dashboard and Management are always visible. After a department is visible, tick which groups can use it in the table below.</div>';
+};
+VG.toggleModDD=function(e){e.stopPropagation();VG._ddOpen=!VG._ddOpen;var p=document.getElementById('vg-ddp');if(p)p.style.display=VG._ddOpen?'block':'none';};
+document.addEventListener('click',function(){if(VG._ddOpen){VG._ddOpen=false;var p=document.getElementById('vg-ddp');if(p)p.style.display='none';}});
+VG.togMod=function(k,on){var i=VG.draftHidden.indexOf(k);if(on&&i>=0)VG.draftHidden.splice(i,1);if(!on&&i<0)VG.draftHidden.push(k);VG._ddOpen=true;VG.drawModBar();VG.hideCols();};
+VG.prevMod=function(k){VG.preview[k]=true;VG.applyAll();showPage(k);};
+VG.saveMods=async function(){
+ var before=(VG.S.hidden||[]).slice(),shown=before.filter(function(k){return VG.draftHidden.indexOf(k)<0;});
+ if(shown.length&&!confirm('Make visible: '+shown.map(function(k){return VG.MODS[k]?VG.MODS[k].label:k;}).join(', ')+'?\n\nAnyone whose group has access will see it in their menu.'))return;
+ VG.S.hidden=VG.draftHidden.slice();
+ var ok=await VG.saveSettings();if(!ok){VG.S.hidden=before;return;}
+ shown.forEach(function(k){delete VG.preview[k];});
+ try{await logAct('Changed module visibility','vg_settings',null,'Visible now: '+VG.pages().filter(function(x){return VG.S.hidden.indexOf(x.k)<0;}).length+' sections');}catch(e){}
+ VG._ddOpen=false;VG.applyAll();VG.drawModBar();VG.hideCols();VG.toast('Module visibility saved');
+};
+/* hide permission-table columns for hidden sections (keep the checkboxes so their state is not lost) */
+VG.hideCols=function(){
+ var t=document.querySelector('#group-perms-table table');if(!t)return;
+ var hid=VG.draftHidden||VG.S.hidden||[],idx={};ALL_PAGES.forEach(function(p,i){idx[p]=i+1;});
+ t.querySelectorAll('tr').forEach(function(tr){ALL_PAGES.forEach(function(p){var c=tr.children[idx[p]];if(c)c.style.display=hid.indexOf(p)>=0?'none':'';});});
+};
+var _rg=window.renderGroupPermsTable;
+window.renderGroupPermsTable=function(){_rg.apply(this,arguments);try{VG.hideCols();}catch(e){}};
+var _sg=window.saveGroupPermissions;
+window.saveGroupPermissions=function(){
+ _sg.apply(this,arguments);
+ VG.S.configured=VG.spec.modules.map(function(m){return m.key;});
+ VG.saveSettings().then(function(){VG.applyAll();});
+};
+})();
+
 </script>
 </body>
 </html>
