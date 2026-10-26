@@ -8407,7 +8407,7 @@ async function bdAIContext(q){
   }catch(e){return '';}
 }
 
-var APP_VERSION='2.5.0',APP_BUILD_DATE='Oct 24, 2026';
+var APP_VERSION='2.7.0',APP_BUILD_DATE='Oct 26, 2026';
 (function(){function s(){var e=document.getElementById('sb-ver');if(e)e.textContent='Vantage v'+APP_VERSION+' · '+APP_BUILD_DATE;}s();document.addEventListener('DOMContentLoaded',s);})();
 
 </script>
@@ -9149,7 +9149,7 @@ async function writeSummaries(job,bid,proj,req,sheets,totals,ctx){
 async function generateProposal(job,bid,proj,req,sheets,totals,lessons){
  var st=await styleSamples(bid),lib=await libraryText();
  var gcn=bid?bid.gc:'';
- var prompt='Create a proposal for NetFiber. Copy the WRITING STYLE, section layout, wording of scope/exclusions/notes and the way items are named and described from the EXAMPLE proposals NetFiber wrote earlier. Quantities MUST come from the drawing counts and requirements below (never invent quantities; if the SOW names a quantity and the drawings disagree, use the drawing count and add a flag). Prices: use the ITEM LIBRARY rates when an item matches; otherwise use the rate from a similar line in the examples; if no price exists set rate 0 and price_source "none". Separate sections for Data, AV and Security only when that scope exists. Only include work NetFiber is responsible for.\n\nPROJECT: '+(bid?bid.project:proj.name)+' | GC/client: '+gcn+' | city: '+(bid?bid.city:'')+' | SOW FIELD FROM THE BID (the estimator decided this; include ONLY these scopes - Comm = data/communications cabling, AV, Security; if empty decide from the documents): "'+(bid?bid.scope||'':'')+'" | bid notes: '+(bid?bid.notes||'':'')+'\n\nREQUIREMENTS FROM THE SPECS:\n'+JSON.stringify({data:req.data,av:req.av,security:req.security,exclusions:req.exclusions}).slice(0,22000)+'\n\nDRAWING TOTALS: '+JSON.stringify(totals)+'\nPER SHEET: '+JSON.stringify(sheets.map(function(s){return {sheet:s.sheet_number||s.file+' p'+s.page,title:s.title,counts:s.counts,flags:s.flags};})).slice(0,9000)+(lessons?'\n\nLESSONS FROM PAST CORRECTIONS (must follow):\n'+lessons:'')+'\n\nITEM LIBRARY:\n'+lib+'\n\n'+st.text+'\n\nReturn ONLY JSON: {"project_sow":"short SOW label e.g. DATA / AV / SECURITY","scope_of_work":"bullet lines starting with the bullet character, one per line","exclusions":"bullet lines","notes":"lines","sections":[{"header":"DATA CABLING","items":[{"product":"","description":"","qty":0,"rate":0,"cost":0,"taxable":true,"price_source":"library|history|none","basis":"where the qty came from"}]}],"flags":["anything the reviewer must check"],"confidence":0}';
+ var prompt='Create a proposal for NetFiber. Copy the WRITING STYLE, section layout, wording of scope/exclusions/notes and the way items are named and described from the EXAMPLE proposals NetFiber wrote earlier. Quantities MUST come from the drawing counts and requirements below (never invent quantities; if the SOW names a quantity and the drawings disagree, use the drawing count and add a flag). Prices: use the ITEM LIBRARY rates when an item matches; otherwise use the rate from a similar line in the examples; if no price exists set rate 0 and price_source "none". Separate sections for Data, AV and Security only when that scope exists. Only include work NetFiber is responsible for.\n\nPROJECT: '+(bid?bid.project:proj.name)+' | GC/client: '+gcn+' | city: '+(bid?bid.city:'')+' | SOW FIELD FROM THE BID (the estimator decided this; include ONLY these scopes - Comm = data/communications cabling, AV, Security; if empty decide from the documents): "'+(bid?bid.scope||'':'')+'" | bid notes: '+(bid?bid.notes||'':'')+'\n\nREQUIREMENTS FROM THE SPECS:\n'+JSON.stringify({data:req.data,av:req.av,security:req.security,exclusions:req.exclusions}).slice(0,22000)+'\n\nDRAWING TOTALS: '+JSON.stringify(totals)+'\nPER SHEET: '+JSON.stringify(sheets.map(function(s){return {sheet:s.sheet_number||s.file+' p'+s.page,title:s.title,counts:s.counts,mounts:s.mounts,method:s.method,flags:s.flags};})).slice(0,9000)+(lessons?'\n\nLESSONS FROM PAST CORRECTIONS (must follow):\n'+lessons:'')+'\n\nITEM LIBRARY:\n'+lib+'\n\n'+st.text+'\n\nReturn ONLY JSON: {"project_sow":"short SOW label e.g. DATA / AV / SECURITY","scope_of_work":"bullet lines starting with the bullet character, one per line","exclusions":"bullet lines","notes":"lines","sections":[{"header":"DATA CABLING","items":[{"product":"","description":"","qty":0,"rate":0,"cost":0,"taxable":true,"price_source":"library|history|none","basis":"where the qty came from"}]}],"flags":["anything the reviewer must check"],"confidence":0}';
  var p=await aiJson(P.SYS_EST,prompt,8000);
  var lib2=window._aipLib||[],flags=(p.flags||[]).slice(),n=0;
  (p.sections||[]).forEach(function(s){(s.items||[]).forEach(function(it){
@@ -9279,7 +9279,7 @@ AIP.runJob=async function(job){
   var outputs=[];
   var names=training?{data:'AI_Summary_Data_',av:'AI_Summary_AV_',security:'AI_Summary_Security_'}:{data:'AI_SOW_Data_',av:'AI_SOW_AV_',security:'AI_SOW_Security_'};
   for(var c in names){await put(names[c]+sref+'.txt',new Blob([sums[c]],{type:'text/plain'}),'text/plain');outputs.push(names[c]+sref+'.txt');}
-  var notes='AI REVIEW NOTES - '+pname+'\nGenerated '+new Date().toLocaleString()+'\n\nFLAGS TO CHECK\n'+(gen.flags.concat.apply(gen.flags,[])).map(function(x){return '- '+x;}).join('\n')+'\n\nSHEET FLAGS\n'+sheets.map(function(s){return (s.sheet_number||s.file+' p'+s.page)+' (confidence '+s.confidence+'%): '+(s.flags.join(' | ')||'ok');}).join('\n')+'\n\nQUESTIONS FROM THE SPECS\n'+(req.questions||[]).map(function(x){return '- '+x;}).join('\n')+'\n\nFILES NOT READ\n'+(ctx.skipped.join('\n')||'none');
+  var notes='AI REVIEW NOTES - '+pname+'\nGenerated '+new Date().toLocaleString()+'\n\nFLAGS TO CHECK\n'+(gen.flags.concat.apply(gen.flags,[])).map(function(x){return '- '+x;}).join('\n')+'\n\nSHEET FLAGS\n'+sheets.map(function(s){return (s.sheet_number||s.file+' p'+s.page)+' (confidence '+s.confidence+'%): '+(s.flags.join(' | ')||'ok');}).join('\n')+'\n\nCOUNT REPORT (how each number was counted)\n'+(AIP.countReport?AIP.countReport(sheets):'')+'\n\nQUESTIONS FROM THE SPECS\n'+(req.questions||[]).map(function(x){return '- '+x;}).join('\n')+'\n\nFILES NOT READ\n'+(ctx.skipped.join('\n')||'none');
   await put((training?'AI_Notes_':'AI_Review_Notes_')+sref+'.txt',new Blob([notes],{type:'text/plain'}),'text/plain');outputs.push((training?'AI_Notes_':'AI_Review_Notes_')+sref+'.txt');
   var pdfItems=allItems,pdf=buildProposalPdf(Object.assign({},propData),pdfItems,gcRow);
   await put('AI_Proposal_'+sref+'.pdf',pdf,'application/pdf');outputs.push('AI_Proposal_'+sref+'.pdf');
@@ -10807,6 +10807,15 @@ function polyInfo(pts){
   var v1=[a[0]-b[0],a[1]-b[1]],v2=[c[0]-b[0],c[1]-b[1]],d=Math.hypot(v1[0],v1[1])*Math.hypot(v2[0],v2[1]);ang.push(d?Math.acos(Math.max(-1,Math.min(1,(v1[0]*v2[0]+v1[1]*v2[1])/d)))*180/Math.PI:0);}
  return {n:n,x:cx/n,y:cy/n,size:Math.max(maxx-minx,maxy-miny),sides:sides.map(function(l){return l/per;}).sort(),ang:ang.slice().sort(function(a,b){return a-b;})};
 }
+function circleInfo(pts){ // a closed curve that is round = circle symbol (WAP, camera dome, speaker...)
+ var p=[];pts.forEach(function(q){if(!p.some(function(r){return Math.hypot(r[0]-q[0],r[1]-q[1])<0.01;}))p.push(q);});
+ if(p.length<4||p.length>8)return null;
+ var minx=1e9,miny=1e9,maxx=-1e9,maxy=-1e9;p.forEach(function(q){minx=Math.min(minx,q[0]);maxx=Math.max(maxx,q[0]);miny=Math.min(miny,q[1]);maxy=Math.max(maxy,q[1]);});
+ var w=maxx-minx,h=maxy-miny;if(w<=0||h<=0||w/h<0.85||w/h>1.18)return null;
+ var cx=(minx+maxx)/2,cy=(miny+maxy)/2,rr=(w+h)/4;
+ for(var i=0;i<p.length;i++){var d=Math.hypot(p[i][0]-cx,p[i][1]-cy);if(Math.abs(d-rr)>rr*0.14)return null;}
+ return {n:0,x:cx,y:cy,size:Math.max(w,h),sides:[],ang:[]};
+}
 async function extractShapes(pg,vp){
  var OPS=pdfjsLib.OPS,U=pdfjsLib.Util,ol=await pg.getOperatorList(),fn=ol.fnArray,ar=ol.argsArray,out=[],ctm=[1,0,0,1,0,0],st=[],cur=[],W=vp.width,lim=W*0.035,min=W*0.0008;
  var FILL={},STROKE={};FILL[OPS.fill]=FILL[OPS.eoFill]=FILL[OPS.fillStroke]=FILL[OPS.eoFillStroke]=FILL[OPS.closeFillStroke]=FILL[OPS.closeEOFillStroke]=1;
@@ -10830,7 +10839,7 @@ async function extractShapes(pg,vp){
     else if(o===OPS.closePath){if(sp)sp.closed=true;}
    }
   }else if(FILL[f]||STROKE[f]||f===OPS.endPath){
-   if(f!==OPS.endPath)cur.forEach(function(s){if(s.curve||s.pts.length<3)return;if(!(s.closed||FILL[f]||f===OPS.closeStroke))return;var inf=polyInfo(s.pts);if(!inf||inf.size>lim||inf.size<min)return;inf.fill=!!FILL[f];out.push(inf);});
+   if(f!==OPS.endPath)cur.forEach(function(s){if(s.pts.length<3)return;if(!(s.closed||FILL[f]||f===OPS.closeStroke||(s.curve&&Math.hypot(s.pts[0][0]-s.pts[s.pts.length-1][0],s.pts[0][1]-s.pts[s.pts.length-1][1])<0.5)))return;var inf=s.curve?circleInfo(s.pts):polyInfo(s.pts);if(!inf||inf.size>lim||inf.size<min)return;inf.fill=!!FILL[f];out.push(inf);});
    cur=[];
   }
  }
@@ -10841,7 +10850,7 @@ function sameShape(r,s){
  if(r.n!==s.n)return false;if(s.size<r.size*0.65||s.size>r.size*1.5)return false;
  for(var i=0;i<r.n;i++){if(Math.abs(r.ang[i]-s.ang[i])>12)return false;if(Math.abs(r.sides[i]-s.sides[i])>0.06)return false;}return true;
 }
-function shapeLabel(r){return r.n===3?'triangle':r.n===4?'square/rectangle':r.n===6?'hexagon':r.n+'-sided shape';}
+function shapeLabel(r){return r.n===0?'circle':r.n===3?'triangle':r.n===4?'square/rectangle':r.n===6?'hexagon':r.n+'-sided shape';}
 window.bdCountShape=function(){
  var rows=CS.rows.map(function(r,i){return {r:r,i:i};}).filter(function(x){return x.r.vref;});
  if(!rows.length){msg('<span style="color:#c62828">First press "Pick symbol from drawing" on a row and drag a box around ONE symbol. Vantage reads its exact shape from the PDF.</span>');return;}
@@ -10922,6 +10931,164 @@ window.bdCountExport=function(kind){
   d.setFont('helvetica','bold');d.text('Total',M,y+6);d.text(String(tot),M+300,y+6);d.setFont('helvetica','normal');d.setFontSize(9);d.setTextColor(120);d.text('Counted by Vantage (text labels, AI vision, and hand corrections). Verify before bidding.',M,y+30);
   d.save(base+'.pdf');}).catch(function(e){bdToast('Could not make the PDF: '+(e.message||e),true);});
 };
+window.VGCount={extractShapes:extractShapes,sameShape:sameShape,polyInfo:polyInfo,shapeLabel:shapeLabel,matcher:matcher};
+})();
+
+/* ===== Exact symbol counting inside the AI Proposal Engine (Full Automation + Training) ===== */
+(function(){
+if(!window.AIP||!AIP._p||!window.VGCount||!AIP._h)return;
+var P=AIP._p,H=AIP._h,TYPES=AIP.TYPES,VC=window.VGCount,orig=P.analyzePage,aiJson=H.aiJson,typeKey=H.typeKey;
+var LIB={list:[],loaded:false};
+function sc(cv,max){var s=Math.min(1,max/Math.max(cv.width,cv.height)),o=document.createElement('canvas');o.width=Math.max(1,Math.round(cv.width*s));o.height=Math.max(1,Math.round(cv.height*s));o.getContext('2d').drawImage(cv,0,0,o.width,o.height);return o;}
+function blk(cv,q){return {type:'image',source:{type:'base64',media_type:'image/jpeg',data:cv.toDataURL('image/jpeg',q||0.85).split(',')[1]}};}
+function typeList(){return Object.keys(TYPES).map(function(k){return k+' = '+TYPES[k].hint;}).join('\n');}
+var STD='STANDARD LOW-VOLTAGE DRAWING SYMBOLS (use these when the sheet legend does not say otherwise):\n'+
+'- Triangle (solid, half-filled or outline; upright or inverted) = telecom outlet. Tick marks or filled halves show the number/kind of ports (voice, data, combo). Tags: T, D, TD, DD.\n'+
+'- Square or rectangle with F, FB or a cross = floor box / poke-through / furniture feed (floor mounted).\n'+
+'- Circle with W, WAP or AP, or a circle with radiating arcs = wireless access point. Ceiling mounted unless the legend/tag says WM or wall.\n'+
+'- Square with an X or a small square in a ceiling grid = ceiling mounted device (speaker, AP, sensor).\n'+
+'- Symbol drawn on a wall line, or with a mounting height such as +18" or +48" AFF = wall mounted. FLR / FB / POKE = floor.\n'+
+'- Camera = dome (circle) or wedge/trapezoid with a circle. Card reader = square or rectangle with R or CR. Door contact = DC, REX = request to exit, speaker = circle/square with X or concentric circle, TV/display = rectangle with TV or D.\n'+
+'- Ignore: door swings, column grid bubbles, room tags, section markers, dimension marks, fixtures, furniture, parts of a bigger symbol.';
+
+/* ---- learned symbol library (saved in vg_settings) ---- */
+async function loadLib(){if(LIB.loaded)return;try{var r=await sb.from('vg_settings').select('value').eq('key','ai_symbols').maybeSingle();LIB.list=(r.data&&r.data.value&&r.data.value.list)||[];}catch(e){}LIB.loaded=true;}
+async function saveLib(){try{await sb.from('vg_settings').upsert({key:'ai_symbols',value:{list:LIB.list.slice(-300)},updated_by:CU.id,updated_at:new Date().toISOString()});}catch(e){}}
+function libMatch(e,s,W){return !!e.fill===!!s.fill&&VC.sameShape({n:e.n,ang:e.ang,sides:e.sides,size:e.rel*W},s);}
+AIP.symbols=function(){return LIB.list.slice();};
+AIP.clearSymbols=async function(){LIB.list=[];LIB.loaded=true;await saveLib();bdToast('Learned symbols cleared');};
+
+function buildClasses(shapes){
+ var cls=[];
+ shapes.forEach(function(s){var c=null;for(var i=0;i<cls.length;i++){var r=cls[i].rep;if(!!r.fill===!!s.fill&&VC.sameShape(r,s)&&VC.sameShape(s,r)){c=cls[i];break;}}
+  if(!c){c={id:cls.length+1,rep:s,items:[]};cls.push(c);}c.items.push(s);});
+ return cls;
+}
+function inBoxes(x,y,boxes,W,H){var fx=x/W,fy=y/H;for(var i=0;i<boxes.length;i++){var b=boxes[i];if(fx>=b[0]&&fx<=b[2]&&fy>=b[1]&&fy<=b[3])return true;}return false;}
+function nearTokens(items,txt,s){var cnt={},lx=s*5,ly=s*2.6;items.slice(0,40).forEach(function(it){txt.forEach(function(t){if(Math.abs(t.x-it.x)<lx&&Math.abs(t.y-it.y)<ly&&t.s.length<=14)cnt[t.s]=(cnt[t.s]||0)+1;});});
+ return Object.keys(cnt).sort(function(a,b){return cnt[b]-cnt[a];}).slice(0,4).map(function(k){return k+' x'+cnt[k];});}
+function crop(hi,cx,cy,w,h,ow,oh,mark){
+ var o=document.createElement('canvas');o.width=ow;o.height=oh;var c=o.getContext('2d');c.fillStyle='#fff';c.fillRect(0,0,ow,oh);
+ c.drawImage(hi,cx-w/2,cy-h/2,w,h,0,0,ow,oh);
+ if(mark){var k=ow/w,m=mark*k*1.5;c.strokeStyle='#e00000';c.lineWidth=2;c.strokeRect(ow/2-m/2,oh/2-m/2,m,m);}
+ return o;
+}
+function sheetOf(rows,hi){ // rows = [{id,count,leg,plan[]}]
+ var TW=440,TH=150,G=90,o=document.createElement('canvas');o.width=G+TW*2+12;o.height=rows.length*(TH+8);var c=o.getContext('2d');c.fillStyle='#f4f4f4';c.fillRect(0,0,o.width,o.height);
+ rows.forEach(function(r,i){var y=i*(TH+8);
+  c.fillStyle='#fff';c.fillRect(0,y,o.width,TH);c.fillStyle='#111';c.font='bold 26px Arial';c.fillText('#'+r.id,8,y+54);c.font='15px Arial';c.fillText('x'+r.count,8,y+80);
+  var s=r.rep.size;
+  if(r.leg){c.drawImage(crop(hi,r.leg.x+s*7,r.leg.y,s*21,s*21*TH/TW,TW,TH,null),G,y);c.strokeStyle='#e00000';c.lineWidth=2;var k=TW/(s*21),m=s*k*1.5;c.strokeRect(G+(s*21/2-s*7)*k-m/2,y+TH/2-m/2,m,m);}
+  else{c.fillStyle='#999';c.font='14px Arial';c.fillText('(not in legend)',G+150,y+80);}
+  r.plan.slice(0,2).forEach(function(p,j){c.drawImage(crop(hi,p.x,p.y,s*10,s*10,TH,TH,s),G+TW+12+j*(TH+6),y);});
+ });
+ return o;
+}
+
+var SHEETQ='This is one sheet of a construction drawing set. Study it and return ONLY JSON:\n{"sheet_number":"","sheet_title":"","discipline":"data|av|security|mixed|architectural|other","legend_boxes":[[x0,y0,x1,y1]],"legend":[{"symbol":"","meaning":""}],"schedule_counts":[{"type":"<type key>","count":0,"source":""}],"notes":[""],"uncertain":[""]}\n'+
+'legend_boxes = every area where symbols are shown only as EXAMPLES or listings and are NOT real devices on the plan: LEGEND / SYMBOL LIST, keynotes, general notes, schedules, title block, revision table, detail callouts. Use fractions (0 to 1) of this image width and height. Be generous - include the whole box and its text. If none, return [].\n'+
+'schedule_counts = outlet/device quantities that are WRITTEN on the sheet (schedule, riser or notes). Use ONLY these type keys:\n';
+
+async function exact(job,pg,lessons,req){
+ await loadLib();
+ var page=await pg.pdf.getPage(pg.pageNo),v0=page.getViewport({scale:1}),scl=Math.min(6,3200/Math.max(v0.width,v0.height)),vp=page.getViewport({scale:scl}),W=Math.round(vp.width),Ht=Math.round(vp.height);
+ var shapes=[];try{shapes=await VC.extractShapes(page,vp);}catch(e){}
+ var txt=[];try{var tc=await page.getTextContent(),U=pdfjsLib.Util;tc.items.forEach(function(it){var s=(it.str||'').trim();if(!s)return;var t=U.transform(vp.transform,it.transform),w=(it.width||0)*scl,h=(it.height||Math.abs(t[3]))*scl;txt.push({s:s,x:t[4]+w/2,y:t[5]-h/2});});}catch(e){}
+ if(shapes.length<3)return null;
+ var hi=document.createElement('canvas');hi.width=W;hi.height=Ht;var cx=hi.getContext('2d');cx.fillStyle='#fff';cx.fillRect(0,0,W,Ht);await page.render({canvasContext:cx,viewport:vp}).promise;
+ // 1) sheet info + legend / title-block areas
+ var info={};try{info=await aiJson(P.SYS_EST,[blk(sc(hi,1700),0.82),{type:'text',text:SHEETQ+typeList()}],2500)||{};}catch(e){info={};}
+ var boxes=(info.legend_boxes||[]).filter(function(b){return b&&b.length===4&&b.every(function(v){return isFinite(+v);});}).map(function(b){b=b.map(Number);var x0=Math.min(b[0],b[2]),x1=Math.max(b[0],b[2]),y0=Math.min(b[1],b[3]),y1=Math.max(b[1],b[3]);return [x0-0.01,y0-0.01,x1+0.01,y1+0.01];});
+ var noLegend=false;
+ if(!boxes.length){txt.forEach(function(t){if(/legend|symbol list|symbols/i.test(t.s))boxes.push([t.x/W-0.01,t.y/Ht-0.01,t.x/W+0.25,t.y/Ht+0.30]);});if(!boxes.length)noLegend=true;}
+ // 2) group identical shapes into symbol classes
+ var cls=buildClasses(shapes);
+ cls.forEach(function(c){c.leg=c.items.filter(function(s){return inBoxes(s.x,s.y,boxes,W,Ht);});c.plan=c.items.filter(function(s){return !inBoxes(s.x,s.y,boxes,W,Ht);});c.count=c.plan.length;});
+ cls=cls.filter(function(c){return c.count>0||c.leg.length>0;});
+ var libHits=0;
+ cls.forEach(function(c){var e=LIB.list.find(function(l){return libMatch(l,c.rep,W);});if(e){c.type=e.type;c.mount=e.mount||'';c.conf=0.95;c.src='library';libHits++;}});
+ var cand=cls.filter(function(c){return !c.type&&c.count<=800&&(c.count>=2||c.leg.length);}).sort(function(a,b){return ((b.leg.length?1000:0)+Math.min(b.count,300))-((a.leg.length?1000:0)+Math.min(a.count,300));}).slice(0,14);
+ // text tags that look like device tags
+ var tcnt={};txt.forEach(function(t){if(inBoxes(t.x,t.y,boxes,W,Ht))return;if(t.s.length>10||/^[\d.\-\/ ]+$/.test(t.s))return;tcnt[t.s]=(tcnt[t.s]||0)+1;});
+ var toks=Object.keys(tcnt).filter(function(k){return tcnt[k]>=2;}).sort(function(a,b){return tcnt[b]-tcnt[a];}).slice(0,60);
+ // 3) ask the AI ONCE what each symbol class means
+ var maps={},tags=[];
+ if(cand.length||toks.length){
+  var imgs=[],desc=[];
+  for(var i=0;i<cand.length;i+=7){var rows=cand.slice(i,i+7).map(function(c){return {id:c.id,count:c.count,rep:c.rep,leg:c.leg[0]||null,plan:c.plan};});imgs.push(blk(sheetOf(rows,hi),0.88));}
+  cand.forEach(function(c){desc.push('#'+c.id+': '+VC.shapeLabel(c.rep)+(c.rep.fill?', filled':', outline')+', '+c.count+' on the plan'+(c.leg.length?', also shown in the legend':'')+(nearTokens(c.plan,txt,c.rep.size).length?', labels next to it: '+nearTokens(c.plan,txt,c.rep.size).join(', '):''));});
+  var q='Each picture row is ONE symbol class cut out of the drawing. Left = the symbol next to its legend text (if it is in the legend), right = two places where it appears on the plan. The red square marks the exact shape that is counted.\nDecide what each class is. Use ONLY these type keys (or "none"):\n'+typeList()+'\n'+STD+'\n\nClasses:\n'+desc.join('\n')+'\n\nSheet legend read earlier: '+JSON.stringify((info.legend||[]).slice(0,40))+'\nText on the sheet that repeats (tag x times): '+toks.map(function(k){return k+' x'+tcnt[k];}).join(', ')+(req?'\nWhat the specs ask NetFiber to do: '+req.slice(0,1200):'')+(lessons?'\nLessons from past corrections (follow them):\n'+lessons:'')+'\n\nRules: say "none" for anything that is not a real low-voltage device or that is only a PART of a bigger symbol (set part_of_other true). Give mount = ceiling | wall | floor | unknown. Give conf 0 to 1. For text_tags list only tags that label a device by themselves (for example "WAP*" or "CAM-*"; a trailing * means starts-with) - skip room names and notes.\nReturn ONLY JSON: {"classes":[{"id":1,"type":"<type key or none>","mount":"","meaning":"","part_of_other":false,"conf":0.9}],"text_tags":[{"pattern":"","type":"<type key>","conf":0.9}]}';
+  var A={};try{A=await aiJson(P.SYS_EST,imgs.concat([{type:'text',text:q}]),4000)||{};}catch(e){A={};}
+  (A.classes||[]).forEach(function(m){maps[m.id|0]=m;});tags=(A.text_tags||[]).filter(function(t){return t&&t.pattern&&TYPES[typeKey(t.type)]&&(+t.conf||0)>=0.7;});
+ }
+ var unsure=[];
+ cand.forEach(function(c){var m=maps[c.id];if(!m)return;var t=m.type==='none'||m.part_of_other?'none':typeKey(m.type);c.conf=+m.conf||0;c.mount=/^(ceiling|wall|floor)$/i.test(m.mount||'')?String(m.mount).toLowerCase():'';c.meaning=m.meaning||'';
+  if(t==='none'||!TYPES[t]||m.type==='none'){c.type='none';return;}
+  if(c.conf<0.5){c.type='none';if(c.count>=3)unsure.push('Symbol class #'+c.id+' ('+VC.shapeLabel(c.rep)+' x'+c.count+') was not clear - not counted');return;}
+  c.type=t;c.src='ai';});
+ // 4) exact devices from shapes
+ var devs=[],trad=W*0.04,dd=W*0.004;
+ cls.forEach(function(c){if(!c.type||c.type==='none')return;c.plan.forEach(function(s){
+  if(devs.some(function(d){return d.type===c.type&&Math.hypot(d.px-s.x,d.py-s.y)<dd;}))return;
+  devs.push({type:c.type,x:s.x/W,y:s.y/Ht,px:s.x,py:s.y,room:'',label:'',note:c.mount||'',mount:c.mount||'',src:'verified',m:'shape',cid:c.id});});});
+ // 5) text-label devices: same device as a shape when close, else counted by the label
+ var textOnly=0;
+ tags.forEach(function(tg){var ty=typeKey(tg.type),f=VC.matcher(tg.pattern);if(!f)return;
+  txt.forEach(function(t){if(!f(t.s)||inBoxes(t.x,t.y,boxes,W,Ht))return;
+   var near=devs.find(function(d){return d.type===ty&&Math.hypot(d.px-t.x,d.py-t.y)<trad;});
+   if(near){if(near.m==='shape'){near.m='shape+text';near.src='both';}if(!near.label)near.label=t.s;return;}
+   devs.push({type:ty,x:t.x/W,y:t.y/Ht,px:t.x,py:t.y,room:'',label:t.s,note:'',mount:'',src:'tile',m:'text'});textOnly++;});});
+ if(!devs.length)return null;
+ // 6) totals, report, flags
+ var counts={},mounts={},meth={};
+ devs.forEach(function(d){counts[d.type]=(counts[d.type]||0)+1;mounts[d.type]=mounts[d.type]||{};var mk=d.mount||'unknown';mounts[d.type][mk]=(mounts[d.type][mk]||0)+1;meth[d.type]=meth[d.type]||{};meth[d.type][d.m]=(meth[d.type][d.m]||0)+1;});
+ var sched={};(info.schedule_counts||[]).forEach(function(s){var k=typeKey(s.type);if(+s.count>0)sched[k]=(sched[k]||0)+(+s.count);});
+ var flags=['Counted by exact symbol shapes read from the PDF ('+shapes.length+' shapes, '+cls.length+' symbol classes'+(libHits?', '+libHits+' known from earlier jobs':'')+')'];
+ var conf=92;
+ Object.keys(sched).forEach(function(k){if((counts[k]||0)!==sched[k]){flags.push('Sheet schedule says '+sched[k]+' '+TYPES[k].label+', exact count is '+(counts[k]||0));conf-=15;}});
+ if(noLegend){flags.push('No legend area found - legend example symbols may be included in the count');conf-=10;}
+ if(textOnly){flags.push(textOnly+' device(s) counted from text labels only (no symbol found next to them) - please verify (yellow ring)');conf-=5;}
+ unsure.slice(0,6).forEach(function(u){flags.push(u);conf-=6;});
+ (info.uncertain||[]).slice(0,5).forEach(function(u){flags.push(u);});
+ var report=Object.keys(counts).map(function(k){return {type:k,label:TYPES[k].label,count:counts[k],methods:meth[k],mounts:mounts[k]};});
+ var learn=[];cls.forEach(function(c){if(c.src!=='ai'||!c.type||c.type==='none'||c.conf<0.8)return;learn.push({n:c.rep.n,ang:c.rep.ang.map(function(v){return Math.round(v*10)/10;}),sides:c.rep.sides.map(function(v){return Math.round(v*1000)/1000;}),rel:Math.round(c.rep.size/W*10000)/10000,fill:!!c.rep.fill,type:c.type,mount:c.mount||'',label:c.meaning||'',count:c.count});});
+ var sheet={file:pg.file.name,page:pg.n,sheet_number:info.sheet_number||'',title:info.sheet_title||'',discipline:info.discipline||(Object.keys(counts).length?'mixed':''),legend:(info.legend||[]).slice(0,40),counts:counts,schedule:sched,flags:flags.slice(0,12),confidence:Math.max(25,conf),notes:(info.notes||[]).slice(0,15),method:'exact',mounts:mounts,report:report,classes:learn,devices:devs.map(function(d){return [d.type,+d.x.toFixed(4),+d.y.toFixed(4),d.room||'',d.src];})};
+ return {sheet:sheet,canvas:hi,devices:devs};
+}
+
+P.analyzePage=async function(job,pg,idx,total,lessons,req,grid){
+ var args=arguments,why='';
+ if(pg.kind==='pdf'&&!pg.scanned){try{var r=await exact(job,pg,lessons,req);if(r)return r;why='no usable vector symbols were found';}catch(e){why='exact counting failed ('+(e.message||e)+')';console.warn('exact count',e);}}
+ else why=pg.kind==='image'?'the sheet is an image':'the sheet is a scan';
+ var o=await orig.apply(null,args);
+ o.sheet.method='picture';o.sheet.flags.unshift('Counted from pictures (AI vision) because '+why+' - less exact, please check this sheet');o.sheet.confidence=Math.min(o.sheet.confidence,75);
+ return o;
+};
+
+/* ---- count report text (goes into the AI review notes) ---- */
+AIP.countReport=function(sheets){
+ var L=[];(sheets||[]).forEach(function(s){
+  L.push((s.sheet_number||s.file+' p'+s.page)+' - '+(s.title||'')+'  [method: '+(s.method==='exact'?'exact symbols':'pictures (AI vision)')+', confidence '+s.confidence+'%]');
+  if(s.report&&s.report.length)s.report.forEach(function(r){var m=Object.keys(r.methods||{}).map(function(k){return k+' '+r.methods[k];}).join(', '),mo=Object.keys(r.mounts||{}).map(function(k){return k+' '+r.mounts[k];}).join(', ');L.push('   '+r.label+': '+r.count+'   ('+m+'; mounting: '+mo+')');});
+  else Object.keys(s.counts||{}).forEach(function(k){L.push('   '+(TYPES[k]?TYPES[k].label:k)+': '+s.counts[k]+'   (picture count)');});
+ });
+ return L.join('\n');
+};
+
+/* ---- the AI learns symbols only after YOU confirm the result was good ---- */
+async function promote(){
+ await loadLib();var r=await sb.from('ai_proposal_jobs').select('id,result').order('created_at',{ascending:false}).limit(80),n=0;
+ for(var i=0;i<(r.data||[]).length;i++){var j=r.data[i],res=j.result;
+  if(!res||!res.learned||res.learned.verdict!=='confirmed_good'||res.symbols_promoted)continue;
+  (res.sheets||[]).forEach(function(s){(s.classes||[]).forEach(function(c){
+   var e=LIB.list.find(function(l){return l.type===c.type&&l.n===c.n&&!!l.fill===!!c.fill&&Math.abs(l.rel-c.rel)<l.rel*0.3&&l.sides.every(function(v,k){return Math.abs(v-c.sides[k])<0.04;});});
+   if(e)e.seen=(e.seen||1)+1;else{LIB.list.push({n:c.n,ang:c.ang,sides:c.sides,rel:c.rel,fill:c.fill,type:c.type,mount:c.mount,label:c.label,seen:1});n++;}});});
+  res.symbols_promoted=true;try{await sb.from('ai_proposal_jobs').update({result:res}).eq('id',j.id);}catch(e){}}
+ if(n)await saveLib();return n;
+}
+['confirmGood','learnNow','learnAll'].forEach(function(k){var o=AIP[k];if(typeof o!=='function')return;
+ AIP[k]=async function(){var r=await o.apply(this,arguments);try{var n=await promote();if(n)bdToast('Vantage learned '+n+' new symbol'+(n===1?'':'s')+' from this confirmed job');}catch(e){}return r;};});
+AIP.promoteSymbols=promote;
 })();
 
 </script>
