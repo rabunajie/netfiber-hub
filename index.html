@@ -780,6 +780,8 @@ body.view-only button[onclick*="Remove"]{
 .cs-r3 img{max-height:44px;max-width:80px;border:1px solid #e4e8f0;border-radius:4px}.cs-noref{font-size:11px;color:#a0aab8}
 .cs-sum{border:1px solid #e4e8f0;border-radius:10px;padding:8px 10px;margin-bottom:8px}.cs-sr{display:flex;align-items:center;font-size:13px;padding:3px 0}.cs-sr b{margin-left:auto;font-size:15px}.cs-sr.tot{border-top:1px solid #e4e8f0;margin-top:4px;padding-top:6px;font-weight:700}
 @media(max-width:900px){.cs-main{flex-direction:column}.cs-side{width:auto;max-height:45vh;border-left:0;border-top:1px solid #dde2ec}}
+.cs-vm{font-size:11px;color:#b3261e}.cs-vm.ok{color:#1b7a3d}
+.cs-vm{font-size:11px;color:#b3261e}.cs-vm.ok{color:#1b7a3d}
 </style>
 </head>
 <body autocomplete="off">
@@ -10709,12 +10711,13 @@ function drawShell(){
 }
 window.bdCountDraw=function(){var o=document.getElementById('cs-ov');o.innerHTML=drawShell();};
 window.bdCountLoadPage=async function(n){
- n=Math.max(1,Math.min(CS.np,parseInt(n,10)||1));CS.pg=n;ls('cs_pg_'+CS.f.id,String(n));CS.mk=[];CS.ign=[];CS.txt=[];
+ n=Math.max(1,Math.min(CS.np,parseInt(n,10)||1));CS.pg=n;ls('cs_pg_'+CS.f.id,String(n));CS.mk=[];CS.ign=[];CS.txt=[];CS.shapes=[];
  var stage=document.getElementById('cs-stage');if(stage)stage.classList.add('busy');
  var cv=document.createElement('canvas');
  if(CS.pdf){
   var pg=await CS.pdf.getPage(n),v1=pg.getViewport({scale:1}),sc=Math.min(4,3600/Math.max(v1.width,v1.height)),vp=pg.getViewport({scale:sc});
   cv.width=Math.round(vp.width);cv.height=Math.round(vp.height);await pg.render({canvasContext:cv.getContext('2d'),viewport:vp}).promise;
+  CS.shapes=[];try{CS.shapes=await extractShapes(pg,vp);}catch(e){console.warn('shapes',e);}
   try{var tc=await pg.getTextContent(),U=pdfjsLib.Util;tc.items.forEach(function(it){var s=(it.str||'').trim();if(!s)return;var t=U.transform(vp.transform,it.transform),w=(it.width||0)*sc,h=(it.height||Math.abs(t[3]))*sc;CS.txt.push({s:s,x:t[4]+w/2,y:t[5]-h/2});});}catch(e){}
  }else{cv.width=CS.img.width;cv.height=CS.img.height;cv.getContext('2d').drawImage(CS.img,0,0);}
  CS.cv=cv;var host=document.getElementById('cs-cv');if(!host)return;host.width=cv.width;host.height=cv.height;host.getContext('2d').drawImage(cv,0,0);
@@ -10730,22 +10733,24 @@ function renderBar(){var b=document.querySelector('.cs-bar');if(!b)return;
 window.bdCountZoom=function(z){if(z===0)CS.zoom=0;else if(z==='full')CS.zoom=1;else CS.zoom=Math.max(0.05,Math.min(3,(CS.zoom||CS.ds)*z));fit();redraw();};
 /* ---- markers ---- */
 function R(){return Math.max(20,CS.cv.width/150);}
-function merged(){ // text marks win; AI marks near a text mark of the same symbol are the same device
- var rad=CS.cv.width*0.02,out=[];
- CS.mk.filter(function(m){return m.src!=='ai';}).forEach(function(m){out.push(m);});
+function merged(){ // exact shapes win, then text labels; AI marks near either are the same device
+ var rad=CS.cv.width*0.02,trad=CS.cv.width*0.04,out=[];
+ CS.mk.filter(function(m){return m.src==='shape'||m.src==='man';}).forEach(function(m){out.push(m);});
+ CS.mk.filter(function(m){return m.src==='text';}).forEach(function(m){
+  if(CS.rows[m.t]&&CS.rows[m.t].vref&&out.some(function(o){return o.t===m.t&&o.src==='shape'&&Math.hypot(o.x-m.x,o.y-m.y)<trad;}))return;out.push(m);});
  CS.mk.filter(function(m){return m.src==='ai';}).forEach(function(m){
-  if(!out.some(function(o){return o.t===m.t&&Math.hypot(o.x-m.x,o.y-m.y)<rad&&o.src==='text';})&&!out.some(function(o){return o.t===m.t&&o.src==='ai'&&Math.hypot(o.x-m.x,o.y-m.y)<R()*1.2;}))out.push(m);});
+  if(!out.some(function(o){return o.t===m.t&&o.src!=='ai'&&Math.hypot(o.x-m.x,o.y-m.y)<rad;})&&!out.some(function(o){return o.t===m.t&&o.src==='ai'&&Math.hypot(o.x-m.x,o.y-m.y)<R()*1.2;}))out.push(m);});
  return out.filter(function(m){return !inIgn(m.x,m.y);});
 }
 function inIgn(x,y){return CS.ign.some(function(r){return x>=r[0]&&x<=r[2]&&y>=r[1]&&y<=r[3];});}
-function counts(){var c=CS.rows.map(function(){return {text:0,ai:0,man:0,n:0};});merged().forEach(function(m){if(!c[m.t])return;c[m.t][m.src]++;c[m.t].n++;});return c;}
+function counts(){var c=CS.rows.map(function(){return {text:0,ai:0,man:0,shape:0,n:0};});merged().forEach(function(m){if(!c[m.t])return;c[m.t][m.src]++;c[m.t].n++;});return c;}
 function redraw(){
  var m=document.getElementById('cs-mk');if(!m||!CS.cv)return;var x=m.getContext('2d');x.clearRect(0,0,m.width,m.height);
  x.fillStyle='rgba(120,120,120,0.35)';x.strokeStyle='#777';x.lineWidth=3;CS.ign.forEach(function(r){x.fillRect(r[0],r[1],r[2]-r[0],r[3]-r[1]);x.strokeRect(r[0],r[1],r[2]-r[0],r[3]-r[1]);});
  merged().forEach(function(k){var col=COL[k.t%COL.length];x.strokeStyle=col;x.lineWidth=Math.max(3,R()/5);x.beginPath();x.arc(k.x,k.y,R(),0,7);x.stroke();if(k.src==='man'){x.beginPath();x.moveTo(k.x-R()*0.5,k.y);x.lineTo(k.x+R()*0.5,k.y);x.moveTo(k.x,k.y-R()*0.5);x.lineTo(k.x,k.y+R()*0.5);x.stroke();}});
  if(CS.drag){var d=CS.drag;x.strokeStyle=CS.mode==='crop'?'#1e88e5':'#777';x.setLineDash([12,8]);x.lineWidth=3;x.strokeRect(d.x0,d.y0,d.x1-d.x0,d.y1-d.y0);x.setLineDash([]);}
  var c=counts(),sm=document.getElementById('cs-sum');if(sm)sm.innerHTML=sumHtml(c);
- CS.rows.forEach(function(r,i){var e=document.getElementById('cs-n'+i);if(e)e.innerHTML='<b>'+c[i].n+'</b><span>'+(c[i].text?'text '+c[i].text+' ':'')+(c[i].ai?'AI '+c[i].ai+' ':'')+(c[i].man?'hand '+c[i].man:'')+'</span>';});
+ CS.rows.forEach(function(r,i){var e=document.getElementById('cs-n'+i);if(e)e.innerHTML='<b>'+c[i].n+'</b><span>'+(c[i].shape?'shape '+c[i].shape+' ':'')+(c[i].text?'text '+c[i].text+' ':'')+(c[i].ai?'AI '+c[i].ai+' ':'')+(c[i].man?'hand '+c[i].man:'')+'</span>';});
 }
 function sumHtml(c){var tot=0;c.forEach(function(x){tot+=x.n;});return CS.rows.map(function(r,i){return '<div class="cs-sr"><i style="background:'+COL[i%COL.length]+'"></i>'+E(r.name||'(unnamed)')+'<b>'+c[i].n+'</b></div>';}).join('')+'<div class="cs-sr tot">Total<b>'+tot+'</b></div>';}
 function pt(e){var m=document.getElementById('cs-mk'),r=m.getBoundingClientRect();return [(e.clientX-r.left)/r.width*m.width,(e.clientY-r.top)/r.height*m.height];}
@@ -10762,7 +10767,8 @@ function bindStage(){
   if(near){var i=CS.mk.indexOf(near);if(i>=0)CS.mk.splice(i,1);}else if(CS.rows[CS.act]){CS.mk.push({t:CS.act,x:p[0],y:p[1],src:'man'});}
   redraw();};
 }
-function takeCrop(r){var w=r[2]-r[0],h=r[3]-r[1],s=Math.min(1,260/Math.max(w,h)),c=document.createElement('canvas');c.width=Math.max(1,Math.round(w*s));c.height=Math.max(1,Math.round(h*s));c.getContext('2d').drawImage(CS.cv,r[0],r[1],w,h,0,0,c.width,c.height);CS.rows[CS.act].ref=c;}
+function takeCrop(r){var w=r[2]-r[0],h=r[3]-r[1],s=Math.min(1,260/Math.max(w,h)),c=document.createElement('canvas');c.width=Math.max(1,Math.round(w*s));c.height=Math.max(1,Math.round(h*s));c.getContext('2d').drawImage(CS.cv,r[0],r[1],w,h,0,0,c.width,c.height);CS.rows[CS.act].ref=c;
+ var best=null;(CS.shapes||[]).forEach(function(s){if(s.x<r[0]||s.x>r[2]||s.y<r[1]||s.y>r[3])return;if(s.size>Math.max(w,h)*1.1)return;if(!best||s.size>best.size)best=s;});CS.rows[CS.act].vref=best||null;CS.rows[CS.act].vmsg=best?'Exact shape found: '+shapeLabel(best):'No vector shape in that box (scan, or drawn as curves)';}
 /* ---- side panel ---- */
 function saveRows(){ls('cs_rows',JSON.stringify(CS.rows.map(function(r){return {name:r.name,text:r.text};})));}
 function renderSide(){
@@ -10770,10 +10776,10 @@ function renderSide(){
  var h='<div class="cs-h">1. What to count</div><div class="cs-presets">'+Object.keys(PRE).map(function(k){return '<button class="cs-b" onclick="bdCountAdd(\''+k+'\')">+ '+E(PRE[k][0])+'</button>';}).join('')+'<button class="cs-b" onclick="bdCountAdd()">+ Other</button></div>';
  CS.rows.forEach(function(r,i){h+='<div class="cs-row'+(i===CS.act?' act':'')+'" onclick="bdCountAct('+i+')"><div class="cs-r1"><i style="background:'+COL[i%COL.length]+'"></i><input value="'+E(r.name)+'" placeholder="Name (e.g. Data outlet)" oninput="CS_rows('+i+',\'name\',this.value)" onclick="event.stopPropagation()"><span id="cs-n'+i+'" class="cs-n"></span><button class="cs-x" title="Remove" onclick="event.stopPropagation();bdCountDel('+i+')">&times;</button></div>'
   +'<div class="cs-r2"><input value="'+E(r.text)+'" placeholder="Text labels on the drawing, e.g. PP-*, TV, WAP" oninput="CS_rows('+i+',\'text\',this.value)" onclick="event.stopPropagation()" title="Words printed next to the symbol. * at the end matches anything after. Separate several with commas."></div>'
-  +'<div class="cs-r3">'+(r.ref?'<img src="'+r.ref.toDataURL()+'">':'<span class="cs-noref">No picture of the symbol yet</span>')+'<button class="cs-b" onclick="event.stopPropagation();bdCountCrop('+i+')">Pick symbol from drawing</button><label class="cs-b">Upload<input type="file" accept="image/*" style="display:none" onchange="bdCountUp('+i+',this)"></label></div></div>';});
+  +'<div class="cs-r3">'+(r.ref?'<img src="'+r.ref.toDataURL()+'">':'<span class="cs-noref">No picture of the symbol yet</span>')+(r.vmsg?'<span class="cs-vm'+(r.vref?' ok':'')+'">'+E(r.vmsg)+'</span>':'')+'<button class="cs-b" onclick="event.stopPropagation();bdCountCrop('+i+')">Pick symbol from drawing</button><label class="cs-b">Upload<input type="file" accept="image/*" style="display:none" onchange="bdCountUp('+i+',this)"></label></div></div>';});
  h+='<div class="cs-h">2. Ignore areas</div><div class="cs-p">Draw a box over the legend and title block so they are not counted. '+(CS.ign.length?CS.ign.length+' set. ':'')+'</div><div class="cs-presets"><button class="cs-b" onclick="CS_mode(\'ign\')">+ Ignore area</button>'+(CS.ign.length?'<button class="cs-b" onclick="CS_clrIgn()">Clear</button>':'')+'</div>';
- h+='<div class="cs-h">3. Count</div><div class="cs-p"><b>Text labels</b> are exact and free (works when the PDF has real text). <b>AI vision</b> looks at the picture of the symbols and finds the ones without labels.</div>'
-  +'<div class="cs-presets"><button class="cs-b pri" onclick="bdCountText()">Count text labels</button><select id="cs-grid"><option value="2x2">AI grid 2x2</option><option value="3x2" selected>AI grid 3x2</option><option value="3x3">AI grid 3x3</option><option value="4x3">AI grid 4x3 (large sheets)</option></select><button class="cs-b pri" onclick="bdCountAI()">Count with AI</button></div><div id="cs-msg" class="cs-p"></div>'
+ h+='<div class="cs-h">3. Count</div><div class="cs-p"><b>Exact shape (best):</b> after you pick a symbol, Vantage finds every identical shape in the PDF, even rotated. Exact and free. Needs vector drawings. <b>Text labels:</b> counts words like PP-01. Exact and free. <b>AI vision:</b> last resort for scans. It only looks at the picture, does not read the PDF text, and places marks only roughly.</div>'
+  +'<div class="cs-presets"><button class="cs-b pri" onclick="bdCountShape()">Count by exact shape</button><button class="cs-b pri" onclick="bdCountText()">Count text labels</button><select id="cs-grid"><option value="2x2">AI grid 2x2</option><option value="3x2" selected>AI grid 3x2</option><option value="3x3">AI grid 3x3</option><option value="4x3">AI grid 4x3 (large sheets)</option></select><button class="cs-b pri" onclick="bdCountAI()">Count with AI</button></div><div id="cs-msg" class="cs-p"></div>'
   +'<div class="cs-h">Result</div><div id="cs-sum" class="cs-sum"></div><div class="cs-presets"><button class="cs-b" onclick="bdCountClear()">Clear marks</button><button class="cs-b" onclick="bdCountExport(\'pdf\')">Save PDF</button><button class="cs-b" onclick="bdCountExport(\'csv\')">Save CSV</button><button class="cs-b" onclick="bdCountExport(\'copy\')">Copy</button></div>'
   +'<div class="cs-p" style="margin-top:8px">Check the circles, then fix mistakes by hand: click a wrong circle to remove it, click an empty spot to add one for the highlighted row. AI counts are an aid. Always confirm before bidding.</div>';
  s.innerHTML=h;redraw();
@@ -10788,6 +10794,72 @@ window.bdCountCrop=function(i){CS.act=i;CS.mode='crop';renderBar();renderSide();
 window.bdCountUp=async function(i,inp){var f=inp.files[0];if(!f)return;var b=await createImageBitmap(f),s=Math.min(1,260/Math.max(b.width,b.height)),c=document.createElement('canvas');c.width=Math.round(b.width*s);c.height=Math.round(b.height*s);c.getContext('2d').drawImage(b,0,0,c.width,c.height);CS.rows[i].ref=c;renderSide();};
 window.bdCountClear=function(){CS.mk=[];redraw();};
 function msg(t){var m=document.getElementById('cs-msg');if(m)m.innerHTML=t;}
+
+/* ---- vector shapes: read the symbols straight out of the PDF drawing commands ---- */
+function polyInfo(pts){
+ var p=[];pts.forEach(function(q){var l=p[p.length-1];if(!l||Math.hypot(l[0]-q[0],l[1]-q[1])>0.01)p.push(q);});
+ if(p.length>1&&Math.hypot(p[0][0]-p[p.length-1][0],p[0][1]-p[p.length-1][1])<0.01)p.pop();
+ var ch=true;while(ch&&p.length>3){ch=false;for(var i=0;i<p.length;i++){var a=p[(i+p.length-1)%p.length],b=p[i],c=p[(i+1)%p.length],x1=b[0]-a[0],y1=b[1]-a[1],x2=c[0]-b[0],y2=c[1]-b[1],cr=x1*y2-y1*x2,dt=x1*x2+y1*y2;if(Math.abs(cr)<1e-6*Math.hypot(x1,y1)*Math.hypot(x2,y2)+1e-9&&dt>0){p.splice(i,1);ch=true;break;}}}
+ var n=p.length;if(n<3||n>10)return null;
+ var minx=1e9,miny=1e9,maxx=-1e9,maxy=-1e9,per=0,cx=0,cy=0,sides=[],ang=[];
+ p.forEach(function(q){minx=Math.min(minx,q[0]);maxx=Math.max(maxx,q[0]);miny=Math.min(miny,q[1]);maxy=Math.max(maxy,q[1]);cx+=q[0];cy+=q[1];});
+ for(var i=0;i<n;i++){var a=p[(i+n-1)%n],b=p[i],c=p[(i+1)%n],l=Math.hypot(c[0]-b[0],c[1]-b[1]);sides.push(l);per+=l;
+  var v1=[a[0]-b[0],a[1]-b[1]],v2=[c[0]-b[0],c[1]-b[1]],d=Math.hypot(v1[0],v1[1])*Math.hypot(v2[0],v2[1]);ang.push(d?Math.acos(Math.max(-1,Math.min(1,(v1[0]*v2[0]+v1[1]*v2[1])/d)))*180/Math.PI:0);}
+ return {n:n,x:cx/n,y:cy/n,size:Math.max(maxx-minx,maxy-miny),sides:sides.map(function(l){return l/per;}).sort(),ang:ang.slice().sort(function(a,b){return a-b;})};
+}
+async function extractShapes(pg,vp){
+ var OPS=pdfjsLib.OPS,U=pdfjsLib.Util,ol=await pg.getOperatorList(),fn=ol.fnArray,ar=ol.argsArray,out=[],ctm=[1,0,0,1,0,0],st=[],cur=[],W=vp.width,lim=W*0.035,min=W*0.0008;
+ var FILL={},STROKE={};FILL[OPS.fill]=FILL[OPS.eoFill]=FILL[OPS.fillStroke]=FILL[OPS.eoFillStroke]=FILL[OPS.closeFillStroke]=FILL[OPS.closeEOFillStroke]=1;
+ STROKE[OPS.stroke]=STROKE[OPS.closeStroke]=STROKE[OPS.fillStroke]=STROKE[OPS.eoFillStroke]=STROKE[OPS.closeFillStroke]=STROKE[OPS.closeEOFillStroke]=1;
+ function dev(x,y){var t=U.transform(vp.transform,ctm);return [t[0]*x+t[2]*y+t[4],t[1]*x+t[3]*y+t[5]];}
+ for(var i=0;i<fn.length;i++){
+  var f=fn[i],a=ar[i];
+  if(f===OPS.save)st.push(ctm.slice());
+  else if(f===OPS.restore){if(st.length)ctm=st.pop();}
+  else if(f===OPS.transform)ctm=U.transform(ctm,a);
+  else if(f===OPS.paintFormXObjectBegin){st.push(ctm.slice());if(a&&a[0])ctm=U.transform(ctm,a[0]);}
+  else if(f===OPS.paintFormXObjectEnd){if(st.length)ctm=st.pop();}
+  else if(f===OPS.constructPath){
+   var ops=a[0],co=a[1],k=0,sp=null;
+   for(var j=0;j<ops.length;j++){var o=ops[j];
+    if(o===OPS.moveTo){sp={pts:[dev(co[k],co[k+1])],closed:false,curve:false};cur.push(sp);k+=2;}
+    else if(o===OPS.lineTo){if(!sp){sp={pts:[],closed:false,curve:false};cur.push(sp);}sp.pts.push(dev(co[k],co[k+1]));k+=2;}
+    else if(o===OPS.curveTo){if(sp){sp.curve=true;sp.pts.push(dev(co[k+4],co[k+5]));}k+=6;}
+    else if(o===OPS.curveTo2||o===OPS.curveTo3){if(sp){sp.curve=true;sp.pts.push(dev(co[k+2],co[k+3]));}k+=4;}
+    else if(o===OPS.rectangle){var x=co[k],y=co[k+1],w=co[k+2],h=co[k+3];cur.push({pts:[dev(x,y),dev(x+w,y),dev(x+w,y+h),dev(x,y+h)],closed:true,curve:false});sp=null;k+=4;}
+    else if(o===OPS.closePath){if(sp)sp.closed=true;}
+   }
+  }else if(FILL[f]||STROKE[f]||f===OPS.endPath){
+   if(f!==OPS.endPath)cur.forEach(function(s){if(s.curve||s.pts.length<3)return;if(!(s.closed||FILL[f]||f===OPS.closeStroke))return;var inf=polyInfo(s.pts);if(!inf||inf.size>lim||inf.size<min)return;inf.fill=!!FILL[f];out.push(inf);});
+   cur=[];
+  }
+ }
+ var res=[];out.forEach(function(s){if(!res.some(function(r){return r.n===s.n&&Math.hypot(r.x-s.x,r.y-s.y)<s.size*0.25&&Math.abs(r.size-s.size)<s.size*0.25;}))res.push(s);});
+ return res;
+}
+function sameShape(r,s){
+ if(r.n!==s.n)return false;if(s.size<r.size*0.65||s.size>r.size*1.5)return false;
+ for(var i=0;i<r.n;i++){if(Math.abs(r.ang[i]-s.ang[i])>12)return false;if(Math.abs(r.sides[i]-s.sides[i])>0.06)return false;}return true;
+}
+function shapeLabel(r){return r.n===3?'triangle':r.n===4?'square/rectangle':r.n===6?'hexagon':r.n+'-sided shape';}
+window.bdCountShape=function(){
+ var rows=CS.rows.map(function(r,i){return {r:r,i:i};}).filter(function(x){return x.r.vref;});
+ if(!rows.length){msg('<span style="color:#c62828">First press "Pick symbol from drawing" on a row and drag a box around ONE symbol. Vantage reads its exact shape from the PDF.</span>');return;}
+ if(!CS.shapes.length){msg('<span style="color:#c62828">No vector shapes found on this page. It may be a scan. Use Count text labels or Count with AI.</span>');return;}
+ CS.mk=CS.mk.filter(function(m){return m.src!=='shape';});
+ var W=CS.cv.width,near=W*0.03,hits=[];
+ CS.shapes.forEach(function(s){
+  if(inIgn(s.x,s.y))return;
+  var cand=rows.filter(function(x){return sameShape(x.r.vref,s);});if(!cand.length)return;
+  var pick=null,bd=1e9;
+  if(cand.length>1){CS.txt.forEach(function(t){var d=Math.hypot(t.x-s.x,t.y-s.y);if(d>near||d>=bd)return;cand.forEach(function(x){var ms=String(x.r.text||'').split(',').map(matcher).filter(Boolean);if(ms.some(function(f){return f(t.s);})){pick=x;bd=d;}});});
+   if(!pick)pick=cand.filter(function(x){return !String(x.r.text||'').trim();})[0]||cand[0];}
+  else pick=cand[0];
+  hits.push({t:pick.i,x:s.x,y:s.y,src:'shape'});});
+ hits.forEach(function(h){CS.mk.push(h);});
+ redraw();var parts=CS.rows.map(function(r,i){return rows.some(function(x){return x.i===i;})?E(r.name)+' '+hits.filter(function(h){return h.t===i;}).length:'';}).filter(Boolean).join(', ');
+ msg('Matched '+hits.length+' symbol'+(hits.length===1?'':'s')+' by exact shape: '+parts+'. Check the circles.');
+};
 /* ---- text-label count ---- */
 function matcher(p){p=String(p||'').trim();if(!p)return null;if(/^\/.+\/[i]?$/.test(p)){try{var re=new RegExp(p.replace(/^\/|\/[i]?$/g,''),'i');return function(s){return re.test(s);};}catch(e){return null;}}
  var star=/\*$/.test(p),b=p.replace(/\*$/,'').toLowerCase();return star?function(s){return s.toLowerCase().indexOf(b)===0;}:function(s){return s.toLowerCase()===b;};}
