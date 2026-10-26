@@ -6904,20 +6904,20 @@ async function bdIndexFile(row,blob){
     txt=(txt||'').replace(/\u0000/g,'').trim();
     status=txt.length>15?'ok':'none';
   }catch(e){status='error';txt='';}
-  try{await sb.from('build_files').update({extracted_text:txt.slice(0,120000)||null,index_status:status}).eq('id',row.id);}catch(e){}
+  try{await sb.from('build_files').update({extracted_text:txt.slice(0,7500000)||null,index_status:status}).eq('id',row.id);}catch(e){}
   row.index_status=status;
   var live=BD.files.find(function(x){return x.id===row.id;});if(live&&live.version===row.version)live.index_status=status;
   clearTimeout(bdIndexFile._t);bdIndexFile._t=setTimeout(function(){if(BD.proj&&document.getElementById('bd-main')&&!document.activeElement.matches('input,textarea'))bdRenderMain();},400);
 }
 async function bdExtract(row,blob){
   var k=bdKind(row.name,row.mime),ext=bdExt(row.name);
-  if(k==='text'||ext==='csv'){var t=await blob.text();return ext==='html'||ext==='htm'?t.replace(/<[^>]+>/g,' ').replace(/\s+/g,' '):t.slice(0,100000);}
+  if(k==='text'||ext==='csv'){var t=await blob.text();return ext==='html'||ext==='htm'?t.replace(/<[^>]+>/g,' ').replace(/\s+/g,' '):t.slice(0,2000000);}
   if(k==='sheet'){
     var wb=XLSX.read(await blob.arrayBuffer(),{type:'array'}),out='';
     wb.SheetNames.forEach(function(n){out+='=== Sheet: '+n+' ===\n'+XLSX.utils.sheet_to_csv(wb.Sheets[n],{blankrows:false})+'\n';});
-    return out.slice(0,100000);
+    return out.slice(0,2000000);
   }
-  if(k==='doc'&&ext==='docx'){await bdLoadScript(BD_MAMMOTH);var r=await mammoth.extractRawText({arrayBuffer:await blob.arrayBuffer()});return (r.value||'').slice(0,100000);}
+  if(k==='doc'&&ext==='docx'){await bdLoadScript(BD_MAMMOTH);var r=await mammoth.extractRawText({arrayBuffer:await blob.arrayBuffer()});return (r.value||'').slice(0,3000000);}
   if(k==='pdf')return await bdExtractPdf(blob);
   if(k==='image')return await bdVisionImage(blob,'Describe this photo from a low-voltage / structured cabling / construction project so it can be searched later. Say what is shown, location clues, equipment, cable and rack details, any labels or text you can read (transcribe them), and any visible problems. Max 200 words.');
   return '';
@@ -6929,11 +6929,13 @@ async function bdPdfLib(){
 }
 async function bdExtractPdf(blob){
   var lib=await bdPdfLib();var pdf=await lib.getDocument({data:await blob.arrayBuffer()}).promise;
-  var out='',max=Math.min(pdf.numPages,80);
+  var out='',max=Math.min(pdf.numPages,3000),done=0;
   for(var p=1;p<=max;p++){
     var pg=await pdf.getPage(p),tc=await pg.getTextContent();
-    out+='--- Page '+p+' ---\n'+tc.items.map(function(i){return i.str;}).join(' ')+'\n';
-    if(out.length>110000)break;
+    out+='--- Page '+p+' ---\n'+tc.items.map(function(i){return i.str;}).join(' ')+'\n';done=p;
+    try{pg.cleanup();}catch(e){}
+    if(window._bdProg&&p%25===0)window._bdProg(p,pdf.numPages);
+    if(out.length>7000000)break;
   }
   if(out.replace(/--- Page \d+ ---|\s/g,'').length<60){
     var vis='';
@@ -6942,12 +6944,47 @@ async function bdExtractPdf(blob){
         var page=await pdf.getPage(q),vp=page.getViewport({scale:1.4}),cv=document.createElement('canvas');cv.width=vp.width;cv.height=vp.height;
         await page.render({canvasContext:cv.getContext('2d'),viewport:vp}).promise;
         var b=await new Promise(function(r){cv.toBlob(r,'image/jpeg',0.8);});
-        vis+='--- Page '+q+' (read by AI vision) ---\n'+await bdVisionImage(b,'This is a page from a scanned construction document or drawing. Transcribe all readable text (titles, sheet numbers, notes, schedules, labels) and briefly describe what the drawing shows. Max 300 words.')+'\n';
+        vis+='--- Page '+q+' (read by AI vision) ---\n'+await bdVisionImage(b,'This is a page from a scanned construction document or drawing. Transcribe all readable text (titles, sheet numbers, notes, schedules, legends).')+'\n';
       }catch(e){}
     }
     out+=vis;
   }
+  return out+'\n--- INDEXED pages=1-'+done+' of '+pdf.numPages+' ---';
+}
+/* pick the pages of a big document that matter for a question */
+var BD_STOP={the:1,and:1,for:1,with:1,that:1,this:1,what:1,are:1,you:1,can:1,tell:1,me:1,about:1,from:1,page:1,pages:1,number:1,last:1,first:1,start:1,end:1,section:1,summary:1,summarize:1,summariy:1,look:1,find:1,please:1,give:1,show:1,all:1,any:1,does:1,have:1,there:1,which:1,where:1,how:1,his:1,her:1,its:1,into:1,use:1,get:1,his:1};
+function bdPages(text){
+  var parts=text.replace(/\n--- INDEXED [^\n]*---\s*$/,'').split(/--- Page (\d+)[^\n]*---\n/),out=[];
+  if(parts.length<3){var s=parts[0]||'';for(var i=0,n=1;i<s.length;i+=4000,n++)out.push({n:n,t:s.slice(i,i+4000)});return out;}
+  for(var k=1;k<parts.length;k+=2)out.push({n:+parts[k],t:parts[k+1]||''});
   return out;
+}
+function bdPickPages(text,q,budget,focus){
+  var pages=bdPages(text),total=pages.length,ql=(q||'').toLowerCase(),sel={},used=0,PCAP=6000;
+  function add(pg){if(sel[pg.n]||used>=budget)return false;var t=pg.t.slice(0,PCAP);if(used+t.length>budget)return false;sel[pg.n]=t;used+=t.length;return true;}
+  var nums=[],m,re=/page\s*(?:no\.?|number|#)?\s*(\d{1,5})(?:\s*(?:to|through|thru|until|-|–)\s*(?:page\s*)?(?:no\.?|number)?\s*(\d{1,5}))?/g,ranges=[];
+  while((m=re.exec(ql))){if(m[2])ranges.push([+m[1],+m[2]]);else nums.push(+m[1]);}
+  var re2=/(\d{1,5})\s*(?:to|through|thru|until|-|–)\s*(\d{1,5})/g;
+  if(!ranges.length&&/page/.test(ql)){while((m=re2.exec(ql)))if(+m[2]>+m[1]&&+m[1]>9)ranges.push([+m[1],+m[2]]);}
+  if(!ranges.length&&/page/.test(ql)){var big=(ql.match(/\b\d{3,5}\b/g)||[]).map(Number).filter(function(x,i,s){return s.indexOf(x)===i;});if(big.length>=2&&/last|end|through|until|start|between|first|from| to /.test(ql)){ranges.push([Math.min.apply(null,big),Math.max.apply(null,big)]);nums=[];}}
+  var clipped=false,asked=0;
+  ranges.forEach(function(r){var lo=Math.min(r[0],r[1]),hi=Math.max(r[0],r[1]);pages.forEach(function(pg){if(pg.n>=lo&&pg.n<=hi){asked++;if(!add(pg))clipped=true;}});});
+  nums.forEach(function(n){pages.forEach(function(pg){if(pg.n>=n-1&&pg.n<=n+1)add(pg);});});
+  var kw={};(ql.match(/[a-z0-9]{2,}/g)||[]).forEach(function(w){if(!BD_STOP[w]&&!/^\d{4,}$/.test(w))kw[w]=1;});
+  (focus||'').toLowerCase().split(/\s+/).forEach(function(w){if(w.length>2)kw[w]=1;});
+  var ws=Object.keys(kw),df={};
+  var low=pages.map(function(pg){return pg.t.toLowerCase();});
+  ws.forEach(function(w){df[w]=0;low.forEach(function(t){if(t.indexOf(w)>=0)df[w]++;});});
+  var phr=[];(ql.match(/(division|section|part|article|sheet)\s+[0-9a-z]{1,6}(?:[ .-]\d{2}){0,2}/g)||[]).forEach(function(x){phr.push(x);});
+  var sc=pages.map(function(pg,i){var s=0,t=low[i];
+    ws.forEach(function(w){if(!df[w])return;var c=t.split(w).length-1;if(c)s+=Math.min(c,8)*Math.log(1+total/(1+df[w]));});
+    phr.forEach(function(x){if(t.indexOf(x)>=0)s+=12;});
+    return {pg:pg,s:s};});
+  sc.sort(function(a,b){return b.s-a.s;});
+  for(var i=0;i<sc.length&&used<budget&&sc[i].s>0;i++)add(sc[i].pg);
+  for(var j=0;j<Math.min(3,pages.length);j++){var f=pages[j],t=f.t.slice(0,2500);if(!sel[f.n]&&used+t.length<budget+4000){sel[f.n]=t;used+=t.length;}}
+  var keys=Object.keys(sel).map(Number).sort(function(a,b){return a-b;});
+  return {text:keys.map(function(n){return '--- Page '+n+' ---\n'+sel[n];}).join('\n'),picked:keys,total:total,clipped:clipped,asked:asked};
 }
 function bdBlobToB64(b){return new Promise(function(res,rej){var r=new FileReader();r.onload=function(){res(String(r.result).split(',')[1]);};r.onerror=rej;r.readAsDataURL(b);});}
 async function bdShrink(blob,maxDim){
@@ -7096,16 +7133,28 @@ async function bdFileAI(id,q){
   var f=bdFile(id),inp=document.getElementById('bd-aiq'),out=document.getElementById('bd-aiout');
   q=q||(inp&&inp.value.trim());if(!q||!out)return;if(inp)inp.value='';
   out.innerHTML+='<div class="bd-aiq">'+bdE(q)+'</div><div class="bd-aia" id="bd-aia-n"><span class="spinner" style="width:14px;height:14px"></span></div>';out.scrollTop=out.scrollHeight;
+  var note=function(t){var n=document.getElementById('bd-aia-n');if(n)n.innerHTML='<span class="spinner" style="width:14px;height:14px"></span> '+bdE(t);};
   try{
     var txt=await bdFileText(id);
-    var sys='You are Vantage AI, the CEO-level assistant of NetFiber Network Cabling Solutions. Answer ONLY from the file below plus the file details. If the answer is not in the file, say so. Be concise and use plain text lists.\nFILE: '+f.name+' (V'+f.version+', '+bdSize(f.size)+') in project '+BD.proj.name+'\nCONTENT:\n'+(txt?txt.slice(0,60000):'(no readable text extracted)');
+    // files indexed before this update only have the first pages: read the whole PDF once
+    if(bdKind(f.name,f.mime)==='pdf'&&txt&&!/--- INDEXED pages=1-\d+ of \d+ ---\s*$/.test(txt)){
+      note('Reading the whole file for the first time. Big files take a minute or two...');
+      window._bdProg=function(p,n){note('Reading the whole file: page '+p+' of '+n+'...');};
+      try{await bdIndexFile(f,null);}finally{window._bdProg=null;}
+      txt=await bdFileText(id);
+    }
+    var pick=txt.length>150000?bdPickPages(txt,q+' '+window._bdAiHist.slice(-2).map(function(x){return typeof x.content==='string'?x.content:'';}).join(' '),140000):null;
+    var body=pick?pick.text:txt;
+    var info=pick?('\nThis file has '+pick.total+' pages. Because it is large, only these pages were selected as most relevant to the question: '+bdPageList(pick.picked)+'.'+(pick.clipped?' The requested page range was larger than fits, so part of it is missing: tell the user to ask about a smaller range.':'')+' If the answer needs pages that are not included, say which pages to ask for. Do NOT claim the file lacks them.'):'';
+    var sys='You are Vantage AI, the CEO-level assistant of NetFiber Network Cabling Solutions. Answer ONLY from the file content below plus the file details. If the answer is not in the content, say so. Quote page numbers when you can. Be concise and use plain text lists.\nFILE: '+f.name+' (V'+f.version+', '+bdSize(f.size)+') in project '+BD.proj.name+info+'\nCONTENT:\n'+(body||'(no readable text extracted)');
     window._bdAiHist.push({role:'user',content:q});
-    var a=await bdCallAI(sys,window._bdAiHist.slice(-6),1200);
+    var a=await bdCallAI(sys,window._bdAiHist.slice(-6),1800);
     window._bdAiHist.push({role:'assistant',content:a});
     var n=document.getElementById('bd-aia-n');if(n){n.removeAttribute('id');n.innerHTML=bdE(a).replace(/\n/g,'<br>');}
   }catch(e){var n2=document.getElementById('bd-aia-n');if(n2){n2.removeAttribute('id');n2.innerHTML='<span style="color:#C62828">AI error: '+bdE(e.message||'')+'</span>';}}
   out.scrollTop=out.scrollHeight;
 }
+function bdPageList(a){var o=[],s=a[0],pr=a[0];for(var i=1;i<=a.length;i++){if(a[i]===pr+1){pr=a[i];continue;}o.push(s===pr?''+s:s+'-'+pr);s=a[i];pr=a[i];}return o.join(', ');}
 
 // ============================================================
 // SPREADSHEET ENGINE — formula parser/evaluator, number formats, input parsing
@@ -8800,7 +8849,7 @@ async function readFiles(job,proj){
 function chunkCorpus(docs,max){
  var chunks=[],cur='';
  docs.forEach(function(d){
-  var head='\n\n### FILE: '+(d.path?d.path+' / ':'')+d.name+'\n',body=d.text.slice(0,90000);
+  var head='\n\n### FILE: '+(d.path?d.path+' / ':'')+d.name+'\n',body=d.text.length>90000?bdPickPages(d.text,'division 27 communications division 28 electronic safety security division 25 integrated automation structured cabling data outlet telecommunications audio video cctv access control wireless access point rack scope',90000,'cabling telecommunications communications security camera access control audio video data outlet wap').text:d.text;
   while(body.length){
    var room=max-cur.length-head.length;
    if(room<2000){chunks.push(cur);cur='';room=max-head.length;}
