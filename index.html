@@ -10471,6 +10471,26 @@ window.renderDashboard=async function(){var r=await _rd.apply(this,arguments);tr
 var _aa=VG.applyAll;VG.applyAll=function(){_aa();try{if(document.querySelector('#main-content .frame .fbody'))VG.dashTiles();}catch(e){}};
 })();
 
+/* ===== AI session guard: always send a fresh sign-in token to ai-proxy, retry once on 401 ===== */
+(function(){
+var _f=window.fetch.bind(window);
+async function tok(force){
+ try{
+  var s=(await sb.auth.getSession()).data.session;
+  var soon=s&&s.expires_at&&(s.expires_at*1000-Date.now()<120000);
+  if(force||!s||soon){var r=await sb.auth.refreshSession();if(r&&r.data&&r.data.session)s=r.data.session;}
+  return s&&s.access_token||null;
+ }catch(e){return null;}
+}
+function withTok(o,t){o=Object.assign({},o||{});var h=Object.assign({},o.headers||{});if(t)h['Authorization']='Bearer '+t;o.headers=h;return o;}
+window.fetch=async function(u,o){
+ if(String(u).indexOf('/functions/v1/ai-proxy')<0)return _f(u,o);
+ var t=await tok(false),r=await _f(u,t?withTok(o,t):o);
+ if(r.status===401){var t2=await tok(true);if(t2)r=await _f(u,withTok(o,t2));}
+ return r;
+};
+})();
+
 </script>
 </body>
 </html>
