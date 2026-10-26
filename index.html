@@ -695,7 +695,7 @@ body.view-only button[onclick*="Remove"]{
 
 
 <style id="vg-css">
-.vg-page{max-width:1500px}
+.vg-page{max-width:none}
 .vg-pdot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:8px}
 .vg-prev{background:#fff1cc;color:#6b4a00;border-radius:10px;padding:9px 14px;font-size:12.5px;margin-bottom:12px}
 .vg-tabs{display:flex;gap:4px;flex-wrap:wrap;border-bottom:1px solid #e4e8f0;margin-bottom:14px}
@@ -8464,7 +8464,7 @@ async function bdAIContext(q){
   }catch(e){return '';}
 }
 
-var APP_VERSION='2.9.1',APP_BUILD_DATE='Oct 26, 2026';
+var APP_VERSION='2.9.2',APP_BUILD_DATE='Oct 26, 2026';
 (function(){function s(){var e=document.getElementById('sb-ver');if(e)e.textContent='Vantage v'+APP_VERSION+' · '+APP_BUILD_DATE;}s();document.addEventListener('DOMContentLoaded',s);})();
 
 </script>
@@ -9563,7 +9563,7 @@ async function learnJob(j,p,auto){
  var training=j.mode==='training';p=p||{status:'training (no real proposal exists)',scope_of_work:'',exclusions:'',total:'',id:null};
  var snap={proj:BD.proj,folders:BD.folders,files:BD.files,members:BD.members,role:BD.role};
  try{
-  var pr=await sb.from('build_projects').select('*').eq('id',j.build_project_id).maybeSingle();if(!pr.data)throw new Error('project gone');
+  var pr=await sb.from('build_projects').select('*').eq('id',j.build_project_id).maybeSingle();if(!pr.data){await sb.from('ai_proposal_jobs').update({result:Object.assign({},j.result||{},{learned:{at:new Date().toISOString(),verdict:'skipped',summary:'Project no longer exists',wrong:[],right:[],lessons:0,notes_files:0,sent_files:0}})}).eq('id',j.id);return true;}
   BD.proj=pr.data;BD.role='editor';await bdFetchAll();
   var live=BD.files.filter(function(f){return !f.is_deleted;});
   function tree(re){var ids={};BD.folders.filter(function(f){return !f.is_deleted&&re.test(String(f.name).trim());}).forEach(function(f){ids[f.id]=1;});var ch=true;while(ch){ch=false;BD.folders.forEach(function(f){if(!f.is_deleted&&f.parent_id&&ids[f.parent_id]&&!ids[f.id]){ids[f.id]=1;ch=true;}});}return ids;}
@@ -10778,7 +10778,9 @@ window.saveGroupPermissions=function(){
 var VG=window.VG;var _rd=window.renderDashboard;if(typeof _rd!=='function')return;
 VG.dashTiles=function(){
  var fb=null;document.querySelectorAll('#main-content .frame').forEach(function(f){var t=f.querySelector('.ftitle');if(t&&/^\s*Modules\s*$/.test(t.textContent))fb=f.querySelector('.fbody');});
- if(!fb||fb.querySelector('.vg-dtile'))return;
+ if(!fb)return;
+ Object.keys(VG.MOVED).forEach(function(k){var o=VG.MOVED[k];if(!canAccess(o.m))return;fb.querySelectorAll('.mod-btn').forEach(function(b){if((b.getAttribute('onclick')||'').indexOf("showPage('"+k+"')")>=0)b.remove();});});
+ if(fb.querySelector('.vg-dtile'))return;
  VG.spec.modules.forEach(function(m){if(!canAccess(m.key))return;
   fb.insertAdjacentHTML('beforeend','<div class="mod-btn vg-dtile" onclick="showPage(\''+m.key+'\')" style="border-top:3px solid '+m.color+'"><span class="mod-btn-name">'+VG.E(m.label)+'</span></div>');});
 };
