@@ -8464,7 +8464,7 @@ async function bdAIContext(q){
   }catch(e){return '';}
 }
 
-var APP_VERSION='2.9.2',APP_BUILD_DATE='Oct 26, 2026';
+var APP_VERSION='2.9.3',APP_BUILD_DATE='Oct 26, 2026';
 (function(){function s(){var e=document.getElementById('sb-ver');if(e)e.textContent='Vantage v'+APP_VERSION+' · '+APP_BUILD_DATE;}s();document.addEventListener('DOMContentLoaded',s);})();
 
 </script>
@@ -10780,9 +10780,17 @@ VG.dashTiles=function(){
  var fb=null;document.querySelectorAll('#main-content .frame').forEach(function(f){var t=f.querySelector('.ftitle');if(t&&/^\s*Modules\s*$/.test(t.textContent))fb=f.querySelector('.fbody');});
  if(!fb)return;
  Object.keys(VG.MOVED).forEach(function(k){var o=VG.MOVED[k];if(!canAccess(o.m))return;fb.querySelectorAll('.mod-btn').forEach(function(b){if((b.getAttribute('onclick')||'').indexOf("showPage('"+k+"')")>=0)b.remove();});});
- if(fb.querySelector('.vg-dtile'))return;
+ if(!fb.querySelector('.vg-dtile')){
  VG.spec.modules.forEach(function(m){if(!canAccess(m.key))return;
   fb.insertAdjacentHTML('beforeend','<div class="mod-btn vg-dtile" onclick="showPage(\''+m.key+'\')" style="border-top:3px solid '+m.color+'"><span class="mod-btn-name">'+VG.E(m.label)+'</span></div>');});
+ }
+ // same order as the sidebar
+ var ord={};document.querySelectorAll('#sidebar .sb-item').forEach(function(e,i){ord[e.dataset.page]=i;});
+ var bt=[].slice.call(fb.querySelectorAll('.mod-btn'));
+ var pk=function(x){var m=(x.getAttribute('onclick')||'').match(/showPage\('([^']+)'/);return m?m[1]:'';};
+ var ix=function(x){var k=pk(x);return k in ord?ord[k]:999;};
+ var sorted=bt.map(function(x,i){return{x:x,i:i};}).sort(function(a,b){return ix(a.x)-ix(b.x)||a.i-b.i;});
+ if(sorted.some(function(o,i){return o.x!==bt[i];}))sorted.forEach(function(o){fb.appendChild(o.x);});
 };
 window.renderDashboard=async function(){var r=await _rd.apply(this,arguments);try{VG.dashTiles();}catch(e){}return r;};
 var _aa=VG.applyAll;VG.applyAll=function(){_aa();try{if(document.querySelector('#main-content .frame .fbody'))VG.dashTiles();}catch(e){}};
