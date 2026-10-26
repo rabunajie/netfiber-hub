@@ -638,6 +638,7 @@ body.view-only button[onclick*="Remove"]{
 .bd-dlg textarea{resize:vertical;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px}
 .bd-form{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
 .bd-chips-l{font-size:12px;color:#889;margin:10px 0 5px}.bd-chips{display:flex;flex-wrap:wrap;gap:6px}
+.bd-chip.sel{background:#1B5E9B;color:#fff;border-color:#1B5E9B}.bd-chip.more{background:#fff}.bd-kwmenu{border:1px solid #dde2ec;border-radius:10px;background:#fff;padding:8px;margin-bottom:8px;max-height:300px;overflow:auto;box-shadow:0 6px 20px rgba(0,0,0,.1)}.bd-kwg{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;font-weight:700;color:#8792A2;margin:8px 0 3px}.bd-kwr{display:block;font-size:13px;padding:4px 2px;cursor:pointer}.bd-kwr:hover{background:#f4f7fb}.bd-kwsel{display:flex;gap:10px;align-items:center;font-size:12px;color:#1B5E9B;margin-bottom:6px;font-weight:600}.bd-save{margin-top:8px;padding-top:7px;border-top:1px solid #e3dff5;font-size:12px;color:#6b5fa8}.bd-save button{margin-left:6px;border:1px solid #cfc8ee;background:#fff;border-radius:6px;padding:2px 9px;font-size:12px;font-weight:600;cursor:pointer;color:#4a3f8f}.bd-save button:hover{background:#f3f0fc}
 .bd-chip{border:1px solid #cfdcec;background:#f3f8fe;color:#1B5E9B;border-radius:999px;padding:4px 11px;font-size:12.5px;cursor:pointer;font-weight:600}.bd-chip:hover{background:#e3effc}.bd-chip.used{opacity:.4}
 .bd-hint{font-size:12px;color:#889;margin-top:10px}.bd-mv{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:8px;cursor:pointer;font-size:14px}.bd-mv:hover{background:#f0f5fb}.bd-mv input{width:auto!important}
 .bd-menu{position:fixed;z-index:99999;background:#fff;border:1px solid #dde3ec;border-radius:10px;box-shadow:0 12px 36px rgba(0,0,0,.18);padding:5px;min-width:200px;max-width:380px}
@@ -7118,9 +7119,10 @@ async function bdSideTab(btn,tab,id){
     el.innerHTML=vs.length?vs.map(function(v){var cur=v.version===f.version;return '<div class="bd-verrow"><div><b>V'+v.version+'</b>'+(cur?' <span class="bd-ver" style="background:#1D9E751a;color:#1D9E75">current</span>':'')+'<div style="font-size:12px;color:#667">'+bdE(bdWho(v.created_by))+' · '+bdDT(v.created_at)+' · '+bdSize(v.size)+'</div>'+(v.note?'<div style="font-size:12px;color:#889">'+bdE(v.note)+'</div>':'')+'</div><div class="bd-verbt"><a href="#" onclick="bdDownload(\''+id+'\',\''+bdJ(v.storage_path)+'\',\''+bdJ('V'+v.version+'-'+f.name)+'\');return false">Download</a>'+(bdCanEdit()&&!cur?' <a href="#" onclick="bdRestoreVersion(\''+id+'\',\''+v.id+'\');return false">Restore</a>':'')+'</div></div>';}).join(''):'<div class="bd-empty" style="padding:20px">No version history.</div>';
   }else{
     window._bdAiHist=[];
-    el.innerHTML='<div class="bd-aibox"><div class="bd-aibt"><button class="bd-chip" onclick="bdFileAI(\''+id+'\',\'Summarize this file in a short list of the most important points.\')">Summarize</button><button class="bd-chip" onclick="bdFileAI(\''+id+'\',\'List every action item, deadline, and responsible party in this file.\')">Action items</button><button class="bd-chip" onclick="bdFileAI(\''+id+'\',\'Extract all key numbers, quantities, dates and amounts from this file as a compact list.\')">Key numbers</button></div>'
+    el.innerHTML='<div class="bd-aibox"><div id="bd-kw"></div>'
      +'<div class="bd-aiout" id="bd-aiout"><div style="color:#8792A2;font-size:13px">Ask anything about this file. The AI reads its full contents'+(f.index_status==='ok'?'.':' (this file has no readable text, so answers are limited).')+'</div></div>'
-     +'<div class="bd-aiin"><input id="bd-aiq" class="tf-in" placeholder="Ask a question about this file…" onkeydown="if(event.key===\'Enter\')bdFileAI(\''+id+'\')"><button class="btn btn-blue" onclick="bdFileAI(\''+id+'\')">Ask</button></div></div>';
+     +'<div class="bd-aiin"><input id="bd-aiq" class="tf-in" placeholder="Ask a question about this file…" onkeydown="if(event.key===\'Enter\')bdAskSel(\''+id+'\')"><button class="btn btn-blue" id="bd-askbtn" onclick="bdAskSel(\''+id+'\')">Ask</button></div></div>';
+    bdKWRender(id);
   }
 }
 async function bdRestoreVersion(fid,vid){
@@ -7135,10 +7137,10 @@ async function bdRestoreVersion(fid,vid){
 async function bdFileText(id){
   var r=await sb.from('build_files').select('extracted_text').eq('id',id).single();return (r.data&&r.data.extracted_text)||'';
 }
-async function bdFileAI(id,q){
+async function bdFileAI(id,q,opt){opt=opt||{};
   var f=bdFile(id),inp=document.getElementById('bd-aiq'),out=document.getElementById('bd-aiout');
   q=q||(inp&&inp.value.trim());if(!q||!out)return;if(inp)inp.value='';
-  out.innerHTML+='<div class="bd-aiq">'+bdE(q)+'</div><div class="bd-aia" id="bd-aia-n"><span class="spinner" style="width:14px;height:14px"></span></div>';out.scrollTop=out.scrollHeight;
+  out.innerHTML+='<div class="bd-aiq">'+bdE(opt.label?'Key work: '+opt.label:q)+'</div><div class="bd-aia" id="bd-aia-n"><span class="spinner" style="width:14px;height:14px"></span></div>';out.scrollTop=out.scrollHeight;
   var note=function(t){var n=document.getElementById('bd-aia-n');if(n)n.innerHTML='<span class="spinner" style="width:14px;height:14px"></span> '+bdE(t);};
   try{
     var txt=await bdFileText(id);
@@ -7154,13 +7156,111 @@ async function bdFileAI(id,q){
     var info=pick?('\nThis file has '+pick.total+' pages. Because it is large, only these pages were selected as most relevant to the question: '+bdPageList(pick.picked)+'.'+(pick.clipped?' The requested page range was larger than fits, so part of it is missing: tell the user to ask about a smaller range.':'')+' If the answer needs pages that are not included, say which pages to ask for. Do NOT claim the file lacks them.'):'';
     var sys='You are Vantage AI, the CEO-level assistant of NetFiber Network Cabling Solutions. Answer ONLY from the file content below plus the file details. If the answer is not in the content, say so. Quote page numbers when you can. Be concise and use plain text lists.\nFILE: '+f.name+' (V'+f.version+', '+bdSize(f.size)+') in project '+BD.proj.name+info+'\nCONTENT:\n'+(body||'(no readable text extracted)');
     window._bdAiHist.push({role:'user',content:q});
-    var a=await bdCallAI(sys,window._bdAiHist.slice(-6),1800);
+    var a=await bdCallAI(sys,window._bdAiHist.slice(-6),opt.max||1800);
     window._bdAiHist.push({role:'assistant',content:a});
-    var n=document.getElementById('bd-aia-n');if(n){n.removeAttribute('id');n.innerHTML=bdE(a).replace(/\n/g,'<br>');}
+    window._bdAns=window._bdAns||[];var ai=window._bdAns.push({text:a,label:opt.label||q,file:f.name,project:(BD.proj&&BD.proj.name)||''})-1;
+    var n=document.getElementById('bd-aia-n');if(n){n.removeAttribute('id');n.innerHTML=bdE(a).replace(/\n/g,'<br>')+'<div class="bd-save">Save as: <button onclick="bdSaveAns('+ai+',\'pdf\')">PDF</button><button onclick="bdSaveAns('+ai+',\'txt\')">TXT</button><button onclick="bdCopyAns('+ai+',this)">Copy</button></div>';}
   }catch(e){var n2=document.getElementById('bd-aia-n');if(n2){n2.removeAttribute('id');n2.innerHTML='<span style="color:#C62828">AI error: '+bdE(e.message||'')+'</span>';}}
   out.scrollTop=out.scrollHeight;
 }
+function bdCopyAns(n,b){var a=(window._bdAns||[])[n];if(!a)return;try{navigator.clipboard.writeText(a.text);b.textContent='Copied';setTimeout(function(){b.textContent='Copy';},1500);}catch(e){}}
 function bdPageList(a){var o=[],s=a[0],pr=a[0];for(var i=1;i<=a.length;i++){if(a[i]===pr+1){pr=a[i];continue;}o.push(s===pr?''+s:s+'-'+pr);s=a[i];pr=a[i];}return o.join(', ');}
+
+// ---------- Key work: one-click / multi-select questions for the file AI ----------
+var BD_MAT='List every specific material TYPE required (product type, category/rating, size, quantity if stated, color, standards). Group by heading with bullets, give page numbers, and write "Not specified in this file" if nothing is stated. Do not invent anything.';
+var BD_KW=[
+ {id:'sum',g:'General',l:'Summarize file',top:1,p:'Summarize this file in a short list of the most important points.'},
+ {id:'mat',g:'General',l:'Materials required',top:1,p:'MATERIALS REQUIRED. Find all communications / data cabling materials. Cover: copper cable, backbone (25-pair) cable, fiber optic cable, indoor/outdoor cable, patch panels (copper and fiber), racks and enclosures, cable management, connectors and outlets, faceplates, grounding and bonding, pathways and support, patch cords, tools and labeling. '+BD_MAT},
+ {id:'brand',g:'General',l:'Manufacturers / brands',top:1,p:'MANUFACTURERS AND BRANDS. List every approved or named manufacturer, brand, model or part number for data cabling and communications products (for example CommScope, Belden, Panduit, Leviton, Hubbell, Berk-Tek, Superior Essex, Corning, TE). Say which items require a single manufacturer, which allow "or equal", and any warranty program required (such as a 25-year system warranty).'},
+ {id:'d27',g:'Divisions',l:'Division 27 summary',top:1,p:'Summarize Division 27 - Communications: every section (270500 and up), what the contractor must furnish and install, testing, labeling, warranty, and submittals. Give section numbers and page numbers.'},
+ {id:'d26',g:'Divisions',l:'Division 26 summary',top:1,p:'Summarize Division 26 - Electrical: sections that affect low-voltage work (grounding and bonding, raceways, boxes, firestopping, power for equipment, lighting control). Give section numbers and page numbers, and note what is by the electrical contractor.'},
+ {id:'fiber',g:'Materials',l:'Fiber cables',top:1,p:'FIBER OPTIC CABLE. Type (singlemode / multimode OM3 / OM4), strand counts, attenuation limits, jacket rating (plenum / riser / indoor-outdoor / armored), connectors (LC / SC), enclosures, splicing and testing (OTDR / loss) requirements. '+BD_MAT},
+ {id:'d28',g:'Divisions',l:'Division 28 summary (security)',p:'Summarize Division 28 - Electronic Safety and Security: access control, video surveillance, intrusion, fire alarm. Give section numbers, page numbers, and who furnishes and installs.'},
+ {id:'d25',g:'Divisions',l:'Division 25 summary (automation)',p:'Summarize Division 25 - Integrated Automation, if present: controls, networks, and anything NetFiber would cable. Give section numbers and page numbers.'},
+ {id:'d2',g:'Divisions',l:'Division 00/01 (bid & general)',p:'Summarize Division 00 and Division 01 items that affect a low-voltage bidder: bid due date and submission rules, insurance and bonding, schedule, coordination, closeout, temporary facilities, and substitutions.'},
+ {id:'scope',g:'General',l:'Scope of work',p:'Write the scope of work for the communications / data cabling contractor in short bullet points, with page numbers.'},
+ {id:'excl',g:'General',l:'Exclusions / by others',p:'List everything that is excluded, by others, owner-furnished, or not in contract (NIC) for communications and low-voltage work, with page numbers.'},
+ {id:'act',g:'General',l:'Action items & deadlines',p:'List every action item, deadline, and responsible party in this file.'},
+ {id:'num',g:'General',l:'Key numbers & dates',p:'Extract all key numbers, quantities, dates and amounts from this file as a compact list.'},
+ {id:'subm',g:'General',l:'Submittals required',p:'List every submittal required for communications / data cabling (product data, shop drawings, samples, test reports, warranties, as-builts) with the section and page.'},
+ {id:'test',g:'General',l:'Testing & certification',p:'Testing and certification requirements: copper (Cat 6A channel / permanent link), fiber (OTDR, loss), who tests, test equipment, reports and acceptance criteria, with page numbers.'},
+ {id:'warr',g:'General',l:'Warranty',p:'Warranty requirements for the cabling system (manufacturer system warranty, years, contractor warranty, certified installer rules), with page numbers.'},
+ {id:'std',g:'General',l:'Codes & standards',p:'List the codes and standards referenced for communications work (TIA/EIA 568, 569, 606, 607, BICSI, NEC, NFPA, UL, ADA) with where they apply.'},
+ {id:'copper',g:'Materials',l:'Copper cable',p:'COPPER CABLE. Category (5e / 6 / 6A), conductor size, shielding, jacket rating (CMP plenum / CMR riser), color, and standards. '+BD_MAT},
+ {id:'pair',g:'Materials',l:'25-pair backbone copper',p:'BACKBONE COPPER (25-pair UTP and other multipair). Category, pair counts, rating, termination hardware. '+BD_MAT},
+ {id:'inout',g:'Materials',l:'Indoor/outdoor cable',p:'INDOOR/OUTDOOR RATED cable for wet locations and outdoor runs (copper and fiber): jacket, rating, gel-filled or dry, armor. '+BD_MAT},
+ {id:'cpp',g:'Materials',l:'Copper patch panels',p:'COPPER PATCH PANELS. Port count, category, 19-inch mounting, lacing bars, manufacturer match requirement, labeling. '+BD_MAT},
+ {id:'fpp',g:'Materials',l:'Fiber patch panels / enclosures',p:'FIBER OPTIC PATCH PANELS AND ENCLOSURES. Size (RU), panels, adapters, strain relief, doors, locks, splice trays. '+BD_MAT},
+ {id:'rack',g:'Materials',l:'Racks & enclosures',p:'RACKS AND ENCLOSURES. Type (2-post / 4-post / cabinet), size, rating, finish, mounting holes, seismic and anchoring. '+BD_MAT},
+ {id:'cm',g:'Materials',l:'Cable management (vertical/horizontal)',p:'CABLE MANAGEMENT. Vertical and horizontal managers: sizes, depth, doors, finish, quantities per rack. '+BD_MAT},
+ {id:'cconn',g:'Materials',l:'Copper connectors / jacks',p:'COPPER CONNECTORS AND OUTLETS: modular jacks, category, wiring pattern (T568A / T568B), orientation, color. '+BD_MAT},
+ {id:'fconn',g:'Materials',l:'Fiber connectors',p:'FIBER CONNECTORS: LC / SC / MPO type, polish, adapters, matching requirements. '+BD_MAT},
+ {id:'face',g:'Materials',l:'Faceplates',p:'FACEPLATES: gang counts, port counts, colors, blanks, labeling, surface-mount boxes. '+BD_MAT},
+ {id:'gnd',g:'Materials',l:'Grounding & bonding',p:'GROUNDING AND BONDING: busbars (PBB / SBB), TBB and conductors, wire sizes, insulation color, lugs, ground rods (size, length, quantity), bonding of racks and trays. '+BD_MAT},
+ {id:'path',g:'Materials',l:'Pathways: conduit & cable tray',p:'PATHWAYS AND SUPPORT: conduit (EMT, RMC, IMC, sizes), cable tray and ladder rack, J-hooks, D-rings, sleeves, pull boxes, surface raceway, innerduct, firestopping. '+BD_MAT},
+ {id:'pcord',g:'Materials',l:'Patch cords (copper & fiber)',p:'PATCH CORDS AND STATION CORDS: copper (category, length, color, quantity ratio per outlet) and fiber (type, connectors, lengths). '+BD_MAT},
+ {id:'tools',g:'Materials',l:'Tools & labeling materials',p:'SPECIFIED TOOLS AND LABELING MATERIALS: termination tools and kits, label type and size, labeling scheme (TIA-606). '+BD_MAT},
+ {id:'wifi',g:'Systems',l:'Wireless / WAP',p:'WIRELESS: access points, who furnishes them, cabling to each (quantity, category), mounting, and heat map or survey requirements.'},
+ {id:'sec',g:'Systems',l:'Security / cameras / access control',p:'SECURITY SYSTEMS: cameras, readers, controllers, door hardware, cabling type and quantities, and who furnishes, installs and programs each.'},
+ {id:'av',g:'Systems',l:'Audio / video',p:'AUDIO-VIDEO: displays, speakers, control, conferencing, cabling requirements, and who furnishes and installs.'},
+ {id:'rooms',g:'Systems',l:'Telecom rooms (MDF/IDF)',p:'TELECOMMUNICATIONS ROOMS (MDF / IDF / entrance room): number, locations, size, power, cooling, backboards, grounding and what is required inside each.'}
+];
+window._bdKW={};
+function bdKWBy(id){return BD_KW.filter(function(k){return k.id===id;})[0];}
+function bdKWRender(fid){
+  var host=document.getElementById('bd-kw');if(!host)return;
+  var sel=Object.keys(window._bdKW),tops=BD_KW.filter(function(k){return k.top;});
+  var h='<div class="bd-aibt">'+tops.map(function(k){return '<button type="button" class="bd-chip'+(window._bdKW[k.id]?' sel':'')+'" onclick="bdKWToggle(\''+k.id+'\',\''+fid+'\')">'+bdE(k.l)+'</button>';}).join('')
+   +'<button type="button" class="bd-chip more" onclick="bdKWMenu(event)">More key work &#9662;</button></div>';
+  h+='<div class="bd-kwmenu" id="bd-kwmenu" style="display:'+(window._bdKWOpen?'block':'none')+'" onclick="event.stopPropagation()"><input class="tf-in" id="bd-kwq" placeholder="Search key work..." oninput="bdKWFilter(this.value)" style="margin-bottom:6px;width:100%;box-sizing:border-box">';
+  var g='';BD_KW.forEach(function(k){if(k.g!==g){g=k.g;h+='<div class="bd-kwg">'+bdE(g)+'</div>';}
+   h+='<label class="bd-kwr" data-t="'+bdE((k.l+' '+k.g).toLowerCase())+'"><input type="checkbox"'+(window._bdKW[k.id]?' checked':'')+' onchange="bdKWToggle(\''+k.id+'\',\''+fid+'\',true)"> '+bdE(k.l)+'</label>';});
+  h+='</div>';
+  h+='<div class="bd-kwsel" style="display:'+(sel.length?'flex':'none')+'"><span>'+sel.length+' selected</span><a href="#" onclick="bdKWClear(\''+fid+'\');return false">Clear</a></div>';
+  host.innerHTML=h;
+  var b=document.getElementById('bd-askbtn');if(b)b.textContent=sel.length?'Ask ('+sel.length+')':'Ask';
+}
+function bdKWToggle(id,fid,keepOpen){if(window._bdKW[id])delete window._bdKW[id];else window._bdKW[id]=1;if(keepOpen)window._bdKWOpen=true;var q=(document.getElementById('bd-kwq')||{}).value;bdKWRender(fid);if(q)bdKWFilter(q);var m=document.getElementById('bd-kwq');if(m&&keepOpen&&q){m.value=q;}}
+function bdKWClear(fid){window._bdKW={};bdKWRender(fid);}
+function bdKWMenu(e){e.stopPropagation();window._bdKWOpen=!window._bdKWOpen;var m=document.getElementById('bd-kwmenu');if(m)m.style.display=window._bdKWOpen?'block':'none';}
+function bdKWFilter(v){v=(v||'').toLowerCase();document.querySelectorAll('#bd-kwmenu .bd-kwr').forEach(function(r){r.style.display=!v||r.getAttribute('data-t').indexOf(v)>=0?'':'none';});}
+document.addEventListener('click',function(){if(window._bdKWOpen){window._bdKWOpen=false;var m=document.getElementById('bd-kwmenu');if(m)m.style.display='none';}});
+function bdAskSel(fid){
+  var inp=document.getElementById('bd-aiq'),typed=inp?inp.value.trim():'',ids=Object.keys(window._bdKW);
+  if(!ids.length&&!typed)return;
+  if(!ids.length)return bdFileAI(fid,typed);
+  var ks=ids.map(bdKWBy).filter(Boolean),label=ks.map(function(k){return k.l;}).join(' + ');
+  var q=ks.length===1&&!typed?ks[0].p:'Answer each of the following as its own clearly titled section (use the title given). Keep each section compact.\n\n'+ks.map(function(k,i){return (i+1)+'. ['+k.l+'] '+k.p;}).join('\n\n')+(typed?'\n\nAlso answer this: '+typed:'');
+  if(inp)inp.value='';window._bdKW={};window._bdKWOpen=false;bdKWRender(fid);
+  return bdFileAI(fid,q,{label:label+(typed?' + "'+typed+'"':''),max:Math.min(6500,1600+700*ks.length)});
+}
+// ---------- save an answer as TXT or PDF ----------
+function bdAnsClean(s){return String(s||'').replace(/[\u2018\u2019]/g,"'").replace(/[\u201C\u201D]/g,'"').replace(/[\u2013\u2014]/g,'-').replace(/\u2022/g,'-').replace(/\u2026/g,'...').replace(/\u03BC/g,'u').replace(/[^\x09\x0A\x20-\x7E\u00A0-\u00FF]/g,'');}
+function bdSaveAns(n,kind){
+  var a=(window._bdAns||[])[n];if(!a)return;
+  var base=(a.file||'file').replace(/\.[^.]+$/,'')+' - '+(a.label||'AI answer').slice(0,50),safe=base.replace(/[\\/:*?"<>|]+/g,'').replace(/\s+/g,' ').trim().slice(0,110);
+  if(kind==='txt'){
+    var txt='Vantage AI - '+a.file+'\nProject: '+a.project+'\nQuestion: '+a.label+'\nDate: '+new Date().toLocaleString()+'\n\n'+a.text+'\n';
+    var u=URL.createObjectURL(new Blob([txt],{type:'text/plain;charset=utf-8'})),l=document.createElement('a');l.href=u;l.download=safe+'.txt';document.body.appendChild(l);l.click();l.remove();setTimeout(function(){URL.revokeObjectURL(u);},4000);return;
+  }
+  bdLoadScript('https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js').then(function(){
+    var J=window.jspdf.jsPDF,d=new J({unit:'pt',format:'letter'}),W=612,H=792,M=50,y=M,pg=1,maxW=W-2*M;
+    function foot(){d.setFont('helvetica','normal');d.setFontSize(8);d.setTextColor(140);d.text('Vantage AI  |  '+bdAnsClean(a.file).slice(0,70),M,H-28);d.text('Page '+pg,W-M-30,H-28);}
+    d.setFont('helvetica','bold');d.setFontSize(16);d.setTextColor(27,94,155);d.text('NetFiber Network Cabling Solutions',M,y);y+=20;
+    d.setFontSize(10);d.setFont('helvetica','normal');d.setTextColor(90);
+    [['File',a.file],['Project',a.project],['Question',a.label],['Date',new Date().toLocaleString()]].forEach(function(r){d.splitTextToSize(r[0]+': '+bdAnsClean(r[1]),maxW).forEach(function(ln){d.text(ln,M,y);y+=13;});});
+    y+=4;d.setDrawColor(27,94,155);d.line(M,y,W-M,y);y+=16;
+    a.text.split('\n').forEach(function(raw){
+      var line=bdAnsClean(raw),head=/^\s*(#{1,3}\s|[A-Z0-9][A-Z0-9 &\/,()\-:]{5,}$)/.test(line)||/^\*\*.+\*\*:?$/.test(line.trim());
+      line=line.replace(/^\s*#{1,3}\s*/,'').replace(/\*\*/g,'');
+      d.setFont('helvetica',head?'bold':'normal');d.setFontSize(head?11.5:10.5);d.setTextColor(head?27:30,head?94:30,head?155:30);
+      if(head)y+=4;
+      var ind=/^\s*[-*]\s/.test(raw)?14:0;if(ind)line=line.replace(/^\s*[-*]\s/,'- ');
+      (line.trim()===''?['']:d.splitTextToSize(line,maxW-ind)).forEach(function(ln){if(y>H-60){foot();d.addPage();pg++;y=M;}d.text(ln,M+ind,y);y+=head?15:14;});
+    });
+    foot();d.save(safe+'.pdf');
+  }).catch(function(e){bdToast('Could not make the PDF: '+(e.message||e),true);});
+}
 
 // ============================================================
 // SPREADSHEET ENGINE — formula parser/evaluator, number formats, input parsing
