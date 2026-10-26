@@ -759,6 +759,12 @@ body.view-only button[onclick*="Remove"]{
 .vg-sr{max-height:60vh;overflow:auto;padding-bottom:8px}.vg-sg{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;font-weight:700;color:#8a95a6;padding:10px 20px 3px}.vg-sri{padding:8px 20px;cursor:pointer;font-size:13.5px;color:#14233b}.vg-sri:hover{background:#eef5fc}
 .vg-tbs{display:flex;align-items:center;gap:7px;border:1px solid #dde2ec;background:#fff;border-radius:8px;padding:6px 11px;font-size:12.5px;color:#6b7a90;cursor:pointer;font-family:inherit;margin-right:10px}.vg-tbs kbd{font-size:10px;border:1px solid #dde2ec;border-radius:4px;padding:1px 5px;background:#f4f6fa}
 @media(max-width:700px){.vg-fg{grid-template-columns:1fr}.vg-tbs span,.vg-tbs kbd{display:none}.vg-grid2{grid-template-columns:1fr}.vg-p3b{padding:12px}}
+.bd-side{position:relative;min-width:300px;max-width:85vw}
+.bd-rz{position:absolute;left:-4px;top:0;bottom:0;width:8px;cursor:col-resize;z-index:5}.bd-rz:hover,.bd-rz.on{background:rgba(27,94,155,.25)}
+.bd-aitools{display:flex;gap:6px;justify-content:flex-end;margin-bottom:8px}.bd-aitools button{border:1px solid #cfd6e3;background:#fff;border-radius:7px;padding:4px 10px;font-size:12px;font-weight:600;cursor:pointer;color:#33425b;font-family:inherit}.bd-aitools button:hover{background:#f4f7fb}
+.bd-side.big .bd-aia,.bd-side.big .bd-aiq{font-size:var(--bd-ai-fs,15px)}
+.bd-aia,.bd-aiq{font-size:var(--bd-ai-fs,13px)!important}
+.bd-aia{max-width:100%;overflow-wrap:anywhere}
 </style>
 </head>
 <body autocomplete="off">
@@ -10538,6 +10544,26 @@ window.fetch=async function(u,o){
  if(r.status===401){var t2=await tok(true);if(t2)r=await _f(u,withTok(o,t2));}
  return r;
 };
+})();
+/* ===== Build file viewer: resizable / expandable AI panel ===== */
+(function(){
+function ls(k,v){try{if(v===undefined)return localStorage.getItem(k);localStorage.setItem(k,v);}catch(e){}}
+function applyW(){var s=document.querySelector('.bd-side');if(!s)return;var w=parseInt(ls('bd_side_w'),10);if(w&&window.innerWidth>900)s.style.width=Math.min(w,window.innerWidth*0.85)+'px';s.classList.toggle('big',(parseInt(ls('bd_side_w'),10)||340)>420);document.documentElement.style.setProperty('--bd-ai-fs',(ls('bd_ai_fs')||'13')+'px');}
+function addHandle(){var s=document.querySelector('.bd-side');if(!s||s.querySelector('.bd-rz'))return;applyW();
+ var h=document.createElement('div');h.className='bd-rz';h.title='Drag to resize';s.appendChild(h);
+ h.onmousedown=function(e){e.preventDefault();h.classList.add('on');var x0=e.clientX,w0=s.offsetWidth;
+  function mv(ev){var w=Math.max(300,Math.min(window.innerWidth*0.85,w0+(x0-ev.clientX)));s.style.width=w+'px';s.classList.toggle('big',w>420);ls('bd_side_w',String(Math.round(w)));}
+  function up(){h.classList.remove('on');document.removeEventListener('mousemove',mv);document.removeEventListener('mouseup',up);}
+  document.addEventListener('mousemove',mv);document.addEventListener('mouseup',up);};
+}
+window.bdAIExpand=function(mode){var s=document.querySelector('.bd-side');if(!s)return;var cur=s.offsetWidth,w=mode==='wide'?(cur>window.innerWidth*0.6?340:Math.round(window.innerWidth*0.62)):340;s.style.width=w+'px';ls('bd_side_w',String(w));s.classList.toggle('big',w>420);};
+window.bdAIFont=function(d){var f=Math.max(12,Math.min(22,(parseInt(ls('bd_ai_fs'),10)||13)+d));ls('bd_ai_fs',String(f));document.documentElement.style.setProperty('--bd-ai-fs',f+'px');};
+var _bo=window.bdOpenFile;
+if(typeof _bo==='function')window.bdOpenFile=async function(){var r=await _bo.apply(this,arguments);try{addHandle();}catch(e){}return r;};
+var _bt=window.bdSideTab;
+if(typeof _bt==='function')window.bdSideTab=async function(btn,tab){var r=await _bt.apply(this,arguments);
+ try{addHandle();if(tab==='ai'){var box=document.querySelector('.bd-aibox');if(box&&!box.querySelector('.bd-aitools')){var d=document.createElement('div');d.className='bd-aitools';d.innerHTML='<button onclick="bdAIFont(-1)" title="Smaller text">A-</button><button onclick="bdAIFont(1)" title="Bigger text">A+</button><button onclick="bdAIExpand(\'wide\')" title="Make the AI panel wider or narrower">Expand</button>';box.insertBefore(d,box.firstChild);}}}catch(e){}
+ return r;};
 })();
 
 </script>
