@@ -8447,7 +8447,7 @@ async function bdAIContext(q){
   }catch(e){return '';}
 }
 
-var APP_VERSION='2.8.0',APP_BUILD_DATE='Oct 26, 2026';
+var APP_VERSION='2.8.1',APP_BUILD_DATE='Oct 26, 2026';
 (function(){function s(){var e=document.getElementById('sb-ver');if(e)e.textContent='Vantage v'+APP_VERSION+' · '+APP_BUILD_DATE;}s();document.addEventListener('DOMContentLoaded',s);})();
 
 </script>
@@ -8846,7 +8846,22 @@ function jparse(txt){
  var open=s[a],close=open==='{'?'}':']',b=s.lastIndexOf(close);
  if(b<a)throw new Error('AI JSON incomplete');
  s=s.slice(a,b+1);
- try{return JSON.parse(s);}catch(e){try{return JSON.parse(s.replace(/,\s*([}\]])/g,'$1'));}catch(e2){throw new Error('AI JSON invalid');}}
+ try{return JSON.parse(s);}catch(e){try{return JSON.parse(s.replace(/,\s*([}\]])/g,'$1'));}catch(e2){
+  var fixed=jrepair(String(txt||'').replace(/```json|```/gi,'').trim());if(fixed!==null)return fixed;
+  throw new Error('AI JSON invalid (the AI answer was cut off or malformed)');}}
+}
+function jrepair(s){ // the AI answer was cut off (too long): keep everything that is complete and close the brackets
+ var a=s.search(/[\[{]/);if(a<0)return null;s=s.slice(a);
+ var out='',st=[],inS=false,esc=false,safe=-1,safeSt='';
+ for(var i=0;i<s.length;i++){var c=s[i];
+  if(inS){if(esc){esc=false;out+=c;}else if(c==='\\'){esc=true;out+=c;}else if(c==='"'){inS=false;out+=c;}else if(c==='\n'){out+='\\n';}else if(c==='\r'||c==='\t'){out+=' ';}else out+=c;continue;}
+  if(c==='"'){inS=true;out+=c;continue;}
+  if(c==='{')st.push('}');else if(c==='[')st.push(']');
+  else if(c==='}'||c===']'){st.pop();out+=c;safe=out.length;safeSt=st.slice().reverse().join('');if(!st.length)break;continue;}
+  out+=c;}
+ if(safe<0)return null;
+ var t=out.slice(0,safe);
+ try{return JSON.parse(t+safeSt);}catch(e){try{return JSON.parse((t+safeSt).replace(/,\s*([}\]])/g,'$1'));}catch(e2){return null;}}
 }
 async function ai(sys,content,max){
  var last;
@@ -8859,7 +8874,7 @@ async function ai(sys,content,max){
 async function aiJson(sys,content,max){
  var t=await ai(sys,content,max);
  try{return jparse(t);}catch(e){
-  var t2=await ai(sys+' Reply with ONLY valid JSON, nothing else.',content,max);return jparse(t2);
+  var t2=await ai(sys+' Reply with ONLY valid JSON, nothing else. Keep it compact (short strings, no long quotes) so it is not cut off.',content,Math.min(8000,Math.round((max||3000)*1.4)));return jparse(t2);
  }
 }
 AIP._h={jparse:jparse,ai:ai,aiJson:aiJson,typeKey:typeKey,sleep:sleep};
@@ -9029,7 +9044,7 @@ async function extractRequirements(job,ctx,bid,lessons){
   var base='Read these project documents (part '+(i+1)+' of '+chunks.length+'). Find EVERYTHING that asks for, specifies or assigns work in: (1) DATA/structured cabling & wireless (this work may be called LOW VOLTAGE, low-voltage, telecommunications, communications, technology, Division 27 or structured cabling, and low-voltage work is often listed inside the Electrical division, the E/T sheets or the general notes - the specification can even be inside the drawing file; also note any WRITTEN count of data outlets/drops, and remember a VOICE/DATA outlet = 2 cables), (2) AUDIO-VIDEO, (3) SECURITY / access control / cameras. For each, say what the client requires, quantities if stated, location, and whether NetFiber (low-voltage/technology subcontractor) is responsible or Others (electrical, GC, owner-furnished, vendor). Quote the exact words. Include forms, addenda and reference documents. '+bidTxt+(lessons?'\nLessons learned from past corrections:\n'+lessons:'')+'\nReturn ONLY JSON: '+REQ_SCHEMA+'\n\nDOCUMENTS:\n'+chunks[i];
   var p1=await aiJson(SYS_EST,base,6000);
   await step(job,'Reading SOW documents',20+Math.round(12*(i+0.5)/chunks.length),'SOW pass 1 done for part '+(i+1)+'/'+chunks.length);
-  var p2=await aiJson(SYS_EST,'Second, independent check. Below are documents and a first-pass extraction. Find items the first pass MISSED or got WRONG (wrong quantity, wrong responsibility, wrong location). Return the COMPLETE corrected extraction (everything from pass 1 that is right, plus fixes and additions) in the same JSON shape: '+REQ_SCHEMA+'\n\nFIRST PASS:\n'+JSON.stringify(p1).slice(0,30000)+'\n\nDOCUMENTS:\n'+chunks[i],6000);
+  var p2;try{p2=await aiJson(SYS_EST,'Second, independent check. Below are documents and a first-pass extraction. Find items the first pass MISSED or got WRONG (wrong quantity, wrong responsibility, wrong location). Return the COMPLETE corrected extraction (everything from pass 1 that is right, plus fixes and additions) in the same JSON shape: '+REQ_SCHEMA+'\n\nFIRST PASS:\n'+JSON.stringify(p1).slice(0,30000)+'\n\nDOCUMENTS:\n'+chunks[i],7000);}catch(e){p2=p1;await step(job,'Reading SOW documents',20+Math.round(12*(i+0.8)/chunks.length),'Second check of part '+(i+1)+' could not be read - using the first pass');}
   ['data','av','security','exclusions','questions'].forEach(function(k){(p2[k]||p1[k]||[]).forEach(function(x){merged[k].push(x);});});
   if(p2.bid_info)Object.assign(merged.bid_info,p2.bid_info);
   await step(job,'Reading SOW documents',20+Math.round(12*(i+1)/chunks.length),'SOW double-check done for part '+(i+1)+'/'+chunks.length);
