@@ -766,6 +766,20 @@ body.view-only button[onclick*="Remove"]{
 .bd-side.big .bd-aia,.bd-side.big .bd-aiq{font-size:var(--bd-ai-fs,15px)}
 .bd-aia,.bd-aiq{font-size:var(--bd-ai-fs,13px)!important}
 .bd-aia{max-width:100%;overflow-wrap:anywhere}
+#cs-ov{display:none;position:fixed;inset:0;z-index:12000;background:#eef1f6}#cs-ov.open{display:block}
+.cs-box{height:100%;display:flex;flex-direction:column}.cs-load{padding:40px;text-align:center}
+.cs-top{display:flex;gap:12px;align-items:center;padding:10px 16px;background:#fff;border-bottom:1px solid #dde2ec;font-size:14px}.cs-fn{color:#6b7a90;font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cs-main{flex:1;display:flex;min-height:0}.cs-stagew{flex:1;display:flex;flex-direction:column;min-width:0}
+.cs-bar{display:flex;gap:6px;align-items:center;padding:7px 12px;background:#fff;border-bottom:1px solid #e4e8f0;font-size:12.5px;flex-wrap:wrap}.cs-bar input{width:60px;padding:4px 6px;border:1px solid #cfd6e3;border-radius:6px}.cs-sep{width:1px;height:18px;background:#dde2ec;margin:0 6px}.cs-hint{color:#1B5E9B;font-weight:600}
+.cs-stage{flex:1;overflow:auto;padding:12px;background:#d9dee7}.cs-stage.busy{opacity:.5}.cs-wrap{position:relative;display:inline-block;background:#fff;box-shadow:0 2px 12px rgba(0,0,0,.2)}.cs-wrap canvas{display:block}#cs-mk{position:absolute;left:0;top:0;cursor:crosshair}
+.cs-side{width:380px;background:#fff;border-left:1px solid #dde2ec;overflow:auto;padding:12px 14px;flex-shrink:0}
+.cs-b{border:1px solid #cfd6e3;background:#fff;border-radius:7px;padding:5px 10px;font-size:12px;font-weight:600;cursor:pointer;color:#33425b;font-family:inherit}.cs-b:hover{background:#f4f7fb}.cs-b.pri{background:#1B5E9B;color:#fff;border-color:#1B5E9B}
+.cs-h{font-size:11px;text-transform:uppercase;letter-spacing:.06em;font-weight:700;color:#8792A2;margin:14px 0 6px}.cs-p{font-size:12px;color:#5b6a80;line-height:1.5;margin-bottom:6px}.cs-presets{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:6px}.cs-presets select{padding:5px;border:1px solid #cfd6e3;border-radius:7px;font-size:12px}
+.cs-row{border:1px solid #e4e8f0;border-radius:10px;padding:8px;margin-bottom:8px;cursor:pointer}.cs-row.act{border-color:#1B5E9B;box-shadow:0 0 0 1px #1B5E9B}.cs-r1,.cs-r2,.cs-r3{display:flex;gap:6px;align-items:center;margin-bottom:5px}
+.cs-r1 i,.cs-sr i{width:12px;height:12px;border-radius:50%;flex-shrink:0;display:inline-block;margin-right:6px}.cs-r1 input,.cs-r2 input{flex:1;padding:5px 7px;border:1px solid #dde2ec;border-radius:6px;font-size:12.5px;min-width:0}.cs-n{font-size:11px;color:#8792A2;text-align:right;line-height:1.1}.cs-n b{display:block;font-size:17px;color:#14233b}.cs-x{border:none;background:none;font-size:18px;cursor:pointer;color:#8792A2}
+.cs-r3 img{max-height:44px;max-width:80px;border:1px solid #e4e8f0;border-radius:4px}.cs-noref{font-size:11px;color:#a0aab8}
+.cs-sum{border:1px solid #e4e8f0;border-radius:10px;padding:8px 10px;margin-bottom:8px}.cs-sr{display:flex;align-items:center;font-size:13px;padding:3px 0}.cs-sr b{margin-left:auto;font-size:15px}.cs-sr.tot{border-top:1px solid #e4e8f0;margin-top:4px;padding-top:6px;font-weight:700}
+@media(max-width:900px){.cs-main{flex-direction:column}.cs-side{width:auto;max-height:45vh;border-left:0;border-top:1px solid #dde2ec}}
 </style>
 </head>
 <body autocomplete="off">
@@ -10661,9 +10675,181 @@ window.bdAIFont=function(d){var f=Math.max(12,Math.min(22,(parseInt(ls('bd_ai_fs
 var _bo=window.bdOpenFile;
 if(typeof _bo==='function')window.bdOpenFile=async function(){var r=await _bo.apply(this,arguments);try{addHandle();}catch(e){}return r;};
 var _bt=window.bdSideTab;
-if(typeof _bt==='function')window.bdSideTab=async function(btn,tab){var r=await _bt.apply(this,arguments);
- try{addHandle();if(tab==='ai'){var box=document.querySelector('.bd-aibox');if(box&&!box.querySelector('.bd-aitools')){var d=document.createElement('div');d.className='bd-aitools';d.innerHTML='<button onclick="bdAIFont(-1)" title="Smaller text">A-</button><button onclick="bdAIFont(1)" title="Bigger text">A+</button><button onclick="bdAIExpand(\'wide\')" title="Make the AI panel wider or narrower">Expand</button>';box.insertBefore(d,box.firstChild);}}}catch(e){}
+if(typeof _bt==='function')window.bdSideTab=async function(btn,tab,fid){var r=await _bt.apply(this,arguments);
+ try{addHandle();if(tab==='ai'){var box=document.querySelector('.bd-aibox');if(box&&!box.querySelector('.bd-aitools')){var d=document.createElement('div');d.className='bd-aitools';var ff=(typeof bdFile==='function')&&bdFile(fid),kk=ff&&bdKind(ff.name,ff.mime);d.innerHTML=((kk==='pdf'||kk==='image')?'<button class="cs-launch" onclick="bdCountOpen(\''+fid+'\')" title="Count symbols on a drawing page">Count symbols</button>':'')+'<button onclick="bdAIFont(-1)" title="Smaller text">A-</button><button onclick="bdAIFont(1)" title="Bigger text">A+</button><button onclick="bdAIExpand(\'wide\')" title="Make the AI panel wider or narrower">Expand</button>';box.insertBefore(d,box.firstChild);}}}catch(e){}
  return r;};
+})();
+
+/* ===== Count symbols on a drawing (text labels + AI vision + hand corrections) ===== */
+(function(){
+var CS={rows:[],mk:[],ign:[],pg:1,np:1,cv:null,txt:[],mode:'',act:0,zoom:0,f:null,pdf:null,busy:false};
+var COL=['#e53935','#1e88e5','#43a047','#fb8c00','#8e24aa','#00897b','#6d4c41','#d81b60'];
+function E(s){return bdE(s);}
+function ls(k,v){try{if(v===undefined)return localStorage.getItem(k);localStorage.setItem(k,v);}catch(e){}}
+var PRE={data:['Data outlet','PP-*'],tv:['TV','TV'],wap:['WAP','WAP'],cam:['Camera','CAM']};
+window.bdCountOpen=async function(fid){
+ var f=bdFile(fid);if(!f)return;CS.f=f;CS.mk=[];CS.ign=[];CS.mode='';CS.act=0;CS.pdf=null;
+ try{var saved=JSON.parse(ls('cs_rows')||'null');CS.rows=(saved&&saved.length?saved:[{name:'Data outlet',text:'PP-*'}]).map(function(r){return {name:r.name,text:r.text||'',ref:null};});}catch(e){CS.rows=[{name:'Data outlet',text:'PP-*',ref:null}];}
+ var o=document.getElementById('cs-ov');if(!o){o=document.createElement('div');o.id='cs-ov';document.body.appendChild(o);}
+ o.className='open';o.innerHTML='<div class="cs-box"><div class="cs-load"><span class="spinner"></span> Opening drawing...</div></div>';
+ try{
+  var blob=await bdFetchBlob(f.storage_path);
+  if(bdKind(f.name,f.mime)==='pdf'){var lib=await bdPdfLib();CS.pdf=await lib.getDocument({data:await blob.arrayBuffer()}).promise;CS.np=CS.pdf.numPages;}
+  else{CS.np=1;CS.img=await createImageBitmap(blob);}
+  CS.pg=Math.min(CS.np,parseInt(ls('cs_pg_'+f.id),10)||1);
+  bdCountDraw();await bdCountLoadPage(CS.pg);
+ }catch(e){o.innerHTML='<div class="cs-box"><div class="cs-load" style="color:#c62828">Could not open the drawing: '+E(e.message||e)+'</div><button class="bd-chip" onclick="bdCountClose()">Close</button></div>';}
+};
+window.bdCountClose=function(){var o=document.getElementById('cs-ov');if(o){o.className='';o.innerHTML='';}CS.cv=null;CS.pdf=null;};
+function drawShell(){
+ return '<div class="cs-box"><div class="cs-top"><b>Count symbols</b><span class="cs-fn">'+E(CS.f.name)+'</span>'
+ +'<span style="flex:1"></span><button class="cs-b" onclick="bdCountClose()">Close</button></div>'
+ +'<div class="cs-main"><div class="cs-stagew"><div class="cs-bar"></div><div class="cs-stage" id="cs-stage"><div class="cs-wrap" id="cs-wrap"><canvas id="cs-cv"></canvas><canvas id="cs-mk"></canvas></div></div></div>'
+ +'<div class="cs-side" id="cs-side"></div></div></div>';
+}
+window.bdCountDraw=function(){var o=document.getElementById('cs-ov');o.innerHTML=drawShell();};
+window.bdCountLoadPage=async function(n){
+ n=Math.max(1,Math.min(CS.np,parseInt(n,10)||1));CS.pg=n;ls('cs_pg_'+CS.f.id,String(n));CS.mk=[];CS.ign=[];CS.txt=[];
+ var stage=document.getElementById('cs-stage');if(stage)stage.classList.add('busy');
+ var cv=document.createElement('canvas');
+ if(CS.pdf){
+  var pg=await CS.pdf.getPage(n),v1=pg.getViewport({scale:1}),sc=Math.min(4,3600/Math.max(v1.width,v1.height)),vp=pg.getViewport({scale:sc});
+  cv.width=Math.round(vp.width);cv.height=Math.round(vp.height);await pg.render({canvasContext:cv.getContext('2d'),viewport:vp}).promise;
+  try{var tc=await pg.getTextContent(),U=pdfjsLib.Util;tc.items.forEach(function(it){var s=(it.str||'').trim();if(!s)return;var t=U.transform(vp.transform,it.transform),w=(it.width||0)*sc,h=(it.height||Math.abs(t[3]))*sc;CS.txt.push({s:s,x:t[4]+w/2,y:t[5]-h/2});});}catch(e){}
+ }else{cv.width=CS.img.width;cv.height=CS.img.height;cv.getContext('2d').drawImage(CS.img,0,0);}
+ CS.cv=cv;var host=document.getElementById('cs-cv');if(!host)return;host.width=cv.width;host.height=cv.height;host.getContext('2d').drawImage(cv,0,0);
+ var m=document.getElementById('cs-mk');m.width=cv.width;m.height=cv.height;
+ CS.zoom=0;fit();bindStage();renderSide();redraw();if(stage)stage.classList.remove('busy');
+};
+function fit(){var st=document.getElementById('cs-stage');if(!st||!CS.cv)return;var w=CS.zoom?CS.cv.width*CS.zoom:Math.max(300,st.clientWidth-24);var z=w/CS.cv.width;CS.ds=z;
+ ['cs-cv','cs-mk'].forEach(function(id){var c=document.getElementById(id);c.style.width=Math.round(w)+'px';c.style.height=Math.round(CS.cv.height*z)+'px';});renderBar();}
+function renderBar(){var b=document.querySelector('.cs-bar');if(!b)return;
+ b.innerHTML='Page <input type="number" min="1" max="'+CS.np+'" value="'+CS.pg+'" id="cs-pgi" onkeydown="if(event.key===\'Enter\')bdCountLoadPage(this.value)"> of '+CS.np+' <button class="cs-b" onclick="bdCountLoadPage(document.getElementById(\'cs-pgi\').value)">Go</button>'
+ +'<span class="cs-sep"></span><button class="cs-b" onclick="bdCountZoom(0.8)">-</button><button class="cs-b" onclick="bdCountZoom(0)">Fit</button><button class="cs-b" onclick="bdCountZoom(1.25)">+</button><button class="cs-b" onclick="bdCountZoom(\'full\')">100%</button>'
+ +'<span class="cs-sep"></span><span class="cs-hint">'+(CS.mode==='crop'?'Drag a box around ONE symbol':CS.mode==='ign'?'Drag a box over the area to ignore (legend, title block)':'Click empty space to add a mark. Click a mark to remove it.')+'</span>';}
+window.bdCountZoom=function(z){if(z===0)CS.zoom=0;else if(z==='full')CS.zoom=1;else CS.zoom=Math.max(0.05,Math.min(3,(CS.zoom||CS.ds)*z));fit();redraw();};
+/* ---- markers ---- */
+function R(){return Math.max(20,CS.cv.width/150);}
+function merged(){ // text marks win; AI marks near a text mark of the same symbol are the same device
+ var rad=CS.cv.width*0.02,out=[];
+ CS.mk.filter(function(m){return m.src!=='ai';}).forEach(function(m){out.push(m);});
+ CS.mk.filter(function(m){return m.src==='ai';}).forEach(function(m){
+  if(!out.some(function(o){return o.t===m.t&&Math.hypot(o.x-m.x,o.y-m.y)<rad&&o.src==='text';})&&!out.some(function(o){return o.t===m.t&&o.src==='ai'&&Math.hypot(o.x-m.x,o.y-m.y)<R()*1.2;}))out.push(m);});
+ return out.filter(function(m){return !inIgn(m.x,m.y);});
+}
+function inIgn(x,y){return CS.ign.some(function(r){return x>=r[0]&&x<=r[2]&&y>=r[1]&&y<=r[3];});}
+function counts(){var c=CS.rows.map(function(){return {text:0,ai:0,man:0,n:0};});merged().forEach(function(m){if(!c[m.t])return;c[m.t][m.src]++;c[m.t].n++;});return c;}
+function redraw(){
+ var m=document.getElementById('cs-mk');if(!m||!CS.cv)return;var x=m.getContext('2d');x.clearRect(0,0,m.width,m.height);
+ x.fillStyle='rgba(120,120,120,0.35)';x.strokeStyle='#777';x.lineWidth=3;CS.ign.forEach(function(r){x.fillRect(r[0],r[1],r[2]-r[0],r[3]-r[1]);x.strokeRect(r[0],r[1],r[2]-r[0],r[3]-r[1]);});
+ merged().forEach(function(k){var col=COL[k.t%COL.length];x.strokeStyle=col;x.lineWidth=Math.max(3,R()/5);x.beginPath();x.arc(k.x,k.y,R(),0,7);x.stroke();if(k.src==='man'){x.beginPath();x.moveTo(k.x-R()*0.5,k.y);x.lineTo(k.x+R()*0.5,k.y);x.moveTo(k.x,k.y-R()*0.5);x.lineTo(k.x,k.y+R()*0.5);x.stroke();}});
+ if(CS.drag){var d=CS.drag;x.strokeStyle=CS.mode==='crop'?'#1e88e5':'#777';x.setLineDash([12,8]);x.lineWidth=3;x.strokeRect(d.x0,d.y0,d.x1-d.x0,d.y1-d.y0);x.setLineDash([]);}
+ var c=counts(),sm=document.getElementById('cs-sum');if(sm)sm.innerHTML=sumHtml(c);
+ CS.rows.forEach(function(r,i){var e=document.getElementById('cs-n'+i);if(e)e.innerHTML='<b>'+c[i].n+'</b><span>'+(c[i].text?'text '+c[i].text+' ':'')+(c[i].ai?'AI '+c[i].ai+' ':'')+(c[i].man?'hand '+c[i].man:'')+'</span>';});
+}
+function sumHtml(c){var tot=0;c.forEach(function(x){tot+=x.n;});return CS.rows.map(function(r,i){return '<div class="cs-sr"><i style="background:'+COL[i%COL.length]+'"></i>'+E(r.name||'(unnamed)')+'<b>'+c[i].n+'</b></div>';}).join('')+'<div class="cs-sr tot">Total<b>'+tot+'</b></div>';}
+function pt(e){var m=document.getElementById('cs-mk'),r=m.getBoundingClientRect();return [(e.clientX-r.left)/r.width*m.width,(e.clientY-r.top)/r.height*m.height];}
+function bindStage(){
+ var m=document.getElementById('cs-mk');
+ m.onmousedown=function(e){e.preventDefault();var p=pt(e);CS.down=p;CS.moved=false;if(CS.mode){CS.drag={x0:p[0],y0:p[1],x1:p[0],y1:p[1]};}};
+ m.onmousemove=function(e){if(!CS.down)return;var p=pt(e);if(Math.hypot(p[0]-CS.down[0],p[1]-CS.down[1])>6*(1/CS.ds))CS.moved=true;if(CS.drag){CS.drag.x1=p[0];CS.drag.y1=p[1];redraw();}};
+ window.onmouseup=function(e){if(!CS.down)return;var p=pt(e),d=CS.drag;CS.down=null;CS.drag=null;
+  if(CS.mode&&d&&Math.abs(d.x1-d.x0)>8&&Math.abs(d.y1-d.y0)>8){var r=[Math.min(d.x0,d.x1),Math.min(d.y0,d.y1),Math.max(d.x0,d.x1),Math.max(d.y0,d.y1)];
+   if(CS.mode==='crop')takeCrop(r);else{CS.ign.push(r);}CS.mode='';renderBar();renderSide();redraw();return;}
+  if(CS.mode){CS.mode='';renderBar();redraw();return;}
+  if(CS.moved)return;
+  var near=merged().filter(function(k){return Math.hypot(k.x-p[0],k.y-p[1])<R()*1.4;})[0];
+  if(near){var i=CS.mk.indexOf(near);if(i>=0)CS.mk.splice(i,1);}else if(CS.rows[CS.act]){CS.mk.push({t:CS.act,x:p[0],y:p[1],src:'man'});}
+  redraw();};
+}
+function takeCrop(r){var w=r[2]-r[0],h=r[3]-r[1],s=Math.min(1,260/Math.max(w,h)),c=document.createElement('canvas');c.width=Math.max(1,Math.round(w*s));c.height=Math.max(1,Math.round(h*s));c.getContext('2d').drawImage(CS.cv,r[0],r[1],w,h,0,0,c.width,c.height);CS.rows[CS.act].ref=c;}
+/* ---- side panel ---- */
+function saveRows(){ls('cs_rows',JSON.stringify(CS.rows.map(function(r){return {name:r.name,text:r.text};})));}
+function renderSide(){
+ var s=document.getElementById('cs-side');if(!s)return;
+ var h='<div class="cs-h">1. What to count</div><div class="cs-presets">'+Object.keys(PRE).map(function(k){return '<button class="cs-b" onclick="bdCountAdd(\''+k+'\')">+ '+E(PRE[k][0])+'</button>';}).join('')+'<button class="cs-b" onclick="bdCountAdd()">+ Other</button></div>';
+ CS.rows.forEach(function(r,i){h+='<div class="cs-row'+(i===CS.act?' act':'')+'" onclick="bdCountAct('+i+')"><div class="cs-r1"><i style="background:'+COL[i%COL.length]+'"></i><input value="'+E(r.name)+'" placeholder="Name (e.g. Data outlet)" oninput="CS_rows('+i+',\'name\',this.value)" onclick="event.stopPropagation()"><span id="cs-n'+i+'" class="cs-n"></span><button class="cs-x" title="Remove" onclick="event.stopPropagation();bdCountDel('+i+')">&times;</button></div>'
+  +'<div class="cs-r2"><input value="'+E(r.text)+'" placeholder="Text labels on the drawing, e.g. PP-*, TV, WAP" oninput="CS_rows('+i+',\'text\',this.value)" onclick="event.stopPropagation()" title="Words printed next to the symbol. * at the end matches anything after. Separate several with commas."></div>'
+  +'<div class="cs-r3">'+(r.ref?'<img src="'+r.ref.toDataURL()+'">':'<span class="cs-noref">No picture of the symbol yet</span>')+'<button class="cs-b" onclick="event.stopPropagation();bdCountCrop('+i+')">Pick symbol from drawing</button><label class="cs-b">Upload<input type="file" accept="image/*" style="display:none" onchange="bdCountUp('+i+',this)"></label></div></div>';});
+ h+='<div class="cs-h">2. Ignore areas</div><div class="cs-p">Draw a box over the legend and title block so they are not counted. '+(CS.ign.length?CS.ign.length+' set. ':'')+'</div><div class="cs-presets"><button class="cs-b" onclick="CS_mode(\'ign\')">+ Ignore area</button>'+(CS.ign.length?'<button class="cs-b" onclick="CS_clrIgn()">Clear</button>':'')+'</div>';
+ h+='<div class="cs-h">3. Count</div><div class="cs-p"><b>Text labels</b> are exact and free (works when the PDF has real text). <b>AI vision</b> looks at the picture of the symbols and finds the ones without labels.</div>'
+  +'<div class="cs-presets"><button class="cs-b pri" onclick="bdCountText()">Count text labels</button><select id="cs-grid"><option value="2x2">AI grid 2x2</option><option value="3x2" selected>AI grid 3x2</option><option value="3x3">AI grid 3x3</option><option value="4x3">AI grid 4x3 (large sheets)</option></select><button class="cs-b pri" onclick="bdCountAI()">Count with AI</button></div><div id="cs-msg" class="cs-p"></div>'
+  +'<div class="cs-h">Result</div><div id="cs-sum" class="cs-sum"></div><div class="cs-presets"><button class="cs-b" onclick="bdCountClear()">Clear marks</button><button class="cs-b" onclick="bdCountExport(\'pdf\')">Save PDF</button><button class="cs-b" onclick="bdCountExport(\'csv\')">Save CSV</button><button class="cs-b" onclick="bdCountExport(\'copy\')">Copy</button></div>'
+  +'<div class="cs-p" style="margin-top:8px">Check the circles, then fix mistakes by hand: click a wrong circle to remove it, click an empty spot to add one for the highlighted row. AI counts are an aid. Always confirm before bidding.</div>';
+ s.innerHTML=h;redraw();
+}
+window.CS_rows=function(i,k,v){CS.rows[i][k]=v;saveRows();var d=document.getElementById('cs-sum');if(d)redraw();};
+window.CS_mode=function(m){CS.mode=m;renderBar();};
+window.CS_clrIgn=function(){CS.ign=[];renderSide();};
+window.bdCountAct=function(i){if(CS.act===i)return;CS.act=i;document.querySelectorAll('.cs-row').forEach(function(r,j){r.classList.toggle('act',j===i);});};
+window.bdCountAdd=function(k){CS.rows.push({name:k?PRE[k][0]:'',text:k?PRE[k][1]:'',ref:null});CS.act=CS.rows.length-1;saveRows();renderSide();};
+window.bdCountDel=function(i){CS.rows.splice(i,1);CS.mk=CS.mk.filter(function(m){return m.t!==i;}).map(function(m){if(m.t>i)m.t--;return m;});CS.act=Math.max(0,Math.min(CS.act,CS.rows.length-1));saveRows();renderSide();};
+window.bdCountCrop=function(i){CS.act=i;CS.mode='crop';renderBar();renderSide();};
+window.bdCountUp=async function(i,inp){var f=inp.files[0];if(!f)return;var b=await createImageBitmap(f),s=Math.min(1,260/Math.max(b.width,b.height)),c=document.createElement('canvas');c.width=Math.round(b.width*s);c.height=Math.round(b.height*s);c.getContext('2d').drawImage(b,0,0,c.width,c.height);CS.rows[i].ref=c;renderSide();};
+window.bdCountClear=function(){CS.mk=[];redraw();};
+function msg(t){var m=document.getElementById('cs-msg');if(m)m.innerHTML=t;}
+/* ---- text-label count ---- */
+function matcher(p){p=String(p||'').trim();if(!p)return null;if(/^\/.+\/[i]?$/.test(p)){try{var re=new RegExp(p.replace(/^\/|\/[i]?$/g,''),'i');return function(s){return re.test(s);};}catch(e){return null;}}
+ var star=/\*$/.test(p),b=p.replace(/\*$/,'').toLowerCase();return star?function(s){return s.toLowerCase().indexOf(b)===0;}:function(s){return s.toLowerCase()===b;};}
+window.bdCountText=function(){
+ if(!CS.txt.length){msg('<span style="color:#c62828">This page has no readable text labels (it may be a scan). Use Count with AI.</span>');return;}
+ var total=0,rad=CS.cv.width*0.004;
+ CS.rows.forEach(function(r,i){CS.mk=CS.mk.filter(function(m){return !(m.t===i&&m.src==='text');});
+  var ms=String(r.text||'').split(',').map(matcher).filter(Boolean);if(!ms.length)return;
+  CS.txt.forEach(function(t){if(!ms.some(function(f){return f(t.s);}))return;if(inIgn(t.x,t.y))return;
+   if(CS.mk.some(function(m){return m.t===i&&m.src==='text'&&Math.hypot(m.x-t.x,m.y-t.y)<rad;}))return;
+   CS.mk.push({t:i,x:t.x,y:t.y,src:'text'});total++;});});
+ redraw();msg('Found '+total+' text label'+(total===1?'':'s')+' on page '+CS.pg+'. Marks are drawn where the label is.');
+};
+/* ---- AI vision count ---- */
+function jparse(t){t=String(t||'');var a=t.indexOf('{'),b=t.lastIndexOf('}');if(a<0||b<a)return null;try{return JSON.parse(t.slice(a,b+1));}catch(e){return null;}}
+function jpg(c,max){var s=Math.min(1,max/Math.max(c.width,c.height)),o=document.createElement('canvas');o.width=Math.max(1,Math.round(c.width*s));o.height=Math.max(1,Math.round(c.height*s));o.getContext('2d').drawImage(c,0,0,o.width,o.height);return o.toDataURL('image/jpeg',0.85).split(',')[1];}
+function im(c,max){return {type:'image',source:{type:'base64',media_type:'image/jpeg',data:jpg(c,max)}};}
+window.bdCountAI=async function(){
+ if(CS.busy)return;var rows=CS.rows.map(function(r,i){return {r:r,i:i};}).filter(function(x){return x.r.name;});
+ if(!rows.length){msg('Add something to count first.');return;}
+ if(!rows.some(function(x){return x.r.ref;})&&!confirm('You have not picked a picture of the symbol. The AI will guess from the name only and will be less accurate. Continue?'))return;
+ var g=(document.getElementById('cs-grid').value||'3x2').split('x'),gc=+g[0],gr=+g[1],ov=0.12,W=CS.cv.width,H=CS.cv.height,tw=W/gc,th=H/gr;
+ if(!confirm('Run AI on '+(gc*gr)+' sections of this page? This uses AI credits (roughly $'+(gc*gr*0.04).toFixed(2)+').'))return;
+ CS.busy=true;rows.forEach(function(x){CS.mk=CS.mk.filter(function(m){return !(m.t===x.i&&m.src==='ai');});});
+ var legend=[],head='You count symbols on a construction drawing for a low-voltage cabling contractor. Count ONLY these symbols:\n';
+ rows.forEach(function(x,k){head+=(k+1)+'. '+x.r.name+(x.r.text?' (often labelled: '+x.r.text+')':'')+(x.r.ref?' - reference picture below':' - no picture')+'\n';});
+ var found=0,fails=0;
+ try{
+  for(var ty=0;ty<gr;ty++)for(var tx=0;tx<gc;tx++){
+   var x0=Math.max(0,tx*tw-tw*ov),y0=Math.max(0,ty*th-th*ov),x1=Math.min(W,(tx+1)*tw+tw*ov),y1=Math.min(H,(ty+1)*th+th*ov),w=x1-x0,h=y1-y0;
+   msg('<span class="spinner" style="width:12px;height:12px"></span> AI reading section '+(ty*gc+tx+1)+' of '+(gc*gr)+'...');
+   var tile=document.createElement('canvas');tile.width=Math.round(w);tile.height=Math.round(h);tile.getContext('2d').drawImage(CS.cv,x0,y0,w,h,0,0,tile.width,tile.height);
+   var content=[{type:'text',text:head}];
+   rows.forEach(function(x,k){if(x.r.ref){content.push({type:'text',text:'Reference picture for symbol '+(k+1)+' ('+x.r.name+'):'});content.push(im(x.r.ref,260));}});
+   content.push({type:'text',text:'Now the drawing section to search:'});content.push(im(tile,1600));
+   content.push({type:'text',text:'Find EVERY instance of each symbol in this section. Symbols can be rotated (a triangle may point up, down, left or right). Do not count hexagon tags, room numbers, text, door swings or furniture. Do not count the legend or symbol table if you see one. If a symbol is cut off by the edge, still report it. Return ONLY JSON: {"found":[{"s":<symbol number>,"x":<0-1 from left of this section>,"y":<0-1 from top of this section>}]}. x,y point at the CENTER of the symbol. If none, {"found":[]}.'});
+   var out;try{out=await bdCallAI('You are a careful drawing take-off assistant. Be exact. Do not invent symbols.',[{role:'user',content:content}],3000);}catch(e){fails++;if(/session|sign in|Too many/i.test(e.message||'')){msg('<span style="color:#c62828">'+E(e.message)+'</span>');break;}continue;}
+   var j=jparse(out);if(!j||!Array.isArray(j.found)){fails++;continue;}
+   j.found.forEach(function(d){var k=(+d.s||0)-1;if(!rows[k])return;var px=x0+Math.min(1,Math.max(0,+d.x||0))*w,py=y0+Math.min(1,Math.max(0,+d.y||0))*h;if(inIgn(px,py))return;CS.mk.push({t:rows[k].i,x:px,y:py,src:'ai'});found++;});
+   redraw();
+  }
+ }finally{CS.busy=false;}
+ redraw();msg('AI finished: '+found+' raw detections (overlaps between sections are merged)'+(fails?'. '+fails+' section(s) failed, run again.':'.')+' Please check the circles.');
+};
+/* ---- export ---- */
+function summaryText(){var c=counts(),L=['Symbol count - '+CS.f.name+' - page '+CS.pg+' - '+new Date().toLocaleDateString(),''];CS.rows.forEach(function(r,i){L.push(r.name+': '+c[i].n);});var t=0;c.forEach(function(x){t+=x.n;});L.push('Total: '+t);return L.join('\n');}
+window.bdCountExport=function(kind){
+ var base=(CS.f.name||'drawing').replace(/\.[^.]+$/,'')+' - symbol count p'+CS.pg;
+ function dl(blob,name){var u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(u);},4000);}
+ if(kind==='copy'){try{navigator.clipboard.writeText(summaryText());msg('Copied.');}catch(e){}return;}
+ if(kind==='csv'){var c=counts(),L=['Symbol,Count,From text labels,From AI,Added by hand'];CS.rows.forEach(function(r,i){L.push('"'+String(r.name).replace(/"/g,'""')+'",'+c[i].n+','+c[i].text+','+c[i].ai+','+c[i].man);});dl(new Blob([L.join('\n')],{type:'text/csv'}),base+'.csv');return;}
+ bdLoadScript('https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js').then(function(){
+  var comp=document.createElement('canvas');comp.width=CS.cv.width;comp.height=CS.cv.height;var x=comp.getContext('2d');x.drawImage(CS.cv,0,0);x.drawImage(document.getElementById('cs-mk'),0,0);
+  var J=window.jspdf.jsPDF,landscape=comp.width>=comp.height,d=new J({unit:'pt',format:'letter',orientation:landscape?'l':'p'}),W=d.internal.pageSize.getWidth(),H=d.internal.pageSize.getHeight(),M=30;
+  var s=Math.min((W-2*M)/comp.width,(H-2*M-40)/comp.height);
+  d.setFont('helvetica','bold');d.setFontSize(12);d.setTextColor(27,94,155);d.text(bdAnsClean(CS.f.name)+'  -  page '+CS.pg+'  -  symbol count',M,M);
+  d.addImage(comp.toDataURL('image/jpeg',0.82),'JPEG',M,M+12,comp.width*s,comp.height*s);
+  d.addPage();d.setFontSize(14);d.text('Symbol count',M,M+10);d.setFont('helvetica','normal');d.setFontSize(11);d.setTextColor(30);var y=M+36,c=counts(),tot=0;
+  CS.rows.forEach(function(r,i){d.text(bdAnsClean(r.name||'(unnamed)'),M,y);d.text(String(c[i].n),M+300,y);d.setFontSize(9);d.setTextColor(120);d.text('text '+c[i].text+'  AI '+c[i].ai+'  hand '+c[i].man,M+340,y);d.setFontSize(11);d.setTextColor(30);y+=18;tot+=c[i].n;});
+  d.setFont('helvetica','bold');d.text('Total',M,y+6);d.text(String(tot),M+300,y+6);d.setFont('helvetica','normal');d.setFontSize(9);d.setTextColor(120);d.text('Counted by Vantage (text labels, AI vision, and hand corrections). Verify before bidding.',M,y+30);
+  d.save(base+'.pdf');}).catch(function(e){bdToast('Could not make the PDF: '+(e.message||e),true);});
+};
 })();
 
 </script>
