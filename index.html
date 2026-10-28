@@ -2039,12 +2039,15 @@ async function renderBids(){
     <option value="gcs_Project On Hold / Cancelled">Project On Hold / Cancelled</option>
   </optgroup>
   <optgroup label="── By Scope ──">
-    <option value="scope_comm">📡 Comm / Data Cabling (GC26-22-xx)</option>
-    <option value="scope_av">📺 AV (GC26-23-xx)</option>
-    <option value="scope_sec">🔒 Security (GC26-24-xx)</option>
     <option value="scope_net">🌐 Networking</option>
     <option value="scope_wireless">📶 Wireless</option>
   </optgroup>
+</select>
+      <select autocomplete="off" id="bid-trade" onchange="filterBids()" class="bt-btn" title="Filter by trade (from the project code GC26-XX)">
+  <option value="">All Trades</option>
+  <option value="22">Data Cabling (GC26-22)</option>
+  <option value="23">AV (GC26-23)</option>
+  <option value="24">Security (GC26-24)</option>
 </select>
       <button class="bt-btn" id="bid-density-btn" onclick="toggleBidDensity()" title="Row spacing">↕ Comfortable</button>
       <button class="bt-btn" onclick="toggleBidColMenu(event)">☰ Columns</button>
@@ -2470,14 +2473,14 @@ function filterBids(){
     if(_bidScope==='mine'){
       rows=rows.filter(function(r){return r.assigned_to===CU.id;});
     }
+    // Trade filter: from the project code GC26-XX-nnn (22 Data Cabling, 23 AV, 24 Security)
+    var trade=document.getElementById('bid-trade')?document.getElementById('bid-trade').value:'';
+    if(trade) rows=rows.filter(function(r){var m=String(r.ref||'').match(/GC\d{2}[-_ ]+(\d{2})[-_ ]/i);return !!m&&m[1]===trade;});
     // Handle special filter values
     if(filter==='due_today') rows=rows.filter(function(r){return r.due_date&&ddiff(r.due_date)<=0&&r.status==='Under Review';});
     else if(filter==='due_overdue') rows=rows.filter(function(r){return r.due_date&&ddiff(r.due_date)<0&&r.status==='Under Review';});
     else if(filter==='fu_today') rows=rows.filter(function(r){if(r.status==='Win'||r.status==='Lost'||r.fu_status==='closed')return false;return r.fu_next_date&&ddiff(r.fu_next_date)<=0&&(r.fu_status==='email'||r.fu_status==='sent'||r.fu_status==='none'||r.fu_status==='new'||!r.fu_status);});
     else if(filter==='fu_overdue') rows=rows.filter(function(r){if(r.status==='Win'||r.status==='Lost'||r.fu_status==='closed')return false;return r.fu_next_date&&ddiff(r.fu_next_date)<=0&&(r.fu_status==='call'||r.fu_status==='waiting');});
-    else if(filter==='scope_comm') rows=rows.filter(function(r){return (r.ref||'').includes('-22-')||(r.scope||'').toLowerCase().includes('comm')||(r.scope||'').toLowerCase().includes('data');});
-    else if(filter==='scope_av') rows=rows.filter(function(r){return (r.ref||'').includes('-23-')||(r.scope||'').toLowerCase().includes('av');});
-    else if(filter==='scope_sec') rows=rows.filter(function(r){return (r.ref||'').includes('-24-')||(r.scope||'').toLowerCase().includes('sec');});
     else if(filter==='scope_net') rows=rows.filter(function(r){return (r.scope||'').toLowerCase().includes('network');});
     else if(filter==='scope_wireless') rows=rows.filter(function(r){return (r.scope||'').toLowerCase().includes('wireless');});
     else if(filter.indexOf('gcs_')===0) rows=rows.filter(function(r){return (r.gc_status||'')===filter.slice(4);});
@@ -8525,7 +8528,7 @@ async function bdAIContext(q){
   }catch(e){return '';}
 }
 
-var APP_VERSION='2.9.5',APP_BUILD_DATE='Oct 26, 2026';
+var APP_VERSION='2.9.6',APP_BUILD_DATE='Oct 26, 2026';
 (function(){function s(){var e=document.getElementById('sb-ver');if(e)e.textContent='Vantage v'+APP_VERSION+' · '+APP_BUILD_DATE;}s();document.addEventListener('DOMContentLoaded',s);})();
 
 </script>
@@ -10656,7 +10659,7 @@ VG.appMap=function(){
  var names={};(VG.LEGACY||[]).forEach(function(p){names[p[0]]=p[1];});
  var mv=[];Object.keys(VG.MOVED).forEach(function(p){var o=VG.MOVED[p];if(canAccess(o.m)){var d=VG.def[o.m],t=d&&d.tabs.find(function(x){return x.id===o.t;});mv.push(names[p]+' is now the tab "'+(t?t.l:names[p])+'" in the '+VG.MODS[o.m].label+' module');}});
  if(mv.length)L.push('Moved pages: '+mv.join('; ')+'.');
- if(canAccess('vg_estimating'))L.push('BID OPPORTUNITIES and PROPOSALS live in Estimating (Estimating > Bid Opportunities, Estimating > Proposals). Bids assigned to you (Vantage AI Advisor) are worked there; a proposal you create is saved in Estimating > Proposals with status Under Review, and its files go to the project in Build under 0.0 HAND-OFF DOCS > Kickoff Meeting. Never send the user to the old sidebar pages.');
+ if(canAccess('vg_estimating'))L.push('BID OPPORTUNITIES and PROPOSALS live in Estimating (Estimating > Bid Opportunities, Estimating > Proposals). Bid Opportunities has a Trade filter from the project code (GC26-22 Data Cabling, GC26-23 AV, GC26-24 Security). Bids assigned to you (Vantage AI Advisor) are worked there; a proposal you create is saved in Estimating > Proposals with status Under Review, and its files go to the project in Build under 0.0 HAND-OFF DOCS > Kickoff Meeting. Never send the user to the old sidebar pages.');
  else L.push('Bid Opportunities and Proposals are separate pages in the sidebar (the Estimating module is hidden for now).');
  L.push('Other sidebar pages: Dashboard, Build (project files), AI Advisor, Quick Save, Activity Log, Management. Project 360 and Search everything (Ctrl+K) find a project by its code across all modules.');
  L.push('=== END WHERE THINGS LIVE ===');
