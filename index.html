@@ -8541,7 +8541,7 @@ async function bdAIContext(q){
   }catch(e){return '';}
 }
 
-var APP_VERSION='2.12.0',APP_BUILD_DATE='Oct 26, 2026';
+var APP_VERSION='2.13.0',APP_BUILD_DATE='Oct 26, 2026';
 (function(){function s(){var e=document.getElementById('sb-ver');if(e)e.textContent='Vantage v'+APP_VERSION+' · '+APP_BUILD_DATE;}s();document.addEventListener('DOMContentLoaded',s);})();
 
 </script>
@@ -12049,6 +12049,182 @@ AIP.runJob=async function(job){
  AIP.spec=null;AIP.specInfo=null;AIP.specConflicts=[];
  try{return await rj.apply(this,arguments);}finally{AIP.spec=null;AIP.specInfo=null;AIP.specConflicts=[];}
 };
+})();
+
+/* ===== AI Proposal Engine: "Compare with My Work" (Jobs & Training > Review findings) ===== */
+(function(){
+if(!window.AIP||!AIP._p||!AIP._h||!AIP.openFindings)return;
+var P=AIP._p,H=AIP._h,ai=H.ai,aiJson=H.aiJson,TYPES=AIP.TYPES;
+function E(s){return bdE(s);}
+var KEY=function(id){return 'ai_compare_'+id;};
+async function loadList(id){
+ try{var r=await sb.from('vg_settings').select('value').eq('key',KEY(id)).maybeSingle();var v=r&&r.data&&r.data.value;return (v&&v.items)||[];}catch(e){return [];}
+}
+async function saveList(id,items){
+ try{await sb.from('vg_settings').upsert({key:KEY(id),value:{items:items.slice(-30)},updated_by:(window.CU&&CU.id)||null,updated_at:new Date().toISOString()});return true;}catch(e){console.warn('compare save',e);return false;}
+}
+var CONF={certain:'Certain',likely:'Likely',unsure:'Not sure, please double-check'};
+var VER={user_right:['You were right','#1b7a3d','#dff5e6'],ai_right:['The AI was right','#1B5E9B','#e3eefa'],both_partly:['Both partly right','#8a5a00','#fff1cc'],cannot_tell:['Cannot tell from the drawing','#6b7280','#eceff3'],not_counted:['Sheet was not counted','#b3261e','#fde3e1']};
+
+/* ---------- reading what the user uploaded ---------- */
+function blk(b64){return {type:'image',source:{type:'base64',media_type:'image/jpeg',data:b64}};}
+async function readUpload(f){
+ var o={name:f.name,images:[],text:''},ext=(f.name.split('.').pop()||'').toLowerCase();
+ try{
+  if(/^image\//.test(f.type)||/^(png|jpe?g|webp|gif)$/.test(ext)){o.images.push(await bdBlobToB64(await bdShrink(f,1800)));}
+  else if(ext==='pdf'||f.type==='application/pdf'){
+   var lib=await bdPdfLib(),pdf=await lib.getDocument({data:await f.arrayBuffer()}).promise,n=Math.min(pdf.numPages,6);
+   for(var i=1;i<=n;i++){
+    var pg=await pdf.getPage(i),v0=pg.getViewport({scale:1}),vp=pg.getViewport({scale:Math.min(4,1800/Math.max(v0.width,v0.height))}),cv=document.createElement('canvas');
+    cv.width=Math.round(vp.width);cv.height=Math.round(vp.height);var cx=cv.getContext('2d');cx.fillStyle='#fff';cx.fillRect(0,0,cv.width,cv.height);
+    await pg.render({canvasContext:cx,viewport:vp}).promise;o.images.push(cv.toDataURL('image/jpeg',0.82).split(',')[1]);
+    try{var tc=await pg.getTextContent();o.text+=' '+tc.items.map(function(x){return x.str;}).join(' ');}catch(e){}
+   }
+   if(pdf.numPages>n)o.text+=' (only the first '+n+' pages were read)';
+  }else{o.text=String(await bdExtract({name:f.name,mime:f.type||''},f)||'').slice(0,12000);}
+ }catch(e){o.text='(could not read this file: '+(e.message||e)+')';}
+ o.text=o.text.replace(/\s+/g,' ').slice(0,8000);
+ return o;
+}
+
+/* ---------- the AI's own drawing (with a grid so locations can be cited) ---------- */
+var COLS='ABCDEFGH',NR=6;
+function cell(x,y){return COLS[Math.max(0,Math.min(COLS.length-1,Math.floor(x*COLS.length)))]+(Math.max(0,Math.min(NR-1,Math.floor(y*NR)))+1);}
+function gridify(cv){
+ var s=Math.min(1,1800/Math.max(cv.width,cv.height)),o=document.createElement('canvas');o.width=Math.round(cv.width*s);o.height=Math.round(cv.height*s);
+ var x=o.getContext('2d');x.drawImage(cv,0,0,o.width,o.height);
+ x.strokeStyle='rgba(0,110,255,0.55)';x.lineWidth=1;x.fillStyle='rgba(0,90,220,0.9)';x.font='bold '+Math.max(14,Math.round(o.width/90))+'px sans-serif';
+ for(var c=0;c<=COLS.length;c++){var px=Math.round(o.width*c/COLS.length);x.beginPath();x.moveTo(px,0);x.lineTo(px,o.height);x.stroke();}
+ for(var r=0;r<=NR;r++){var py=Math.round(o.height*r/NR);x.beginPath();x.moveTo(0,py);x.lineTo(o.width,py);x.stroke();}
+ for(var c2=0;c2<COLS.length;c2++)for(var r2=0;r2<NR;r2++)x.fillText(COLS[c2]+(r2+1),Math.round(o.width*c2/COLS.length)+5,Math.round(o.height*r2/NR)+Math.max(16,Math.round(o.width/80)));
+ return o.toDataURL('image/jpeg',0.82).split(',')[1];
+}
+async function sheetImage(j,s){
+ var snap={proj:BD.proj,folders:BD.folders,files:BD.files,members:BD.members,role:BD.role};
+ try{
+  var pr=await sb.from('build_projects').select('*').eq('id',j.build_project_id).maybeSingle();if(!pr.data)return null;
+  BD.proj=pr.data;BD.role='editor';await bdFetchAll();
+  var f=BD.files.find(function(x){return !x.is_deleted&&x.name===s.file;});if(!f)return null;
+  var blob=await bdFetchBlob(f.storage_path);
+  if(/\.(png|jpe?g|webp)$/i.test(f.name))return await bdBlobToB64(await bdShrink(blob,1800));
+  var lib=await bdPdfLib(),pdf=await lib.getDocument({data:await blob.arrayBuffer()}).promise;
+  var cv=await P.renderPage({pdf:pdf,pageNo:s.page,kind:'pdf'});return gridify(cv);
+ }catch(e){console.warn('sheet image',e);return null;}
+ finally{BD.proj=snap.proj;BD.folders=snap.folders;BD.files=snap.files;BD.members=snap.members;BD.role=snap.role;}
+}
+
+/* ---------- the comparison ---------- */
+function nz(s){return String(s||'').toUpperCase().replace(/[^A-Z0-9]/g,'');}
+function findSheet(res,name,title,type){
+ var sh=res.sheets||[],k=nz(name),i;
+ if(k){for(i=0;i<sh.length;i++)if(nz(sh[i].sheet_number)===k)return i;for(i=0;i<sh.length;i++)if(nz(sh[i].sheet_number)&&(nz(sh[i].sheet_number).indexOf(k)>=0||k.indexOf(nz(sh[i].sheet_number))>=0))return i;}
+ var t=nz(title);if(t.length>4)for(i=0;i<sh.length;i++)if(nz(sh[i].title).indexOf(t)>=0)return i;
+ return -1;
+}
+function aiSummary(res){
+ return (res.sheets||[]).map(function(s,i){return '#'+i+' '+(s.sheet_number||s.file+' p'+s.page)+' '+(s.title||'')+': '+Object.keys(s.counts||{}).map(function(k){return (TYPES[k]?TYPES[k].label:k)+' x'+s.counts[k];}).join(', ')+((s.flags||[]).length?' | flags: '+s.flags.slice(0,2).join('; '):'');}).join('\n')+'\nTOTALS: '+JSON.stringify(res.totals||{});
+}
+var SCHEMA_A='{"summary":"one sentence: what the estimator is showing","claims":[{"sheet":"sheet number as written (T-1.1) or empty","sheet_title":"","location":"room / area / grid cell the estimator points at","type":"<device type key or empty>","kind":"missed|false_positive|wrong_type|wrong_count|other","user_says":"short quote or paraphrase","user_count":null}]}';
+var SCHEMA_B='{"verdict":"user_right|ai_right|both_partly|cannot_tell","location":"room / area on the sheet, e.g. Room 104 north wall","grid":"grid cell like C3 from the blue grid on the drawing","ai_count":0,"user_count":null,"true_count":null,"why":"2 to 4 sentences: who was right and why, what is visible at that spot","lesson":"ONLY if the AI missed or misread something: one general reusable sentence, not tied to a sheet number; otherwise empty"}';
+
+async function runCompare(j,files,desc,conf){
+ var res=j.result||{},msg=function(t){var m=document.getElementById('aip-cm');if(m)m.textContent=t;};
+ msg('Reading your upload...');
+ var ups=[];for(var i=0;i<files.length;i++)ups.push(await readUpload(files[i]));
+ var imgs=[];ups.forEach(function(u){u.images.forEach(function(b){imgs.push(blk(b));});});
+ var upTxt=ups.map(function(u){return '[FILE '+u.name+(u.images.length?' ('+u.images.length+' image(s))':'')+'] '+u.text;}).join('\n');
+ var who='The estimator is '+({certain:'CERTAIN',likely:'LIKELY sure',unsure:'NOT SURE'}[conf])+' that what they show is a mistake by the AI. '+(conf==='unsure'?'Treat their upload as a question to double-check, not as a claim.':conf==='certain'?'They say it is definite, but verify it yourself on the drawing; do not simply agree.':'Verify it on the drawing.');
+ msg('Finding what you point at...');
+ var a=await aiJson(P.SYS_EST,imgs.slice(0,6).concat([{type:'text',text:'An estimator did the takeoff / markup by hand and uploaded it to compare with the AI\'s work. ESTIMATOR\'S DESCRIPTION OF WHAT TO LOOK AT: "'+desc+'"\n'+who+'\n\nTEXT FROM THE UPLOAD:\n'+upTxt+'\n\nTHE AI\'S WORK (sheet index, counts, flags):\n'+aiSummary(res)+'\n\nList each separate thing the estimator\'s work shows differently from the AI (max 6): which sheet, where on it, which device type (keys: '+Object.keys(TYPES).join(', ')+'), and what they say. Return ONLY JSON '+SCHEMA_A}]),3000);
+ var claims=((a&&a.claims)||[]).slice(0,6),out=[];
+ if(!claims.length){return {summary:(a&&a.summary)||'',results:[{verdict:'cannot_tell',why:'The AI could not find a specific difference in your upload. Say which sheet and which device to look at, and try again.',status:'pending'}]};}
+ for(var c=0;c<claims.length;c++){
+  var cl=claims[c];msg('Checking '+(c+1)+' of '+claims.length+': '+(cl.sheet||'sheet')+' '+(cl.location||'')+'...');
+  var si=findSheet(res,cl.sheet,cl.sheet_title,cl.type),s=si>=0?res.sheets[si]:null;
+  if(!s){
+   var counted=(res.sheets||[]).map(function(x){return x.sheet_number||x.file+' p'+x.page;}).join(', ');
+   out.push({verdict:'not_counted',sheet:cl.sheet||'',sheet_title:cl.sheet_title||'',location:cl.location||'',type:cl.type||'',user_says:cl.user_says||'',user_count:cl.user_count,
+    why:'The AI did not count on "'+(cl.sheet||cl.sheet_title||'that sheet')+'". Sheets it counted on: '+(counted||'none')+'. If this sheet carries devices for the trade, the AI chose the wrong sheets.',
+    lesson:'',status:'pending'});continue;
+  }
+  var sim=await sheetImage(j,s);
+  var devs=(s.devices||[]).filter(function(d){return !cl.type||d[0]===cl.type;}).slice(0,80).map(function(d){return (TYPES[d[0]]?TYPES[d[0]].label:d[0])+' at '+cell(d[1],d[2])+(d[3]?' ('+d[3]+')':'');}).join('; ');
+  var content=imgs.slice(0,3).concat(sim?[blk(sim)]:[]).concat([{type:'text',text:'Compare the estimator\'s work with the AI\'s work on ONE sheet and decide who is right. '+who+'\n\nSHEET: '+(s.sheet_number||s.file+' p'+s.page)+' '+(s.title||'')+'\nWHAT THE ESTIMATOR SAYS: '+(cl.user_says||desc)+' (location: '+(cl.location||'not given')+(cl.user_count!=null?'; their count: '+cl.user_count:'')+')\nESTIMATOR\'S DESCRIPTION: '+desc+'\nTEXT FROM THE UPLOAD: '+upTxt.slice(0,2500)+'\n\nTHE AI COUNTED ON THIS SHEET: '+Object.keys(s.counts||{}).map(function(k){return (TYPES[k]?TYPES[k].label:k)+' x'+s.counts[k];}).join(', ')+'\nAI DEVICE POSITIONS (grid cell from the blue grid on the drawing image): '+(devs||'none')+'\nSHEET LEGEND AS READ BY THE AI: '+JSON.stringify((s.legend||[]).slice(0,25))+'\n\n'+(sim?'The LAST image is the AI\'s sheet with a blue grid (columns A-H, rows 1-6). ':'The sheet image is not available, so judge from the AI positions only and say so. ')+'Look at the exact spot. Decide from what is actually on the drawing and its legend, never from how sure the estimator is. Cite the sheet, the location (room / area) and the grid cell. Return ONLY JSON '+SCHEMA_B}]);
+  var r;try{r=await aiJson(P.SYS_EST,content,1800);}catch(e){r=null;}
+  if(!r)r={verdict:'cannot_tell',why:'The AI could not finish this check ('+'try again)'};
+  out.push({verdict:/^(user_right|ai_right|both_partly|cannot_tell)$/.test(r.verdict)?r.verdict:'cannot_tell',sheet:s.sheet_number||s.file+' p'+s.page,sheet_title:s.title||'',location:r.location||cl.location||'',grid:r.grid||'',type:cl.type||'',
+   ai_count:r.ai_count!=null?r.ai_count:null,user_count:r.user_count!=null?r.user_count:(cl.user_count!=null?cl.user_count:null),true_count:r.true_count!=null?r.true_count:null,
+   user_says:cl.user_says||'',why:String(r.why||'').slice(0,900),lesson:String(r.lesson||'').slice(0,400),image:!!sim,status:'pending'});
+ }
+ return {summary:(a&&a.summary)||'',results:out};
+}
+
+/* ---------- screen ---------- */
+function card(cid,it,ri){
+ var r=it.results[ri],v=VER[r.verdict]||VER.cannot_tell,done=r.status&&r.status!=='pending';
+ var cites=[r.sheet?'Sheet '+E(r.sheet)+(r.sheet_title?' - '+E(r.sheet_title):''):'',r.location?E(r.location):'',r.grid?'grid '+E(r.grid):''].filter(Boolean).join(' &middot; ');
+ var nums=(r.ai_count!=null||r.user_count!=null||r.true_count!=null)?'<div class="aip-m">'+(r.ai_count!=null?'AI: <b>'+E(r.ai_count)+'</b> ':'')+(r.user_count!=null?'&nbsp; You: <b>'+E(r.user_count)+'</b> ':'')+(r.true_count!=null?'&nbsp; On the drawing: <b>'+E(r.true_count)+'</b>':'')+'</div>':'';
+ var can=!done&&(r.verdict==='user_right'||r.verdict==='both_partly'||r.verdict==='not_counted');
+ var st=done?'<div class="aip-m">'+({taught:'Confirmed - the AI learned this lesson',ai:'Confirmed - the AI was right, nothing learned',dismissed:'Dismissed - nothing learned'}[r.status]||'')+'</div>':'';
+ return '<div class="aip-cc" style="border-left:4px solid '+v[1]+'"><div><span class="aip-vb" style="background:'+v[2]+';color:'+v[1]+'">'+E(v[0])+'</span> <span class="aip-m">'+cites+'</span></div>'
+  +(r.user_says?'<div class="aip-m">You: '+E(r.user_says)+'</div>':'')+nums+'<div style="margin:6px 0;font-size:12.5px">'+E(r.why||'')+'</div>'
+  +(can?'<div class="aip-m">Lesson the AI would learn (edit if needed):</div><input class="aip-lessonin" id="aip-ls-'+cid+'-'+ri+'" value="'+E(r.lesson||'')+'" placeholder="One general sentence for the AI to remember">'
+   +'<div class="aip-cb"><button class="aip-b pri" onclick="AIP.cmpConfirm(\''+cid+'\','+ri+',\'teach\')">Confirm - teach the AI</button> <button class="aip-b" onclick="AIP.cmpConfirm(\''+cid+'\','+ri+',\'ai\')">The AI was right</button> <button class="aip-b" onclick="AIP.cmpConfirm(\''+cid+'\','+ri+',\'dismissed\')">Dismiss</button></div>'
+   :(!done&&r.verdict!=='cannot_tell'?'<div class="aip-cb"><button class="aip-b" onclick="AIP.cmpConfirm(\''+cid+'\','+ri+',\'ai\')">Agree - nothing to learn</button> <button class="aip-b" onclick="AIP.cmpConfirm(\''+cid+'\','+ri+',\'dismissed\')">Dismiss</button></div>':(!done?'<div class="aip-cb"><button class="aip-b" onclick="AIP.cmpConfirm(\''+cid+'\','+ri+',\'dismissed\')">Dismiss</button></div>':'')))+st+'</div>';
+}
+function renderList(list){
+ var el=document.getElementById('aip-cl');if(!el)return;
+ el.innerHTML=list.slice().reverse().map(function(it){
+  return '<div class="aip-ci"><div class="aip-m"><b>'+new Date(it.at).toLocaleString()+'</b> &middot; '+E(CONF[it.conf]||'')+' &middot; '+E((it.files||[]).join(', '))+'<br>'+E(it.desc||'')+'</div>'+(it.summary?'<div class="aip-m">'+E(it.summary)+'</div>':'')+it.results.map(function(r,ri){return card(it.id,it,ri);}).join('')+'</div>';
+ }).join('')||'<div class="aip-m">No comparisons yet for this project.</div>';
+}
+async function mount(){
+ var j=AIP._fj,b=document.querySelector('#aip-ov .aip-b2');if(!j||!b||document.getElementById('aip-cmp'))return;
+ var d=document.createElement('div');d.id='aip-cmp';
+ d.innerHTML='<div class="aip-sec">Compare with My Work</div>'
+  +'<div class="aip-m">Did the proposal and markup yourself? Upload them (markups, screenshots, PDFs, spreadsheets, notes). The AI compares your work with its own and tells you who missed something, and where. It only learns after you confirm.</div>'
+  +'<input type="file" id="aip-cf" multiple accept="image/*,.pdf,.txt,.csv,.md,.docx,.xlsx" style="margin:8px 0;display:block">'
+  +'<textarea id="aip-cd" rows="3" placeholder="What should the AI look at? e.g. On T-1.1 I counted 3 more data drops in the conference rooms. The AI missed the ones on the north wall."></textarea>'
+  +'<div class="aip-m" style="margin:6px 0 2px">How sure are you that this is a mistake?</div>'
+  +'<div class="aip-rg"><label><input type="radio" name="aip-cc" value="certain"> Certain</label> <label><input type="radio" name="aip-cc" value="likely" checked> Likely</label> <label><input type="radio" name="aip-cc" value="unsure"> Not sure, please double-check</label></div>'
+  +'<div style="margin-top:10px"><button class="aip-b pri" id="aip-cbtn" onclick="AIP.cmpRun()">Compare</button> <span class="aip-m" id="aip-cm"></span></div>'
+  +'<div id="aip-cl" style="margin-top:12px"></div>';
+ b.appendChild(d);
+ renderList(AIP._cmp=await loadList(j.id));
+}
+var of=AIP.openFindings;
+AIP.openFindings=async function(id){var r=await of.apply(this,arguments);try{await mount();}catch(e){console.warn('compare mount',e);}return r;};
+AIP.cmpRun=async function(){
+ var j=AIP._fj;if(!j)return;
+ var files=Array.prototype.slice.call(document.getElementById('aip-cf').files||[]),desc=(document.getElementById('aip-cd').value||'').trim(),rb=document.querySelector('input[name="aip-cc"]:checked'),conf=rb?rb.value:'likely';
+ var m=document.getElementById('aip-cm');
+ if(!files.length&&!desc){m.textContent='Upload a file or describe what to look at.';return;}
+ if(!desc){m.textContent='Tell the AI what to look at.';return;}
+ var btn=document.getElementById('aip-cbtn');btn.disabled=true;
+ try{
+  var out=await runCompare(j,files,desc,conf),list=await loadList(j.id);
+  list.push({id:'c'+Date.now().toString(36),at:new Date().toISOString(),files:files.map(function(f){return f.name;}),desc:desc,conf:conf,summary:out.summary,results:out.results});
+  await saveList(j.id,list);AIP._cmp=list;renderList(list);m.textContent='Done. Read the verdicts below and confirm what the AI should learn.';
+  document.getElementById('aip-cf').value='';
+ }catch(e){console.warn('compare',e);m.textContent='Could not finish: '+(e.message||e);}
+ finally{btn.disabled=false;}
+};
+AIP.cmpConfirm=async function(cid,ri,mode){
+ var j=AIP._fj,list=await loadList(j.id),it=list.find(function(x){return x.id===cid;});if(!it)return;
+ var r=it.results[ri];if(!r||(r.status&&r.status!=='pending'))return;
+ if(mode==='teach'){
+  var el=document.getElementById('aip-ls-'+cid+'-'+ri),lesson=((el&&el.value)||r.lesson||'').trim();
+  if(!lesson){alert('Write the lesson in one sentence first.');return;}
+  var ins=await sb.from('ai_proposal_lessons').insert({job_id:j.id,lesson:lesson.slice(0,500)});
+  if(ins&&ins.error){alert('Could not save the lesson: '+ins.error.message);return;}
+  r.lesson=lesson;r.status='taught';
+  try{await logAct('AI learned from a comparison','ai_proposal_jobs',j.id,'Confirmed by the estimator: '+lesson.slice(0,120));}catch(e){}
+  bdToast('The AI learned this lesson');
+ }else r.status=mode==='ai'?'ai':'dismissed';
+ await saveList(j.id,list);AIP._cmp=list;renderList(list);
+};
+var css=document.createElement('style');css.textContent='#aip-cmp{border-top:2px solid #e3e8f0;margin-top:18px;padding-top:4px}.aip-rg{display:flex;gap:16px;flex-wrap:wrap;font-size:12.5px}.aip-ci{border:1px solid #e3e8f0;border-radius:10px;padding:10px;margin-bottom:10px}.aip-cc{background:#fafbfd;border-radius:8px;padding:8px 10px;margin-top:8px}.aip-vb{font-size:11px;font-weight:700;padding:2px 8px;border-radius:99px}.aip-cb{margin-top:6px}.aip-lessonin{width:100%;border:1px solid #cdd6e4;border-radius:6px;padding:5px 8px;font:inherit;font-size:12px;margin-top:2px}';
+document.head.appendChild(css);
 })();
 
 </script>
