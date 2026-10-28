@@ -8541,7 +8541,7 @@ async function bdAIContext(q){
   }catch(e){return '';}
 }
 
-var APP_VERSION='2.11.1',APP_BUILD_DATE='Oct 26, 2026';
+var APP_VERSION='2.12.0',APP_BUILD_DATE='Oct 26, 2026';
 (function(){function s(){var e=document.getElementById('sb-ver');if(e)e.textContent='Vantage v'+APP_VERSION+' · '+APP_BUILD_DATE;}s();document.addEventListener('DOMContentLoaded',s);})();
 
 </script>
@@ -9298,7 +9298,7 @@ async function writeSummaries(job,bid,proj,req,sheets,totals,ctx){
  for(var i=0;i<cats.length;i++){
   var c=cats[i],keys=Object.keys(TYPES).filter(function(k){return AIP.tradeHas?AIP.tradeHas(k,c):TYPES[k].cat===c;});
   var per=sheets.filter(function(s){return keys.some(function(k){return s.counts[k];});}).map(function(s){return (s.sheet_number||s.file+' p'+s.page)+' '+(s.title||'')+': '+keys.filter(function(k){return s.counts[k];}).map(function(k){return TYPES[k].label+' x'+s.counts[k];}).join(', ');});
-  var t=await ai(P.SYS_TRADE,'Write a plain-text SOW SUMMARY file for the '+CATNAME[c].toUpperCase()+' scope of project "'+(bid?bid.project:proj.name)+'" (code '+(bid?bid.ref:proj.code||'')+'). Use only the facts below. No markdown symbols other than simple dashes. Sections in this order, each with a heading in CAPITALS:\nPROJECT\nWHAT THE CLIENT ASKS FOR (every requirement, with source file)\nNETFIBER\'S PART (what we must supply/install/terminate/test, with quantities)\nOTHERS\' PART / NOT IN OUR SCOPE\nDEVICE COUNTS FROM THE DRAWINGS (totals, then per sheet)\nOPEN QUESTIONS & RISKS (anything unclear, contradictory, or where specs and drawings disagree)\nSOURCES\nIf there is nothing for this scope, say clearly "No '+c+' scope found in the documents".\n\nREQUIREMENTS JSON:\n'+JSON.stringify({reqs:req[c],exclusions:req.exclusions,questions:req.questions}).slice(0,24000)+'\n\nDRAWING TOTALS: '+keys.filter(function(k){return totals[k];}).map(function(k){return TYPES[k].label+' = '+totals[k];}).join('; ')+'\nPER SHEET:\n'+per.join('\n'),3500);
+  var t=await ai(P.SYS_TRADE,'Write a plain-text SOW SUMMARY file for the '+CATNAME[c].toUpperCase()+' scope of project "'+(bid?bid.project:proj.name)+'" (code '+(bid?bid.ref:proj.code||'')+'). Use only the facts below. No markdown symbols other than simple dashes. Sections in this order, each with a heading in CAPITALS:\nPROJECT\nWHAT THE CLIENT ASKS FOR (every requirement, with source file)\nNETFIBER\'S PART (what we must supply/install/terminate/test, with quantities)\nOTHERS\' PART / NOT IN OUR SCOPE\nSPECIFICATION REQUIREMENTS (cable category, manufacturers, approved products, testing, warranty - from the SPEC SUMMARY below; say if no spec was found)\nDEVICE COUNTS FROM THE DRAWINGS (totals, then per sheet)\nOPEN QUESTIONS & RISKS (anything unclear, contradictory, or where specs and drawings disagree)\nSOURCES\nIf there is nothing for this scope, say clearly "No '+c+' scope found in the documents".\n\nREQUIREMENTS JSON:\n'+JSON.stringify({reqs:req[c],exclusions:req.exclusions,questions:req.questions}).slice(0,24000)+(AIP.specPrompt?AIP.specPrompt():'')+'\n\nDRAWING TOTALS: '+keys.filter(function(k){return totals[k];}).map(function(k){return TYPES[k].label+' = '+totals[k];}).join('; ')+'\nPER SHEET:\n'+per.join('\n'),3500);
   out[c]=t;
  }
  return out;
@@ -9307,8 +9307,9 @@ async function writeSummaries(job,bid,proj,req,sheets,totals,ctx){
 async function generateProposal(job,bid,proj,req,sheets,totals,lessons){
  var st=await styleSamples(bid),lib=await libraryText();
  var gcn=bid?bid.gc:'';
- var prompt='Create a proposal for NetFiber. Copy the WRITING STYLE, section layout, wording of scope/exclusions/notes and the way items are named and described from the EXAMPLE proposals NetFiber wrote earlier. Quantities MUST come from the drawing counts and requirements below (never invent quantities; if the SOW names a quantity and the drawings disagree, use the drawing count and add a flag). Prices: use the ITEM LIBRARY rates when an item matches; otherwise use the rate from a similar line in the examples; if no price exists set rate 0 and price_source "none". Separate sections for Data, AV and Security only when that scope exists. Only include work NetFiber is responsible for.'+(AIP.tradeLine?AIP.tradeLine():'')+' ALSO write a one-page PROJECT SUMMARY AND SOW for the client (field summary_page) in the style of this example: title "Scope of Work: Network Cabling - New Installation & Relocation (Cat6)"; overview = 3 to 5 sentences (what the project includes with the real quantities, who the work is coordinated with, the drawings and codes/standards it follows); services = 6 to 10 items, each a short label (for example "Site Assessment & Planning", "New Cable Installation (18 Drops)", "Cable Relocation (12 Drops)", "Termination", "Labeling", "Testing & Certification", "Cleanup") and one or two sentences starting with "Furnish and install", "Verify", "Terminate" and so on; exclusions = the things NOT included. Use only real numbers from the drawing counts and requirements, and only NetFiber scope.\n\nPROJECT: '+(bid?bid.project:proj.name)+' | GC/client: '+gcn+' | city: '+(bid?bid.city:'')+' | SOW FIELD FROM THE BID (the estimator decided this; include ONLY these scopes - Comm = data/communications cabling, AV, Security; if empty decide from the documents): "'+(bid?bid.scope||'':'')+'" | bid notes: '+(bid?bid.notes||'':'')+'\n\nREQUIREMENTS FROM THE SPECS:\n'+JSON.stringify({data:req.data,av:req.av,security:req.security,exclusions:req.exclusions}).slice(0,22000)+'\n\nDRAWING TOTALS (symbols): '+JSON.stringify(totals)+'\nCAT6 CABLES TO PRICE (drops; a VOICE/DATA outlet = 2 cables, VOICE = 1, DATA = 1 - use THESE numbers for Cat6 drop quantities, not the symbol count): '+JSON.stringify(AIP.cableTotals?AIP.cableTotals(sheets):{})+'\nPER SHEET: '+JSON.stringify(sheets.map(function(s){return {sheet:s.sheet_number||s.file+' p'+s.page,title:s.title,counts:s.counts,cables:s.cables,mounts:s.mounts,method:s.method,flags:s.flags};})).slice(0,9000)+(lessons?'\n\nLESSONS FROM PAST CORRECTIONS (must follow):\n'+lessons:'')+'\n\nITEM LIBRARY:\n'+lib+'\n\n'+st.text+'\n\nReturn ONLY JSON: {"project_sow":"short SOW label e.g. DATA / AV / SECURITY","scope_of_work":"bullet lines starting with the bullet character, one per line","exclusions":"bullet lines","notes":"lines","sections":[{"header":"DATA CABLING","items":[{"product":"","description":"","qty":0,"rate":0,"cost":0,"taxable":true,"price_source":"library|history|none","basis":"where the qty came from"}]}],"summary_page":{"title":"Scope of Work: ...","overview":"","services":[{"label":"","text":""}],"exclusions":[""]},"flags":["anything the reviewer must check"],"confidence":0}';
+ var prompt='Create a proposal for NetFiber. Copy the WRITING STYLE, section layout, wording of scope/exclusions/notes and the way items are named and described from the EXAMPLE proposals NetFiber wrote earlier. Quantities MUST come from the drawing counts and requirements below (never invent quantities; if the SOW names a quantity and the drawings disagree, use the drawing count and add a flag). Prices: use the ITEM LIBRARY rates when an item matches; otherwise use the rate from a similar line in the examples; if no price exists set rate 0 and price_source "none". Separate sections for Data, AV and Security only when that scope exists. Only include work NetFiber is responsible for.'+(AIP.tradeLine?AIP.tradeLine():'')+' ALSO write a one-page PROJECT SUMMARY AND SOW for the client (field summary_page) in the style of this example: title "Scope of Work: Network Cabling - New Installation & Relocation (Cat6)"; overview = 3 to 5 sentences (what the project includes with the real quantities, who the work is coordinated with, the drawings and codes/standards it follows); services = 6 to 10 items, each a short label (for example "Site Assessment & Planning", "New Cable Installation (18 Drops)", "Cable Relocation (12 Drops)", "Termination", "Labeling", "Testing & Certification", "Cleanup") and one or two sentences starting with "Furnish and install", "Verify", "Terminate" and so on; exclusions = the things NOT included. Use only real numbers from the drawing counts and requirements, and only NetFiber scope.\n\nPROJECT: '+(bid?bid.project:proj.name)+' | GC/client: '+gcn+' | city: '+(bid?bid.city:'')+' | SOW FIELD FROM THE BID (the estimator decided this; include ONLY these scopes - Comm = data/communications cabling, AV, Security; if empty decide from the documents): "'+(bid?bid.scope||'':'')+'" | bid notes: '+(bid?bid.notes||'':'')+(AIP.specPrompt?AIP.specPrompt():'')+'\n\nREQUIREMENTS FROM THE SPECS:\n'+JSON.stringify({data:req.data,av:req.av,security:req.security,exclusions:req.exclusions}).slice(0,22000)+'\n\nDRAWING TOTALS (symbols): '+JSON.stringify(totals)+'\nCABLES TO PRICE (use the cable category the SPECIFICATION SUMMARY requires, Cat6 only when no spec says otherwise; drops; a VOICE/DATA outlet = 2 cables, VOICE = 1, DATA = 1 - use THESE numbers for cable drop quantities, not the symbol count): '+JSON.stringify(AIP.cableTotals?AIP.cableTotals(sheets):{})+'\nPER SHEET: '+JSON.stringify(sheets.map(function(s){return {sheet:s.sheet_number||s.file+' p'+s.page,title:s.title,counts:s.counts,cables:s.cables,mounts:s.mounts,method:s.method,flags:s.flags};})).slice(0,9000)+(lessons?'\n\nLESSONS FROM PAST CORRECTIONS (must follow):\n'+lessons:'')+'\n\nITEM LIBRARY:\n'+lib+'\n\n'+st.text+'\n\nReturn ONLY JSON: {"project_sow":"short SOW label e.g. DATA / AV / SECURITY","scope_of_work":"bullet lines starting with the bullet character, one per line","exclusions":"bullet lines","notes":"lines","sections":[{"header":"DATA CABLING","items":[{"product":"","description":"","qty":0,"rate":0,"cost":0,"taxable":true,"price_source":"library|history|none","basis":"where the qty came from"}]}],"summary_page":{"title":"Scope of Work: ...","overview":"","services":[{"label":"","text":""}],"exclusions":[""]},"flags":["anything the reviewer must check"],"confidence":0}';
  var p=await aiJson(P.SYS_TRADE,prompt,8000);
+ if(AIP.specFix)AIP.specFix(p);
  var lib2=window._aipLib||[],flags=(p.flags||[]).slice(),n=0;
  (p.sections||[]).forEach(function(s){(s.items||[]).forEach(function(it){
   var m=lib2.find(function(l){return String(l.name||'').trim().toLowerCase()===String(it.product||'').trim().toLowerCase();});
@@ -9317,6 +9318,7 @@ async function generateProposal(job,bid,proj,req,sheets,totals,lessons){
   if(!it.rate){flags.push('No price found for "'+it.product+'" - rate set to 0');}
   n++;
  });});
+ if(AIP.specApply)AIP.specApply(p,flags,lib2);
  p.flags=flags;p._n=n;p._styleN=st.n;return p;
 }
 
@@ -9461,6 +9463,7 @@ AIP.runJob=async function(job){
   var outputs=[];
   var names=training?{data:'AI_Summary_Data_',av:'AI_Summary_AV_',security:'AI_Summary_Security_'}:{data:'AI_SOW_Data_',av:'AI_SOW_AV_',security:'AI_SOW_Security_'};
   for(var c in names){if(sums[c]==null)continue;await put(names[c]+sref+'.txt',new Blob([sums[c]],{type:'text/plain'}),'text/plain');outputs.push(names[c]+sref+'.txt');}
+  if(AIP.specText){var spT=AIP.specText();await put('AI_Spec_Summary_'+sref+'.txt',new Blob([spT],{type:'text/plain'}),'text/plain');outputs.push('AI_Spec_Summary_'+sref+'.txt');}
   var notes='AI REVIEW NOTES - '+pname+'\nGenerated '+new Date().toLocaleString()+'\n\nFLAGS TO CHECK\n'+(gen.flags.concat.apply(gen.flags,[])).map(function(x){return '- '+x;}).join('\n')+'\n\nSHEET FLAGS\n'+sheets.map(function(s){return (s.sheet_number||s.file+' p'+s.page)+' (confidence '+s.confidence+'%): '+(s.flags.join(' | ')||'ok');}).join('\n')+'\n\nCOUNT REPORT (how each number was counted)\n'+(AIP.countReport?AIP.countReport(sheets):'')+'\n\nQUESTIONS FROM THE SPECS\n'+(req.questions||[]).map(function(x){return '- '+x;}).join('\n')+'\n\nFILES NOT READ\n'+(ctx.skipped.join('\n')||'none')+(AIP.reuseNote?AIP.reuseNote(ctx):'');
   await put((training?'AI_Notes_':'AI_Review_Notes_')+sref+'.txt',new Blob([notes],{type:'text/plain'}),'text/plain');outputs.push((training?'AI_Notes_':'AI_Review_Notes_')+sref+'.txt');
   var pdfItems=allItems,pdf=buildProposalPdf(Object.assign({},propData),pdfItems,gcRow);
@@ -11815,6 +11818,236 @@ var rj=AIP.runJob;
 AIP.runJob=async function(job){
  AIP.curLegend=null;AIP.sheetPlan=null;
  try{return await rj.apply(this,arguments);}finally{AIP.curLegend=null;AIP.sheetPlan=null;}
+};
+})();
+
+/* ===== AI Proposal Engine: read the specification for the trade's division, price what it requires, flag spec-vs-drawing conflicts ===== */
+(function(){
+if(!window.AIP||!AIP._p||!AIP._h||!AIP.TYPES||!AIP.tradeOf)return;
+var P=AIP._p,H=AIP._h,aiJson=H.aiJson,IV='v1',MEM={};
+async function cget(k){
+ if(MEM[k])return MEM[k];
+ try{var r=await sb.from('vg_settings').select('value').eq('key',k).maybeSingle();var v=r&&r.data&&r.data.value;if(v&&v.v===IV){MEM[k]=v;return v;}}catch(e){}
+ return null;
+}
+async function cput(k,v){
+ v.v=IV;MEM[k]=v;var s=JSON.stringify(v);if(s.length>900000)return;
+ try{await sb.from('vg_settings').upsert({key:k,value:v,updated_by:(window.CU&&CU.id)||null,updated_at:new Date().toISOString()});}catch(e){}
+}
+function arr(x){return Array.isArray(x)?x.filter(function(s){return s!=null&&String(s).trim();}):(x&&String(x).trim()?[String(x)]:[]);}
+
+/* ---------- which spec sections belong to which trade ---------- */
+var DIV={
+ '22':{name:'Division 27 - Communications',pre:['27'],kw:'division 27 communications structured cabling telecommunications horizontal cabling backbone cable category 6 cat6 cat6a unshielded twisted pair patch panel jack faceplate fiber optic cable pathways testing certification warranty labeling grounding bonding'},
+ '23':{name:'Division 27 / 26 - Audiovisual (as applicable)',pre:['27','26','25'],kw:'division 27 audio video audiovisual av systems speaker microphone display projector dsp amplifier conferencing wireless access point network switch low voltage division 26 testing warranty'},
+ '24':{name:'Division 28 - Electronic Safety and Security',pre:['28'],kw:'division 28 electronic safety security access control video surveillance camera card reader electrified lock mag lock door contact intercom intrusion alarm testing warranty'}
+};
+// common comms sections (27 05 xx) apply to AV and security wiring too
+function wanted(num,code){
+ var p=num.slice(0,2);
+ if(code==='22')return p==='27'&&!/^27 ?[45]/.test(num);
+ if(code==='23')return /^27 ?[0245]/.test(num)||p==='25'||/^26 ?05/.test(num);
+ if(code==='24')return p==='28'||/^27 ?05/.test(num)||/^26 ?05/.test(num);
+ return false;
+}
+function normNum(s){return String(s).replace(/\s+/g,'').replace(/(\d{2})(\d{2})(\d{2})/,'$1 $2 $3');}
+
+function isSpecDoc(d){
+ return /specification|\bspecs?\b|project manual|division/i.test(d.path||'')||/^\s*(?:SECTION|DIVISION)\s+\d{2}\s?\d{2}\s?\d{2}/im.test((d.text||'').slice(0,4000))||(/\bSECTION\s+(27|28|26|25)\s?\d{2}\s?\d{2}\b/i.test(d.text||'')&&/\bPART\s+[123]\b/i.test(d.text||''));
+}
+function sectionsFor(doc,code){
+ var t=doc.text||'',re=/(?:^|\n)\s*(?:SECTION|Section)\s+(\d{2}\s?\d{2}\s?\d{2})\b[^\n]{0,120}/g,m,marks=[];
+ while((m=re.exec(t)))marks.push({i:m.index,num:normNum(m[1])});
+ var out=[];
+ if(marks.length){
+  // a section can be mentioned inside another one ("see Section 27 15 00"): only count a header that starts a line and is followed by PART 1 or GENERAL soon
+  var heads=marks.filter(function(k,ix){var nxt=marks[ix+1]?marks[ix+1].i:t.length;return /PART\s*1|GENERAL|SUMMARY|SCOPE/i.test(t.slice(k.i,Math.min(nxt,k.i+1500)));});
+  if(!heads.length)heads=marks;
+  heads.forEach(function(k,ix){var end=heads[ix+1]?heads[ix+1].i:t.length;if(wanted(k.num,code))out.push({num:k.num,text:t.slice(k.i,end)});});
+ }
+ if(!out.length){ // no usable section markers: take the pages that talk about this division
+  var f=(typeof bdPickPages==='function')?bdPickPages(t,DIV[code].kw,60000):t.slice(0,60000);
+  if(f&&f.length>200&&(marks.length===0||/division\s*(27|28)/i.test(t)))out.push({num:'',text:f});
+ }
+ return out;
+}
+
+/* ---------- 1. read the spec ---------- */
+var SPEC_Q='You are reading the PROJECT SPECIFICATION for one trade. Extract what the estimator needs to price and install the work exactly as specified. Quote the spec; never invent. If a field is not in the text return an empty list / empty string. Return ONLY JSON:\n{"sections":[{"number":"27 15 00","title":""}],"cable":[{"item":"horizontal copper cable | backbone | fiber | patch cord | coax | other","category":"Cat6A | Cat6 | Cat5e | OM3 | OM4 | OS2 | other","jacket":"plenum CMP | riser CMR | LSZH | outdoor | ","shielded":"UTP | F/UTP | S/FTP | ","manufacturer":"","part":"","source":"section + paragraph"}],"materials":[{"item":"jacks, patch panels, faceplates, racks, cameras, readers, locks, speakers, displays...","requirement":"what the spec requires","manufacturers":[""],"approved_products":[""],"source":""}],"manufacturers":["all approved / basis-of-design manufacturers named"],"approved_products":["model numbers or product lines named"],"testing":["each test / certification requirement (Fluke, Level, TIA-568, OTDR, acceptance testing ...)"],"warranty":["each warranty requirement (system warranty years, manufacturer warranty, installer certification)"],"labeling":[""],"installer_qualifications":["BICSI RCDD, manufacturer certified installer, licenses ..."],"submittals":["submittals / shop drawings / as-builts / O&M"],"standards":["codes and standards named"],"substitutions":"substitution / or-equal rule","other":["any other requirement that changes the price (union, hours, firestop, pathway rules, owner furnished items ...)"]}\n\nSPECIFICATION TEXT:\n';
+function mergeSpec(list){
+ var o={sections:[],cable:[],materials:[],manufacturers:[],approved_products:[],testing:[],warranty:[],labeling:[],installer_qualifications:[],submittals:[],standards:[],substitutions:'',other:[]},seen={};
+ list.forEach(function(s){
+  ['sections','cable','materials'].forEach(function(k){(s[k]||[]).forEach(function(x){var key=k+JSON.stringify(x).toLowerCase().replace(/\W+/g,'').slice(0,160);if(!seen[key]){seen[key]=1;o[k].push(x);}});});
+  ['manufacturers','approved_products','testing','warranty','labeling','installer_qualifications','submittals','standards','other'].forEach(function(k){arr(s[k]).forEach(function(x){var key=k+String(x).toLowerCase().replace(/\W+/g,'').slice(0,120);if(!seen[key]){seen[key]=1;o[k].push(String(x));}});});
+  if(s.substitutions&&!o.substitutions)o.substitutions=String(s.substitutions);
+ });
+ return o;
+}
+function catOf(s){
+ var t=String(s||'');
+ if(/cat(?:egory|\.)?\s*-?\s*6\s*-?\s*a\b|cat6a|augmented/i.test(t))return 'Cat6A';
+ if(/cat(?:egory|\.)?\s*-?\s*6\b/i.test(t))return 'Cat6';
+ if(/cat(?:egory|\.)?\s*-?\s*5e/i.test(t))return 'Cat5e';
+ return '';
+}
+AIP.specCats=function(){
+ var sp=AIP.spec;if(!sp||!sp.cable)return [];var seen={},out=[];
+ sp.cable.forEach(function(c){if(/fiber|coax|patch/i.test(c.item||''))return;var k=catOf((c.category||'')+' '+(c.part||'')+' '+(c.item||''));if(k&&!seen[k]){seen[k]=1;out.push(k);}});
+ return out;
+};
+async function readSpec(job,ctx){
+ var t=AIP.curTrade,code=t?t.code:'';AIP.spec=null;AIP.specInfo={found:false,files:[],div:code&&DIV[code]?DIV[code].name:'the division for this trade'};
+ if(!code||!DIV[code])return;
+ var docs=(ctx.docs||[]).filter(isSpecDoc);
+ if(!docs.length){return;}
+ var parts=[],files=[];
+ docs.forEach(function(d){var s=sectionsFor(d,code);if(s.length){files.push(d.name);s.forEach(function(x){parts.push('### '+d.name+(x.num?' - SECTION '+x.num:'')+'\n'+x.text);});}});
+ AIP.specInfo.files=files;
+ if(!parts.length){AIP.specInfo.note='Specification file(s) found ('+docs.map(function(d){return d.name;}).join(', ')+') but no section for '+DIV[code].name+' was found in them.';return;}
+ var all=parts.join('\n\n'),hash='';
+ try{hash=(await nfHashBlob(new Blob([all]))).replace(/[^A-Za-z0-9]/g,'').slice(0,24);}catch(e){hash=String(all.length);}
+ var key='ai_spec_'+code+'_'+hash,c=await cget(key);
+ if(c&&c.spec){AIP.spec=c.spec;AIP.specInfo.found=true;AIP.specInfo.cached=true;await P.step(job,'Reading the specification',33,'Specification for '+DIV[code].name+' reused (already read)');return;}
+ // split to chunks of about 55000 characters, at most 4 calls
+ var chunks=[],cur='';parts.forEach(function(p){if((cur+p).length>55000&&cur){chunks.push(cur);cur='';}cur+=(cur?'\n\n':'')+p.slice(0,55000);});if(cur)chunks.push(cur);chunks=chunks.slice(0,4);
+ var res=[];
+ for(var i=0;i<chunks.length;i++){
+  await P.step(job,'Reading the specification',32,'Reading the '+DIV[code].name+' specification (part '+(i+1)+' of '+chunks.length+')');
+  try{var r=await aiJson(P.SYS_TRADE,SPEC_Q+chunks[i],6000);if(r&&typeof r==='object')res.push(r);}catch(e){console.warn('spec read',e);}
+ }
+ if(!res.length){AIP.specInfo.note='The specification could not be read by the AI (please check it manually).';return;}
+ AIP.spec=mergeSpec(res);AIP.specInfo.found=true;
+ await cput(key,{spec:AIP.spec});
+}
+
+/* ---------- 2. text forms of the spec ---------- */
+function L(h,a){a=arr(a);return a.length?h+'\n'+a.map(function(x){return '- '+x;}).join('\n')+'\n':'';}
+AIP.specText=function(){
+ var sp=AIP.spec,info=AIP.specInfo||{},t=AIP.curTrade;
+ if(!sp){return 'SPECIFICATION SUMMARY - '+(info.div||'')+'\nNo specification was found for this division in 7.0 REFERENCE, FORMS & TEMPLATES / Specifications.'+(info.note?'\n'+info.note:'')+'\nMaterials in the proposal are NOT confirmed by a spec. Please check.\n';}
+ var o='SPECIFICATION SUMMARY - '+info.div+'\nProject trade: '+(t?t.name:'')+'\nSource files: '+info.files.join(', ')+'\n';
+ if(sp.sections.length)o+='Sections read: '+sp.sections.map(function(s){return (s.number||'')+' '+(s.title||'');}).join('; ')+'\n';
+ o+='\n';
+ if(sp.cable.length)o+='CABLE\n'+sp.cable.map(function(c){return '- '+[c.item,c.category,c.jacket,c.shielded,c.manufacturer&&('mfr: '+c.manufacturer),c.part&&('part: '+c.part)].filter(Boolean).join(' | ')+(c.source?'  ['+c.source+']':'');}).join('\n')+'\n\n';
+ if(sp.materials.length)o+='MATERIALS\n'+sp.materials.map(function(m){return '- '+m.item+': '+(m.requirement||'')+(arr(m.manufacturers).length?' | mfr: '+arr(m.manufacturers).join(', '):'')+(arr(m.approved_products).length?' | approved: '+arr(m.approved_products).join(', '):'')+(m.source?'  ['+m.source+']':'');}).join('\n')+'\n\n';
+ o+=L('MANUFACTURERS',sp.manufacturers)+(sp.manufacturers.length?'\n':'')+L('APPROVED PRODUCTS',sp.approved_products)+(sp.approved_products.length?'\n':'')+L('TESTING',sp.testing)+(sp.testing.length?'\n':'')+L('WARRANTY',sp.warranty)+(sp.warranty.length?'\n':'')+L('LABELING',sp.labeling)+(sp.labeling.length?'\n':'')+L('INSTALLER QUALIFICATIONS',sp.installer_qualifications)+(sp.installer_qualifications.length?'\n':'')+L('SUBMITTALS',sp.submittals)+(sp.submittals.length?'\n':'')+L('STANDARDS',sp.standards)+(sp.standards.length?'\n':'')+(sp.substitutions?'SUBSTITUTIONS\n- '+sp.substitutions+'\n\n':'')+L('OTHER REQUIREMENTS',sp.other)+(sp.other.length?'\n':'');
+ var cf=AIP.specConflicts||[];
+ o+='SPEC vs DRAWINGS CONFLICTS\n'+(cf.length?cf.map(function(c){return '- '+c;}).join('\n'):'- none found')+'\n';
+ return o;
+};
+AIP.specPrompt=function(){
+ var sp=AIP.spec,info=AIP.specInfo||{};
+ if(!sp)return '\n\nSPECIFICATION: NONE FOUND for '+(info.div||'this division')+' in the Build project. Do not assume the spec; use the cable category / products shown on the drawings and bid documents, and add a flag "No specification found - confirm materials".\n';
+ var cats=AIP.specCats();
+ return '\n\nSPECIFICATION SUMMARY FOR '+info.div+' (BINDING - the proposal must price the materials the spec requires, name each item with the spec cable category / manufacturer / product, and put the spec testing, labeling and warranty requirements in the scope):\n'+JSON.stringify(sp).slice(0,12000)
+  +(cats.length?'\nCABLE CATEGORY REQUIRED BY THE SPEC: '+cats.join(' / ')+' - never price a different category (for example never Cat6 when the spec says Cat6A). If the ITEM LIBRARY has no item for that category, still use the correct name, set rate 0, price_source "none" and flag it.':'')
+  +((AIP.specConflicts||[]).length?'\nCONFLICTS BETWEEN SPEC AND DRAWINGS (already found, keep them in flags): '+AIP.specConflicts.join(' || '):'')+'\n';
+};
+
+/* ---------- 3. spec vs drawings ---------- */
+var EV=/cat\.?\s*-?\s*[56]\s*-?[ae]?\b|category\s*[56]|plenum|\bCMP\b|\bCMR\b|belden|commscope|panduit|general cable|superior essex|hubbell|leviton|ortronics|siemon|berk-?tek|\bfiber\b|\bOM[1-4]\b|\bOS[12]\b|shielded|\bUTP\b|warranty|certif|genetec|milestone|\baxis\b|hanwha|verkada|lenel|\bHID\b|von duprin|schlage|crestron|extron|biamp|shure|\bQSC\b|\bPoE\b/i;
+async function drawingEvidence(all,ctx){
+ var out=[],used=0,pages=(all||[]).filter(function(pg){return pg.pdf&&(!pg.idx||!/civil|mechanical|plumbing|structural|lighting|rcp|architectural/.test(pg.idx.kind||''));}).slice(0,120);
+ for(var i=0;i<pages.length&&used<14000;i++){
+  var pg=pages[i];
+  try{
+   var page=await pg.pdf.getPage(pg.pageNo),tc=await page.getTextContent(),txt=tc.items.map(function(x){return x.str;}).join(' ').replace(/\s+/g,' ');
+   var seen={},hits=[];
+   txt.split(/(?<=[.;:])\s+|\s{2,}/).forEach(function(s){s=s.trim();if(s.length>6&&s.length<220&&EV.test(s)&&!seen[s]){seen[s]=1;hits.push(s);}});
+   if(hits.length){var nm=(pg.idx&&pg.idx.sheet_number)||(pg.file.name+' p'+pg.n);var line=nm+': '+hits.slice(0,10).join(' / ');out.push(line);used+=line.length;}
+  }catch(e){}
+ }
+ return out;
+}
+async function findConflicts(job,ctx){
+ AIP.specConflicts=[];
+ var sp=AIP.spec;if(!sp)return;
+ var ev=[];try{ev=await drawingEvidence(ctx.allPages,ctx);}catch(e){}
+ // lines from the bid documents / SOW that are not the spec itself
+ var code=AIP.curTrade?AIP.curTrade.code:'',reqs=[];
+ ((ctx.req||{})[AIP.curTrade?AIP.curTrade.key:'data']||[]).slice(0,40).forEach(function(r){if(r&&EV.test((r.requirement||'')+' '+(r.quote||'')))reqs.push((r.source||'')+': '+(r.requirement||'')+(r.quote?' ("'+r.quote+'")':''));});
+ var found=[];
+ if(ev.length||reqs.length){
+  try{
+   var r=await aiJson(P.SYS_TRADE,'Compare the SPECIFICATION SUMMARY of this trade with what the DRAWINGS (notes, legends, schedules) and the BID REQUIREMENTS say about materials, cable category, manufacturers, testing and warranty. List ONLY real conflicts (the two say different things about the same item, for example spec = Cat6A but the drawing note = Cat6). Ignore items that agree or that only one side mentions. Return ONLY JSON {"conflicts":[{"topic":"","spec_says":"","other_says":"","where":"sheet / file","action":"what the estimator should check or ask the GC"}]}\n\nSPEC SUMMARY:\n'+JSON.stringify(sp).slice(0,9000)+'\n\nDRAWING NOTES (text found on the sheets):\n'+ev.join('\n').slice(0,14000)+'\n\nBID REQUIREMENTS:\n'+reqs.join('\n').slice(0,5000),2500);
+   (r&&r.conflicts||[]).forEach(function(c){if(c&&(c.topic||c.spec_says))found.push(c.topic+': spec says "'+(c.spec_says||'')+'" but '+(c.where||'drawings')+' says "'+(c.other_says||'')+'"'+(c.action?' - '+c.action:''));});
+  }catch(e){console.warn('conflict check',e);}
+ }
+ // deterministic backup: a cable category on the drawings that the spec does not allow
+ var sc=AIP.specCats();
+ if(sc.length){var seenC={};ev.concat(reqs).forEach(function(l){var m,re=/cat\.?\s*-?\s*(?:egory\s*)?(6\s*-?\s*a|6|5e)\b/ig;while((m=re.exec(l))){var k=catOf('cat'+m[1]);if(k&&sc.indexOf(k)<0&&!seenC[k]){seenC[k]=1;if(!found.some(function(f){return f.toLowerCase().indexOf(k.toLowerCase())>=0;}))found.push('Cable category: spec requires '+sc.join(' / ')+' but the drawings / documents mention '+k+' ('+l.slice(0,90)+') - confirm with the GC which governs');}}});}
+ AIP.specConflicts=found.slice(0,12);
+}
+
+/* ---------- 4. hook into the pipeline ---------- */
+var er=P.extractRequirements;
+P.extractRequirements=async function(job,ctx){
+ var req=await er.apply(this,arguments);
+ try{ctx.req=req;await readSpec(job,ctx);}catch(e){console.warn('spec',e);AIP.specInfo={found:false,div:'',note:'The specification could not be read ('+(e.message||e)+').'};}
+ return req;
+};
+var pk=P.pickPages;
+P.pickPages=async function(job,ctx){
+ var r=await pk.apply(this,arguments);
+ try{if(AIP.spec)await findConflicts(job,ctx);else AIP.specConflicts=[];}catch(e){console.warn('spec conflicts',e);}
+ return r;
+};
+// rename Cat6 -> Cat6A (etc.) in the generated items when the spec has exactly one cable category
+AIP.specFix=function(p){
+ var sc=AIP.specCats();if(sc.length!==1||sc[0]==='Cat6'&&false)return;
+ var want=sc[0];if(want!=='Cat6A'&&want!=='Cat6'&&want!=='Cat5e')return;
+ var fix=function(s){return String(s==null?'':s).replace(/cat(?:egory|\.)?\s*-?\s*(6\s*-?\s*a|6|5e)\b/ig,function(m){return catOf(m)===want?m:want;});};
+ (p.sections||[]).forEach(function(s){(s.items||[]).forEach(function(it){var a=it.product,b=it.description;it.product=fix(it.product);it.description=fix(it.description);if(a!==it.product)it._specRenamed=a;});});
+ ['scope_of_work','exclusions','notes'].forEach(function(k){if(p[k])p[k]=fix(p[k]);});
+ if(p.summary_page){var sp=p.summary_page;sp.title=fix(sp.title);sp.overview=fix(sp.overview);(sp.services||[]).forEach(function(s){s.label=fix(s.label);s.text=fix(s.text);});}
+};
+AIP.specApply=function(p,flags,lib){
+ var info=AIP.specInfo||{};
+ if(!AIP.spec){flags.unshift('NO SPECIFICATION FOUND for '+(info.div||'this division')+' (looked in 7.0 REFERENCE, FORMS & TEMPLATES / Specifications)'+(info.note?' - '+info.note:'')+'. Materials are not confirmed by a spec - please check the cable category and manufacturer.');return;}
+ var cf=AIP.specConflicts||[];
+ cf.slice().reverse().forEach(function(c){flags.unshift('SPEC vs DRAWINGS: '+c);});
+ var sc=AIP.specCats();
+ (p.sections||[]).forEach(function(s){(s.items||[]).forEach(function(it){
+  if(it._specRenamed){
+   var ref=(lib||[]).find(function(l){return String(l.name||'').trim().toLowerCase()===String(it._specRenamed).trim().toLowerCase();});
+   var inLib=(lib||[]).some(function(l){return String(l.name||'').trim().toLowerCase()===String(it.product||'').trim().toLowerCase();});
+   if(!inLib){ // the old rate belonged to the wrong cable category: never keep it
+    var oldRate=+it.rate||0;it.rate=0;it.cost=0;it.price_source='none';
+    flags.push('Spec requires '+sc.join('/')+': "'+it.product+'" has no price in the library'+(ref?' (the library has "'+ref.name+'" at $'+(+ref.rate||0)+' - NOT used because it is a different cable category)':(oldRate?' (the AI first used $'+oldRate+' for the wrong category - cleared)':''))+'. Please enter the correct rate.');
+   }
+   delete it._specRenamed;
+  }else if(sc.length===1&&!(lib||[]).some(function(l){return String(l.name||'').trim().toLowerCase()===String(it.product||'').trim().toLowerCase();})&&(+it.rate||0)>0&&new RegExp(sc[0].replace(/6A/,'6\\s*-?\\s*A'),'i').test(it.product||''))flags.push('"'+it.product+'" is priced from '+(it.price_source||'history')+', not from the item library - verify the rate for '+sc[0]+'.');
+  if(sc.length===1){var bad=String((it.product||'')+' '+(it.description||'')).match(/cat(?:egory|\.)?\s*-?\s*(6\s*-?\s*a|6|5e)\b/ig);if(bad&&bad.some(function(m){return catOf(m)!==sc[0];}))flags.push('Item "'+it.product+'" names a cable category other than the spec ('+sc[0]+') - check.');}
+ });});
+ flags.unshift('Specification applied ('+(info.files||[]).join(', ')+'): '+(sc.length?'cable = '+sc.join(' / ')+'; ':'')+(AIP.spec.manufacturers.length?'manufacturers = '+AIP.spec.manufacturers.slice(0,6).join(', ')+'; ':'')+'see AI_Spec_Summary file.');
+};
+// the Spec block on the client Project Summary page
+var sumP=AIP.summaryPage;
+AIP.summaryPage=function(gen){
+ var pg=sumP?sumP(gen):null,sp=AIP.spec;
+ if(!pg||!sp)return pg;
+ var esc=function(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');},ln=[];
+ var cab=sp.cable.slice(0,4).map(function(c){return [c.item,c.category,c.jacket,c.manufacturer].filter(Boolean).join(', ');}).filter(Boolean);
+ if(cab.length)ln.push('<b>Cable:</b> '+esc(cab.join('; ')));
+ if(sp.manufacturers.length)ln.push('<b>Manufacturers:</b> '+esc(sp.manufacturers.slice(0,8).join(', ')));
+ if(sp.testing.length)ln.push('<b>Testing:</b> '+esc(sp.testing.slice(0,3).join('; ')));
+ if(sp.warranty.length)ln.push('<b>Warranty:</b> '+esc(sp.warranty.slice(0,3).join('; ')));
+ if(!ln.length)return pg;
+ pg.blocks=pg.blocks||[];
+ var at=pg.blocks.length>1?1:pg.blocks.length;
+ pg.blocks.splice(at,0,{id:'blk_sum3',heading:'Materials per Specification ('+esc((AIP.specInfo&&AIP.specInfo.div)||'')+')',text:ln.map(function(l){return '• '+l;}).join('<br>')});
+ return pg;
+};
+// the review notes
+var rn=AIP.reuseNote;
+AIP.reuseNote=function(ctx){
+ var base=rn?rn(ctx):'';
+ return base+'\n\nSPECIFICATION\n'+(AIP.specText?AIP.specText():'');
+};
+var rj=AIP.runJob;
+AIP.runJob=async function(job){
+ AIP.spec=null;AIP.specInfo=null;AIP.specConflicts=[];
+ try{return await rj.apply(this,arguments);}finally{AIP.spec=null;AIP.specInfo=null;AIP.specConflicts=[];}
 };
 })();
 
