@@ -2213,8 +2213,9 @@ function saveBidPrefs(){try{localStorage.setItem(_bidPrefKey(),JSON.stringify(bi
 function visibleBidCols(){var keys=bidPrefs().cols;return BID_COLS.filter(function(c){return keys.indexOf(c.key)>=0;});}
 function sortBidRows(rows){
   var k=_bidSort.key;
-  if(!k){ // default: newest ref # on top (same as before)
-    return rows.sort(function(a,b){return BID_COLS[0].sort(b)-BID_COLS[0].sort(a);});
+  if(!k){ // default: date created, newest first (the most recently created bid is at the top)
+    var ct=function(r){var t=r.created_at?new Date(r.created_at).getTime():0;return isFinite(t)?t:0;};
+    return rows.sort(function(a,b){return (ct(b)-ct(a))||(BID_COLS[0].sort(b)-BID_COLS[0].sort(a));});
   }
   var col=BID_COLS.find(function(c){return c.key===k;});if(!col)return rows;
   var dir=_bidSort.dir;
@@ -8540,7 +8541,7 @@ async function bdAIContext(q){
   }catch(e){return '';}
 }
 
-var APP_VERSION='2.10.0',APP_BUILD_DATE='Oct 26, 2026';
+var APP_VERSION='2.10.1',APP_BUILD_DATE='Oct 26, 2026';
 (function(){function s(){var e=document.getElementById('sb-ver');if(e)e.textContent='Vantage v'+APP_VERSION+' · '+APP_BUILD_DATE;}s();document.addEventListener('DOMContentLoaded',s);})();
 
 </script>
