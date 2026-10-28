@@ -7000,12 +7000,24 @@ async function bdPutFile(o){
 
 // ---------- AI indexing (makes every file readable by the AI) ----------
 function bdQueueIndex(row,blob){BD.idxQ=BD.idxQ.then(function(){return bdIndexFile(row,blob);}).catch(function(){});return BD.idxQ;}
+async function nfHashBlob(blob){ // fingerprint of a file's content (same file in two folders = same hash)
+  var buf=await blob.arrayBuffer();
+  try{if(window.crypto&&crypto.subtle){var d=await crypto.subtle.digest('SHA-256',buf),a=new Uint8Array(d),h='';for(var i=0;i<a.length;i++)h+=('0'+a[i].toString(16)).slice(-2);return h;}}catch(e){}
+  var u=new Uint8Array(buf),x=2166136261>>>0,step=Math.max(1,Math.floor(u.length/200000));for(var j=0;j<u.length;j+=step){x^=u[j];x=Math.imul(x,16777619)>>>0;}
+  return 'f'+x.toString(16)+'-'+u.length;
+}
+async function bdTwinText(row){ // the same file (same name and size) already read in another folder/project: reuse its extracted text
+  if(!row||!row.name||!row.size)return null;
+  try{var r=await sb.from('build_files').select('id,extracted_text').eq('name',row.name).eq('size',row.size).neq('id',row.id).eq('is_deleted',false).not('extracted_text','is',null).limit(1);
+    var t=r.data&&r.data[0]&&r.data[0].extracted_text;return t&&String(t).length>15?t:null;}catch(e){return null;}
+}
 async function bdFetchBlob(path){var u=await bdSignedUrl(path);var r=await fetch(u);if(!r.ok)throw new Error('download failed');return await r.blob();}
 async function bdIndexFile(row,blob){
   var status='none',txt='';
   try{
-    if(!blob)blob=await bdFetchBlob(row.storage_path);
-    txt=await bdExtract(row,blob);
+    var tw=await bdTwinText(row);
+    if(tw){txt=tw;}else{if(!blob)blob=await bdFetchBlob(row.storage_path);
+    txt=await bdExtract(row,blob);}
     txt=(txt||'').replace(/\u0000/g,'').trim();
     status=txt.length>15?'ok':'none';
   }catch(e){status='error';txt='';}
@@ -8528,7 +8540,7 @@ async function bdAIContext(q){
   }catch(e){return '';}
 }
 
-var APP_VERSION='2.9.6',APP_BUILD_DATE='Oct 26, 2026';
+var APP_VERSION='2.10.0',APP_BUILD_DATE='Oct 26, 2026';
 (function(){function s(){var e=document.getElementById('sb-ver');if(e)e.textContent='Vantage v'+APP_VERSION+' · '+APP_BUILD_DATE;}s();document.addEventListener('DOMContentLoaded',s);})();
 
 </script>
@@ -9046,7 +9058,10 @@ AIP.findProject=function(bid,projs){
  var norm=function(s){return String(s||'').toLowerCase().replace(/[^a-z0-9]/g,'');};
  var ref=norm(bid.ref);if(!ref)return null;
  var hit=projs.filter(function(p){return norm(p.code)===ref||norm(p.name).indexOf(ref)>=0||(norm(p.code)&&ref.indexOf(norm(p.code))>=0&&norm(p.code).length>=6);});
- return hit[0]||null;
+ var tb=AIP.tradeOf?AIP.tradeOf(bid.ref):null;
+ if(tb)hit=hit.filter(function(p){var tp=AIP.tradeOf(p.code)||AIP.tradeOf(p.name);return !tp||tp.code===tb.code;});
+ var ex=hit.filter(function(p){return norm(p.code)===ref;});
+ return ex[0]||hit[0]||null;
 };
 AIP.rerun=async function(id){
  if(AIP.st.mode==='off'){alert('Engine is Off. Choose Training or Full Automation first.');return;}
@@ -9093,7 +9108,7 @@ async function readFiles(job,proj){
   var t=txt[f.id]||'';
   var needs=!t&&((kind!=='image'&&kind!=='pdf')?f.index_status!=='none':(kind==='pdf'&&(f.index_status==='pending'||f.index_status==='error')));
   if(needs){
-   try{var blob=await bdFetchBlob(f.storage_path);t=(await bdExtract(f,blob))||'';}catch(e){skipped.push(f.name+' (could not read)');}
+   try{var tw=await bdTwinText(f);if(tw){t=tw;if(AIP.noteReuse)AIP.noteReuse('text');}else{var blob=await bdFetchBlob(f.storage_path);t=(await bdExtract(f,blob))||'';}}catch(e){skipped.push(f.name+' (could not read)');}
   }
   if(t&&t.length>15)docs.push({path:path,name:f.name,text:t,ref:isRef});
   else if(kind!=='pdf'&&kind!=='image'&&!t)skipped.push(f.name+' (no readable text)');
@@ -9123,9 +9138,9 @@ async function extractRequirements(job,ctx,bid,lessons){
  var bidTxt=bid?('BID RECORD: project '+bid.project+'; GC '+bid.gc+'; due '+bid.due_date+'; SOW chosen by the estimator (authoritative for which scopes NetFiber is bidding: Comm = data/communications cabling, AV, Security): "'+(bid.scope||'not set')+'"; notes: '+(bid.notes||'')):'';
  for(var i=0;i<chunks.length;i++){
   var base='Read these project documents (part '+(i+1)+' of '+chunks.length+'). Find EVERYTHING that asks for, specifies or assigns work in: (1) DATA/structured cabling & wireless (this work may be called LOW VOLTAGE, low-voltage, telecommunications, communications, technology, Division 27 or structured cabling, and low-voltage work is often listed inside the Electrical division, the E/T sheets or the general notes - the specification can even be inside the drawing file; also note any WRITTEN count of data outlets/drops, and remember a VOICE/DATA outlet = 2 cables), (2) AUDIO-VIDEO, (3) SECURITY / access control / cameras. For each, say what the client requires, quantities if stated, location, and whether NetFiber (low-voltage/technology subcontractor) is responsible or Others (electrical, GC, owner-furnished, vendor). Quote the exact words. Include forms, addenda and reference documents. '+bidTxt+(lessons?'\nLessons learned from past corrections:\n'+lessons:'')+'\nReturn ONLY JSON: '+REQ_SCHEMA+'\n\nDOCUMENTS:\n'+chunks[i];
-  var p1=await aiJson(SYS_EST,base,6000);
+  var p1=await aiJson(AIP._p.SYS_TRADE,base,6000);
   await step(job,'Reading SOW documents',20+Math.round(12*(i+0.5)/chunks.length),'SOW pass 1 done for part '+(i+1)+'/'+chunks.length);
-  var p2;try{p2=await aiJson(SYS_EST,'Second, independent check. Below are documents and a first-pass extraction. Find items the first pass MISSED or got WRONG (wrong quantity, wrong responsibility, wrong location). Return the COMPLETE corrected extraction (everything from pass 1 that is right, plus fixes and additions) in the same JSON shape: '+REQ_SCHEMA+'\n\nFIRST PASS:\n'+JSON.stringify(p1).slice(0,30000)+'\n\nDOCUMENTS:\n'+chunks[i],7000);}catch(e){p2=p1;await step(job,'Reading SOW documents',20+Math.round(12*(i+0.8)/chunks.length),'Second check of part '+(i+1)+' could not be read - using the first pass');}
+  var p2;try{p2=await aiJson(AIP._p.SYS_TRADE,'Second, independent check. Below are documents and a first-pass extraction. Find items the first pass MISSED or got WRONG (wrong quantity, wrong responsibility, wrong location). Return the COMPLETE corrected extraction (everything from pass 1 that is right, plus fixes and additions) in the same JSON shape: '+REQ_SCHEMA+'\n\nFIRST PASS:\n'+JSON.stringify(p1).slice(0,30000)+'\n\nDOCUMENTS:\n'+chunks[i],7000);}catch(e){p2=p1;await step(job,'Reading SOW documents',20+Math.round(12*(i+0.8)/chunks.length),'Second check of part '+(i+1)+' could not be read - using the first pass');}
   ['data','av','security','exclusions','questions'].forEach(function(k){(p2[k]||p1[k]||[]).forEach(function(x){merged[k].push(x);});});
   if(p2.bid_info)Object.assign(merged.bid_info,p2.bid_info);
   await step(job,'Reading SOW documents',20+Math.round(12*(i+1)/chunks.length),'SOW double-check done for part '+(i+1)+'/'+chunks.length);
@@ -9141,17 +9156,20 @@ function b64(cv,q){return cv.toDataURL('image/jpeg',q||0.85).split(',')[1];}
 function imgBlock(cv,q){return {type:'image',source:{type:'base64',media_type:'image/jpeg',data:b64(cv,q)}};}
 var KW=/(data|telecom|communicat|voice|low[\s-]?voltage|lowvoltage|\bLV\b|\bLV-?\d|cabling|cable|network|wireless|wap\b|audio|video|\bav\b|a\/v|speaker|display|microphone|projector|security|camera|cctv|card reader|access control|mag ?lock|door contact|intercom|low voltage|technology|\bTD\b|\bT-\d|\bAV-?\d|\bFA\b|riser)/ig;
 async function pickPages(job,ctx){
- var pages=[],pdfFiles=0;
+ var pages=[],pdfFiles=0,seenH={};
  for(var i=0;i<ctx.drawings.length;i++){
   var d=ctx.drawings[i];
   try{
    var blob=await bdFetchBlob(d.f.storage_path);
-   if(d.kind==='image'){pages.push({file:d.f,path:d.path,blob:blob,kind:'image',n:1,score:5,text:''});continue;}
+   var hx='';try{hx=await nfHashBlob(blob);}catch(e){}
+   if(hx&&seenH[hx]){(ctx.dups=ctx.dups||[]).push(d.path+' / '+d.f.name+' is the same drawing file as '+seenH[hx]+' (read once)');if(AIP.noteReuse)AIP.noteReuse('dupDrawing');continue;}
+   if(hx)seenH[hx]=d.path+' / '+d.f.name;
+   if(d.kind==='image'){pages.push({file:d.f,path:d.path,blob:blob,kind:'image',n:1,score:5,text:'',hash:hx});continue;}
    var lib=await bdPdfLib();var pdf=await lib.getDocument({data:await blob.arrayBuffer()}).promise;pdfFiles++;
    for(var p=1;p<=pdf.numPages&&p<=120;p++){
     var pg=await pdf.getPage(p),tc=await pg.getTextContent(),t=tc.items.map(function(x){return x.str;}).join(' ');
     var hits=(t.match(KW)||[]).length,scanned=t.replace(/\s/g,'').length<15;
-    pages.push({file:d.f,path:d.path,pdf:pdf,pageNo:p,kind:'pdf',n:p,score:scanned?4:hits,text:t.slice(0,3500),scanned:scanned,total:pdf.numPages});
+    pages.push({file:d.f,path:d.path,pdf:pdf,pageNo:p,kind:'pdf',n:p,score:scanned?4:hits,text:t.slice(0,3500),scanned:scanned,total:pdf.numPages,hash:hx});
    }
   }catch(e){ctx.skipped.push(d.f.name+' (drawing could not be opened)');}
  }
@@ -9235,7 +9253,7 @@ function drawMarkup(hi,devs,sheet){
  cx.fillStyle='#b58900';cx.font=Math.round(R*0.85)+'px Arial';cx.fillText('yellow ring = seen in only one pass, please verify',24,14+bh-8);
  return cv;
 }
-AIP._p={readFiles:readFiles,extractRequirements:extractRequirements,pickPages:pickPages,analyzePage:analyzePage,drawMarkup:drawMarkup,fpath:fpath,step:step,upd:upd,SYS_EST:SYS_EST};
+AIP._p={readFiles:readFiles,extractRequirements:extractRequirements,pickPages:pickPages,analyzePage:analyzePage,drawMarkup:drawMarkup,fpath:fpath,step:step,upd:upd,SYS_EST:SYS_EST,renderPage:renderPage,get SYS_TRADE(){return SYS_EST+(AIP.tradeNote?AIP.tradeNote():'');}};
 })();
 
 /* ===== Vantage AI Proposal Engine (proposal, PDFs, save) ===== */
@@ -9255,7 +9273,9 @@ async function styleSamples(bid){
  var r=await sb.from('proposals').select('*').order('created_at',{ascending:false}).limit(25);
  var all=(r.data||[]).filter(function(p){return !p.ai_generated||/^(Sent|Approved|Won)$/i.test(p.status||'');});
  var gc=(bid&&bid.gc||'').toLowerCase();
- all.sort(function(a,b){return ((b.bill_to_company||'').toLowerCase()===gc&&gc?1:0)-((a.bill_to_company||'').toLowerCase()===gc&&gc?1:0);});
+ var tb=bid&&AIP.tradeOf?AIP.tradeOf(bid.ref):null;
+ var sc=function(p){var t=tb&&AIP.tradeOf?AIP.tradeOf(p.estimate_no):null;return (t&&tb&&t.code===tb.code?2:0)+((p.bill_to_company||'').toLowerCase()===gc&&gc?1:0);};
+ all.sort(function(a,b){return sc(b)-sc(a);});
  var pick=all.slice(0,5);if(!pick.length)return {text:'(no earlier proposals yet - use the defaults)',n:0};
  var it=await sb.from('proposal_items').select('*').in('proposal_id',pick.map(function(p){return p.id;})).order('sort_order');
  var by={};(it.data||[]).forEach(function(x){(by[x.proposal_id]=by[x.proposal_id]||[]).push(x);});
@@ -9272,11 +9292,11 @@ async function libraryText(){
 function totalsOf(sheets){var t={};sheets.forEach(function(s){Object.keys(s.counts).forEach(function(k){t[k]=(t[k]||0)+s.counts[k];});});return t;}
 
 async function writeSummaries(job,bid,proj,req,sheets,totals,ctx){
- var out={},cats=['data','av','security'];
+ var out={},cats=AIP.tradeCats?AIP.tradeCats():['data','av','security'];
  for(var i=0;i<cats.length;i++){
-  var c=cats[i],keys=Object.keys(TYPES).filter(function(k){return TYPES[k].cat===c;});
+  var c=cats[i],keys=Object.keys(TYPES).filter(function(k){return AIP.tradeHas?AIP.tradeHas(k,c):TYPES[k].cat===c;});
   var per=sheets.filter(function(s){return keys.some(function(k){return s.counts[k];});}).map(function(s){return (s.sheet_number||s.file+' p'+s.page)+' '+(s.title||'')+': '+keys.filter(function(k){return s.counts[k];}).map(function(k){return TYPES[k].label+' x'+s.counts[k];}).join(', ');});
-  var t=await ai(P.SYS_EST,'Write a plain-text SOW SUMMARY file for the '+CATNAME[c].toUpperCase()+' scope of project "'+(bid?bid.project:proj.name)+'" (code '+(bid?bid.ref:proj.code||'')+'). Use only the facts below. No markdown symbols other than simple dashes. Sections in this order, each with a heading in CAPITALS:\nPROJECT\nWHAT THE CLIENT ASKS FOR (every requirement, with source file)\nNETFIBER\'S PART (what we must supply/install/terminate/test, with quantities)\nOTHERS\' PART / NOT IN OUR SCOPE\nDEVICE COUNTS FROM THE DRAWINGS (totals, then per sheet)\nOPEN QUESTIONS & RISKS (anything unclear, contradictory, or where specs and drawings disagree)\nSOURCES\nIf there is nothing for this scope, say clearly "No '+c+' scope found in the documents".\n\nREQUIREMENTS JSON:\n'+JSON.stringify({reqs:req[c],exclusions:req.exclusions,questions:req.questions}).slice(0,24000)+'\n\nDRAWING TOTALS: '+keys.filter(function(k){return totals[k];}).map(function(k){return TYPES[k].label+' = '+totals[k];}).join('; ')+'\nPER SHEET:\n'+per.join('\n'),3500);
+  var t=await ai(P.SYS_TRADE,'Write a plain-text SOW SUMMARY file for the '+CATNAME[c].toUpperCase()+' scope of project "'+(bid?bid.project:proj.name)+'" (code '+(bid?bid.ref:proj.code||'')+'). Use only the facts below. No markdown symbols other than simple dashes. Sections in this order, each with a heading in CAPITALS:\nPROJECT\nWHAT THE CLIENT ASKS FOR (every requirement, with source file)\nNETFIBER\'S PART (what we must supply/install/terminate/test, with quantities)\nOTHERS\' PART / NOT IN OUR SCOPE\nDEVICE COUNTS FROM THE DRAWINGS (totals, then per sheet)\nOPEN QUESTIONS & RISKS (anything unclear, contradictory, or where specs and drawings disagree)\nSOURCES\nIf there is nothing for this scope, say clearly "No '+c+' scope found in the documents".\n\nREQUIREMENTS JSON:\n'+JSON.stringify({reqs:req[c],exclusions:req.exclusions,questions:req.questions}).slice(0,24000)+'\n\nDRAWING TOTALS: '+keys.filter(function(k){return totals[k];}).map(function(k){return TYPES[k].label+' = '+totals[k];}).join('; ')+'\nPER SHEET:\n'+per.join('\n'),3500);
   out[c]=t;
  }
  return out;
@@ -9285,8 +9305,8 @@ async function writeSummaries(job,bid,proj,req,sheets,totals,ctx){
 async function generateProposal(job,bid,proj,req,sheets,totals,lessons){
  var st=await styleSamples(bid),lib=await libraryText();
  var gcn=bid?bid.gc:'';
- var prompt='Create a proposal for NetFiber. Copy the WRITING STYLE, section layout, wording of scope/exclusions/notes and the way items are named and described from the EXAMPLE proposals NetFiber wrote earlier. Quantities MUST come from the drawing counts and requirements below (never invent quantities; if the SOW names a quantity and the drawings disagree, use the drawing count and add a flag). Prices: use the ITEM LIBRARY rates when an item matches; otherwise use the rate from a similar line in the examples; if no price exists set rate 0 and price_source "none". Separate sections for Data, AV and Security only when that scope exists. Only include work NetFiber is responsible for. ALSO write a one-page PROJECT SUMMARY AND SOW for the client (field summary_page) in the style of this example: title "Scope of Work: Network Cabling - New Installation & Relocation (Cat6)"; overview = 3 to 5 sentences (what the project includes with the real quantities, who the work is coordinated with, the drawings and codes/standards it follows); services = 6 to 10 items, each a short label (for example "Site Assessment & Planning", "New Cable Installation (18 Drops)", "Cable Relocation (12 Drops)", "Termination", "Labeling", "Testing & Certification", "Cleanup") and one or two sentences starting with "Furnish and install", "Verify", "Terminate" and so on; exclusions = the things NOT included. Use only real numbers from the drawing counts and requirements, and only NetFiber scope.\n\nPROJECT: '+(bid?bid.project:proj.name)+' | GC/client: '+gcn+' | city: '+(bid?bid.city:'')+' | SOW FIELD FROM THE BID (the estimator decided this; include ONLY these scopes - Comm = data/communications cabling, AV, Security; if empty decide from the documents): "'+(bid?bid.scope||'':'')+'" | bid notes: '+(bid?bid.notes||'':'')+'\n\nREQUIREMENTS FROM THE SPECS:\n'+JSON.stringify({data:req.data,av:req.av,security:req.security,exclusions:req.exclusions}).slice(0,22000)+'\n\nDRAWING TOTALS (symbols): '+JSON.stringify(totals)+'\nCAT6 CABLES TO PRICE (drops; a VOICE/DATA outlet = 2 cables, VOICE = 1, DATA = 1 - use THESE numbers for Cat6 drop quantities, not the symbol count): '+JSON.stringify(AIP.cableTotals?AIP.cableTotals(sheets):{})+'\nPER SHEET: '+JSON.stringify(sheets.map(function(s){return {sheet:s.sheet_number||s.file+' p'+s.page,title:s.title,counts:s.counts,cables:s.cables,mounts:s.mounts,method:s.method,flags:s.flags};})).slice(0,9000)+(lessons?'\n\nLESSONS FROM PAST CORRECTIONS (must follow):\n'+lessons:'')+'\n\nITEM LIBRARY:\n'+lib+'\n\n'+st.text+'\n\nReturn ONLY JSON: {"project_sow":"short SOW label e.g. DATA / AV / SECURITY","scope_of_work":"bullet lines starting with the bullet character, one per line","exclusions":"bullet lines","notes":"lines","sections":[{"header":"DATA CABLING","items":[{"product":"","description":"","qty":0,"rate":0,"cost":0,"taxable":true,"price_source":"library|history|none","basis":"where the qty came from"}]}],"summary_page":{"title":"Scope of Work: ...","overview":"","services":[{"label":"","text":""}],"exclusions":[""]},"flags":["anything the reviewer must check"],"confidence":0}';
- var p=await aiJson(P.SYS_EST,prompt,8000);
+ var prompt='Create a proposal for NetFiber. Copy the WRITING STYLE, section layout, wording of scope/exclusions/notes and the way items are named and described from the EXAMPLE proposals NetFiber wrote earlier. Quantities MUST come from the drawing counts and requirements below (never invent quantities; if the SOW names a quantity and the drawings disagree, use the drawing count and add a flag). Prices: use the ITEM LIBRARY rates when an item matches; otherwise use the rate from a similar line in the examples; if no price exists set rate 0 and price_source "none". Separate sections for Data, AV and Security only when that scope exists. Only include work NetFiber is responsible for.'+(AIP.tradeLine?AIP.tradeLine():'')+' ALSO write a one-page PROJECT SUMMARY AND SOW for the client (field summary_page) in the style of this example: title "Scope of Work: Network Cabling - New Installation & Relocation (Cat6)"; overview = 3 to 5 sentences (what the project includes with the real quantities, who the work is coordinated with, the drawings and codes/standards it follows); services = 6 to 10 items, each a short label (for example "Site Assessment & Planning", "New Cable Installation (18 Drops)", "Cable Relocation (12 Drops)", "Termination", "Labeling", "Testing & Certification", "Cleanup") and one or two sentences starting with "Furnish and install", "Verify", "Terminate" and so on; exclusions = the things NOT included. Use only real numbers from the drawing counts and requirements, and only NetFiber scope.\n\nPROJECT: '+(bid?bid.project:proj.name)+' | GC/client: '+gcn+' | city: '+(bid?bid.city:'')+' | SOW FIELD FROM THE BID (the estimator decided this; include ONLY these scopes - Comm = data/communications cabling, AV, Security; if empty decide from the documents): "'+(bid?bid.scope||'':'')+'" | bid notes: '+(bid?bid.notes||'':'')+'\n\nREQUIREMENTS FROM THE SPECS:\n'+JSON.stringify({data:req.data,av:req.av,security:req.security,exclusions:req.exclusions}).slice(0,22000)+'\n\nDRAWING TOTALS (symbols): '+JSON.stringify(totals)+'\nCAT6 CABLES TO PRICE (drops; a VOICE/DATA outlet = 2 cables, VOICE = 1, DATA = 1 - use THESE numbers for Cat6 drop quantities, not the symbol count): '+JSON.stringify(AIP.cableTotals?AIP.cableTotals(sheets):{})+'\nPER SHEET: '+JSON.stringify(sheets.map(function(s){return {sheet:s.sheet_number||s.file+' p'+s.page,title:s.title,counts:s.counts,cables:s.cables,mounts:s.mounts,method:s.method,flags:s.flags};})).slice(0,9000)+(lessons?'\n\nLESSONS FROM PAST CORRECTIONS (must follow):\n'+lessons:'')+'\n\nITEM LIBRARY:\n'+lib+'\n\n'+st.text+'\n\nReturn ONLY JSON: {"project_sow":"short SOW label e.g. DATA / AV / SECURITY","scope_of_work":"bullet lines starting with the bullet character, one per line","exclusions":"bullet lines","notes":"lines","sections":[{"header":"DATA CABLING","items":[{"product":"","description":"","qty":0,"rate":0,"cost":0,"taxable":true,"price_source":"library|history|none","basis":"where the qty came from"}]}],"summary_page":{"title":"Scope of Work: ...","overview":"","services":[{"label":"","text":""}],"exclusions":[""]},"flags":["anything the reviewer must check"],"confidence":0}';
+ var p=await aiJson(P.SYS_TRADE,prompt,8000);
  var lib2=window._aipLib||[],flags=(p.flags||[]).slice(),n=0;
  (p.sections||[]).forEach(function(s){(s.items||[]).forEach(function(it){
   var m=lib2.find(function(l){return String(l.name||'').trim().toLowerCase()===String(it.product||'').trim().toLowerCase();});
@@ -9420,7 +9440,7 @@ AIP.runJob=async function(job){
   sub=Math.round(sub*100)/100;var tax=Math.round(taxable*taxRate/100*100)/100,total=Math.round((sub+tax)*100)/100;
   var pname=training?tf.name:((bid&&bid.project)||proj.name);
   var addr=bid?[bid.address].filter(Boolean).join(''):(proj.address||'');
-  var propData={estimate_no:ref,project_name:pname,project_city:bid?bid.city||'':'',project_state:bid?bid.state||'':'',project_sow:(bid&&bid.scope)||gen.project_sow||'',ship_to_address:addr,date:today,status:'Under Review',bill_to_company:bid?bid.gc||'':'',bill_to_name:bid?bid.poc||'':'',bill_to_address:'',
+  var propData={estimate_no:ref,project_name:pname,project_city:bid?bid.city||'':'',project_state:bid?bid.state||'':'',project_sow:(bid&&bid.scope)||(AIP.curTrade&&AIP.curTrade.sow)||gen.project_sow||'',ship_to_address:addr,date:today,status:'Under Review',bill_to_company:bid?bid.gc||'':'',bill_to_name:bid?bid.poc||'':'',bill_to_address:'',
    scope_of_work:gen.scope_of_work||DEFAULT_SCOPE,exclusions:gen.exclusions||DEFAULT_EXCL,general_terms:DEFAULT_TERMS,payment_expectations:DEFAULT_PAYMENT,notes:gen.notes||DEFAULT_PROJ_NOTES,acknowledgment:DEFAULT_ACK,custom_sections:'[]',custom_pages:JSON.stringify(function(){var sp=null;try{sp=AIP.summaryPage(gen);}catch(e){}return sp?[sp]:[];}()),fixed_sections_on:'{}',tax_rate:taxRate,subtotal:sub,tax_amount:tax,total:total,created_by:CU.id,updated_by:CU.id,updated_at:new Date().toISOString(),ai_generated:true,ai_job_id:job.id,bid_id:job.bid_id||null};
   var propId=null;
   var gcRow={company:propData.bill_to_company,contact_name:propData.bill_to_name,email:bid?bid.email||'':'',phone:bid?bid.phone||'':'',address:'',city:'',is_primary:true};
@@ -9438,8 +9458,8 @@ AIP.runJob=async function(job){
   async function put(name,blob,mime){var ex=BD.files.find(function(f){return !f.is_deleted&&(f.folder_id||null)===fk&&f.name.toLowerCase()===name.toLowerCase();});return await bdPutFile({folderId:fk,name:name,blob:blob,mime:mime,existing:ex||null,note:'Created by Vantage AI'});}
   var outputs=[];
   var names=training?{data:'AI_Summary_Data_',av:'AI_Summary_AV_',security:'AI_Summary_Security_'}:{data:'AI_SOW_Data_',av:'AI_SOW_AV_',security:'AI_SOW_Security_'};
-  for(var c in names){await put(names[c]+sref+'.txt',new Blob([sums[c]],{type:'text/plain'}),'text/plain');outputs.push(names[c]+sref+'.txt');}
-  var notes='AI REVIEW NOTES - '+pname+'\nGenerated '+new Date().toLocaleString()+'\n\nFLAGS TO CHECK\n'+(gen.flags.concat.apply(gen.flags,[])).map(function(x){return '- '+x;}).join('\n')+'\n\nSHEET FLAGS\n'+sheets.map(function(s){return (s.sheet_number||s.file+' p'+s.page)+' (confidence '+s.confidence+'%): '+(s.flags.join(' | ')||'ok');}).join('\n')+'\n\nCOUNT REPORT (how each number was counted)\n'+(AIP.countReport?AIP.countReport(sheets):'')+'\n\nQUESTIONS FROM THE SPECS\n'+(req.questions||[]).map(function(x){return '- '+x;}).join('\n')+'\n\nFILES NOT READ\n'+(ctx.skipped.join('\n')||'none');
+  for(var c in names){if(sums[c]==null)continue;await put(names[c]+sref+'.txt',new Blob([sums[c]],{type:'text/plain'}),'text/plain');outputs.push(names[c]+sref+'.txt');}
+  var notes='AI REVIEW NOTES - '+pname+'\nGenerated '+new Date().toLocaleString()+'\n\nFLAGS TO CHECK\n'+(gen.flags.concat.apply(gen.flags,[])).map(function(x){return '- '+x;}).join('\n')+'\n\nSHEET FLAGS\n'+sheets.map(function(s){return (s.sheet_number||s.file+' p'+s.page)+' (confidence '+s.confidence+'%): '+(s.flags.join(' | ')||'ok');}).join('\n')+'\n\nCOUNT REPORT (how each number was counted)\n'+(AIP.countReport?AIP.countReport(sheets):'')+'\n\nQUESTIONS FROM THE SPECS\n'+(req.questions||[]).map(function(x){return '- '+x;}).join('\n')+'\n\nFILES NOT READ\n'+(ctx.skipped.join('\n')||'none')+(AIP.reuseNote?AIP.reuseNote(ctx):'');
   await put((training?'AI_Notes_':'AI_Review_Notes_')+sref+'.txt',new Blob([notes],{type:'text/plain'}),'text/plain');outputs.push((training?'AI_Notes_':'AI_Review_Notes_')+sref+'.txt');
   var pdfItems=allItems,pdf=buildProposalPdf(Object.assign({},propData),pdfItems,gcRow);
   await put('AI_Proposal_'+sref+'.pdf',pdf,'application/pdf');outputs.push('AI_Proposal_'+sref+'.pdf');
@@ -10659,6 +10679,7 @@ VG.appMap=function(){
  var names={};(VG.LEGACY||[]).forEach(function(p){names[p[0]]=p[1];});
  var mv=[];Object.keys(VG.MOVED).forEach(function(p){var o=VG.MOVED[p];if(canAccess(o.m)){var d=VG.def[o.m],t=d&&d.tabs.find(function(x){return x.id===o.t;});mv.push(names[p]+' is now the tab "'+(t?t.l:names[p])+'" in the '+VG.MODS[o.m].label+' module');}});
  if(mv.length)L.push('Moved pages: '+mv.join('; ')+'.');
+ L.push('PROJECT CODES = TRADES: a project code GC26-XX-nnn has the trade in XX: 22 = Data Cabling (Comm, structured cabling), 23 = AV (also networking and wireless / access points when they come up), 24 = Security (cameras, access control). The same project name and GC can have up to three projects, one per trade, each with its own bid, Build folder and proposal, because we may be awarded only one trade; a project with only one trade has only one of each. When you work on a bid, a Build folder or a proposal, scope it by its code: 22 = Comm only, 23 = AV only, 24 = Security only. Drawings and specs are often the same documents in each trade folder: read them completely for the trade you are working on, but reuse what was already read for another trade.');
  if(canAccess('vg_estimating'))L.push('BID OPPORTUNITIES and PROPOSALS live in Estimating (Estimating > Bid Opportunities, Estimating > Proposals). Bid Opportunities has a Trade filter from the project code (GC26-22 Data Cabling, GC26-23 AV, GC26-24 Security). Bids assigned to you (Vantage AI Advisor) are worked there; a proposal you create is saved in Estimating > Proposals with status Under Review, and its files go to the project in Build under 0.0 HAND-OFF DOCS > Kickoff Meeting. Never send the user to the old sidebar pages.');
  else L.push('Bid Opportunities and Proposals are separate pages in the sidebar (the Estimating module is hidden for now).');
  L.push('Other sidebar pages: Dashboard, Build (project files), AI Advisor, Quick Save, Activity Log, Management. Project 360 and Search everything (Ctrl+K) find a project by its code across all modules.');
@@ -11395,6 +11416,178 @@ window.bdDropsRun=async function(fid,typed){
   var n=document.getElementById('bd-aia-n');if(n){n.removeAttribute('id');n.innerHTML=E(ans).replace(/\n/g,'<br>')+'<div class="bd-save">Save as: <button onclick="bdSaveAns('+ai+',\'pdf\')">PDF</button><button onclick="bdSaveAns('+ai+',\'txt\')">TXT</button><button onclick="bdCopyAns('+ai+',this)">Copy</button>'+(kind==='pdf'?' <button onclick="bdCountOpen(\''+fid+'\')">Open Count symbols</button>':'')+'</div>';}
  }catch(e){var n2=document.getElementById('bd-aia-n');if(n2){n2.removeAttribute('id');n2.innerHTML='<span style="color:#C62828">AI error: '+E(e.message||'')+'</span>';}}
  out.scrollTop=out.scrollHeight;
+};
+})();
+
+/* ===== AI Proposal Engine: trade codes (22 Comm, 23 AV, 24 Security) + reuse of shared documents ===== */
+(function(){
+if(!window.AIP||!AIP._p||!AIP._h||!AIP.TYPES)return;
+var P=AIP._p,TYPES=AIP.TYPES;
+
+/* ---------- 1. the trades, from the project code GC26-XX-nnn ---------- */
+var TR={
+ '22':{code:'22',key:'data',name:'Data Cabling',sow:'Comm',short:'Comm',
+  scopeText:'Comm = data / structured cabling / communications ONLY (project code GC26-22)',
+  focus:'Data / structured cabling / communications (Division 27): data outlets and drops, voice/data cabling, backbone and fiber, racks, patch panels, IDF/MDF rooms, pathways for the cabling, testing and labeling.',
+  others:'AV and Networking/Wireless (code 23) and Security (code 24)',
+  extra:'Wireless access points and network equipment (switches, routers, firewalls) are NOT part of this trade: they are quoted under code 23.'},
+ '23':{code:'23',key:'av',name:'AV',sow:'AV',short:'AV',
+  scopeText:'AV ONLY, plus networking and wireless (access points) when they appear (project code GC26-23)',
+  focus:'Audio-visual: displays, projectors and screens, speakers, microphones, AV wall/floor plates, conference/PTZ cameras, touch panels and control, AV racks/DSP/amplifiers. Networking and wireless (access points, network equipment) also belong to this trade when they come up.',
+  others:'Data / structured cabling (code 22) and Security (code 24)',
+  extra:'Networking and wireless (access points) jobs are rare, but when they come up they are part of this trade.'},
+ '24':{code:'24',key:'security',name:'Security',sow:'Security',short:'Security',
+  scopeText:'Security ONLY: cameras and access control (project code GC26-24)',
+  focus:'Security: security cameras (CCTV/IP), access control (card readers, keypads), electrified locks (mag locks, strikes), door contacts, REX, intercoms/door stations, alarm panels and sensors.',
+  others:'Data / structured cabling (code 22) and AV, networking and wireless (code 23)',
+  extra:''}
+};
+function typesOf(t){
+ return Object.keys(TYPES).filter(function(k){
+  var c=TYPES[k].cat;if(k==='other')return false;
+  if(t.code==='23')return c==='av'||k==='wap';
+  if(t.code==='22')return c==='data'&&k!=='wap';
+  return c==='security';
+ });
+}
+Object.keys(TR).forEach(function(k){Object.defineProperty(TR[k],'types',{get:function(){return typesOf(TR[k]);},enumerable:true});});
+AIP.TRADES=TR;
+AIP.tradeOf=function(ref){ // "GC26-22-199", "GC26_23_198", ...
+ var m=String(ref||'').match(/GC\d{2}[-_ ]+(\d{2})[-_ ]/i);
+ return m&&TR[m[1]]?TR[m[1]]:null;
+};
+AIP.curTrade=null;
+AIP.tradeCats=function(){return AIP.curTrade?[AIP.curTrade.key]:['data','av','security'];};
+AIP.tradeHas=function(typeKey,cat){
+ var t=AIP.curTrade;if(!t)return TYPES[typeKey]&&TYPES[typeKey].cat===cat;
+ return cat===t.key&&t.types.indexOf(typeKey)>=0;
+};
+AIP.tradeNote=function(){
+ var t=AIP.curTrade;if(!t)return '';
+ return '\n\nTRADE SCOPE FOR THIS JOB (from the project code GC26-'+t.code+'-nnn): this proposal covers ONLY '+t.name+'. '+t.focus+' '+(t.extra?t.extra+' ':'')
+  +'Read EVERY page and every document completely, but extract, count and price ONLY this trade. The other trades ('+t.others+') are quoted in their own proposals under their own project codes: never include their items, quantities or prices; when a document mentions them, treat it as "by others / quoted separately", never as our scope.';
+};
+AIP.tradeLine=function(){
+ var t=AIP.curTrade;if(!t)return '';
+ return ' THIS PROPOSAL IS ONLY FOR THE '+t.name.toUpperCase()+' TRADE (project code GC26-'+t.code+'): '+t.focus+' Do not add items for other trades ('+t.others+'); list them under Exclusions as quoted separately. Use one section for this trade.';
+};
+
+/* ---------- 2. reuse of shared documents (same file in several trade folders) ---------- */
+var R={text:0,dupDrawing:0,dupDocs:0,pagesReused:0,pagesRead:0};
+AIP.reuse=R;
+AIP.noteReuse=function(k){R[k]=(R[k]||0)+1;};
+AIP.reuseNote=function(ctx){
+ var L=[];
+ if(R.text||R.pagesReused||R.dupDrawing||R.dupDocs){
+  L.push('\n\nSHARED DOCUMENTS (not read twice)');
+  if(R.text)L.push('- '+R.text+' file text(s) reused from the same file already read in another folder');
+  if(R.pagesReused)L.push('- '+R.pagesReused+' drawing sheet(s) reused from an earlier trade job (same file, same page); '+R.pagesRead+' read fresh. Every reused sheet was still reviewed for this trade.');
+  ((ctx&&ctx.dups)||[]).forEach(function(x){L.push('- '+x);});
+ }
+ return L.join('\n');
+};
+function hashText(t){var x=2166136261>>>0;for(var i=0;i<t.length;i++){x^=t.charCodeAt(i);x=Math.imul(x,16777619)>>>0;}return x.toString(16)+'-'+t.length;}
+
+var rf=P.readFiles;
+P.readFiles=async function(job,proj){
+ var ctx=await rf.apply(null,arguments),seen={},keep=[];
+ ctx.docs.forEach(function(d){var sg=hashText(d.text);if(seen[sg]){R.dupDocs++;(ctx.dups=ctx.dups||[]).push((d.path?d.path+' / ':'')+d.name+' has the same text as '+seen[sg]+' (read once)');return;}seen[sg]=(d.path?d.path+' / ':'')+d.name;keep.push(d);});
+ ctx.docs=keep;return ctx;
+};
+
+/* ---------- 3. requirements: this trade only (the whole corpus is still read) ---------- */
+var NETW=/wireless|wi-?fi|\bwap\b|\bwaps\b|access point|\bwlan\b|network(ing)?\b|\bswitch(es)?\b|\brouters?\b|firewall/i;
+function bidTradeWords(sc){sc=String(sc||'').toLowerCase();var o=[];if(/comm|data|struct|telecom|cabling/.test(sc))o.push('22');if(/\bav\b|audio|video|a\/v/.test(sc))o.push('23');if(/secur|camera|access control|cctv/.test(sc))o.push('24');return o;}
+var rq=P.extractRequirements;
+P.extractRequirements=async function(job,ctx,bid,lessons){
+ var t=AIP.curTrade;
+ if(!t)return rq.apply(null,arguments);
+ var b2=Object.assign({project:job.project_name||'',gc:'',due_date:'',notes:''},bid||{},{scope:t.scopeText});
+ var req=await rq.call(null,job,ctx,b2,lessons);
+ var dat=req.data||[],av=req.av||[],sec=req.security||[],netw=[],rest=[];
+ dat.forEach(function(x){((NETW.test((x.requirement||'')+' '+(x.location||'')))?netw:rest).push(x);});
+ if(t.code==='22'){req.data=rest;req.av=[];req.security=[];}
+ else if(t.code==='23'){req.av=av.concat(netw);req.data=[];req.security=[];}
+ else{req.security=sec;req.data=[];req.av=[];}
+ req.exclusions=(req.exclusions||[]).slice();req.questions=(req.questions||[]).slice();
+ req.exclusions.push('Other trades ('+t.others+') are quoted separately and are not part of this proposal.');
+ if(t.code==='22'&&netw.length)req.exclusions.push('Wireless access points and network equipment are quoted under the AV / Networking proposal (GC26-23).');
+ var w=bid&&bid.scope?bidTradeWords(bid.scope):[];
+ if(w.length&&w.indexOf(t.code)<0)req.questions.push('The bid says SOW "'+bid.scope+'" but the project code GC26-'+t.code+' is the '+t.name+' trade. The code was used.');
+ await P.step(job,'Reading SOW documents',33,'Trade '+t.code+' ('+t.name+'): kept '+(req.data.length+req.av.length+req.security.length)+' requirement(s) for this trade');
+ return req;
+};
+
+/* ---------- 4. drawings: read each sheet once, then score it for THIS trade ---------- */
+var CV='v1';
+function sk(pg){return pg&&pg.hash?('ai_sheet_'+String(pg.hash).slice(0,24)+'_'+pg.n):null;}
+var MEM={};
+async function getHit(k,t){
+ var e=MEM[k];
+ if(!e){try{var r=await sb.from('vg_settings').select('value').eq('key',k).maybeSingle();e=r&&r.data&&r.data.value;}catch(x){e=null;}if(e)MEM[k]=e;}
+ if(!e||e.v!==CV||!e.sheet)return null;
+ return e;
+}
+async function putHit(k,r,t){
+ var e={v:CV,trade:t?t.code:'',at:new Date().toISOString(),sheet:r.sheet,devs:(r.devices||[]).map(function(d){return {type:d.type,x:+(+d.x).toFixed(4),y:+(+d.y).toFixed(4),room:d.room||'',label:d.label||'',note:d.note||'',mount:d.mount||'',ports:d.ports||1,src:d.src||'',m:d.m||''};})};
+ var s=JSON.stringify(e);if(s.length>900000)return;
+ MEM[k]=e;
+ try{await sb.from('vg_settings').upsert({key:k,value:e,updated_by:(window.CU&&CU.id)||null,updated_at:e.at});}catch(x){}
+}
+function scope(r,t){ // keep only this trade's devices, counts, cables, report and flags
+ if(!t)return r;
+ var T=t.types,has=function(k){return T.indexOf(k)>=0;};
+ var lab=Object.keys(TYPES).filter(function(k){return !has(k)&&k!=='other';}).map(function(k){return TYPES[k].label;});
+ var s=JSON.parse(JSON.stringify(r.sheet));
+ ['counts','cables','schedule','mounts'].forEach(function(f){if(!s[f])return;var o={};Object.keys(s[f]).forEach(function(k){if(has(k))o[k]=s[f][k];});s[f]=o;});
+ if(s.report)s.report=s.report.filter(function(x){return has(x.type);});
+ if(s.devices)s.devices=s.devices.filter(function(d){return has(d[0]);});
+ s.flags=(s.flags||[]).filter(function(f){return !lab.some(function(l){return String(f).indexOf(l)>=0;});});
+ s.trade=t.code;
+ if(!Object.keys(s.counts||{}).length)s.discipline='architectural';
+ return {sheet:s,canvas:r.canvas,devices:(r.devices||[]).filter(function(d){return has(d.type);})};
+}
+var ap=P.analyzePage;
+function neutral(req,t){ // the reading of a sheet is shared by all trades, so the hint must not make it look away from the other trades
+ if(!t||typeof req!=='string')return req;
+ return req.split('\n').map(function(l){var m=l.match(/^(DATA|AV|SECURITY):/);if(!m)return l;var k={DATA:'data',AV:'av',SECURITY:'security'}[m[1]];return k===t.key?l:m[1]+': (another trade - still report every such device you see on the sheet)';}).join('\n');
+}
+P.analyzePage=async function(job,pg,idx,total,lessons,req,grid){
+ var t=AIP.curTrade,k=sk(pg),hit=null,r;
+ arguments[5]=neutral(req,t);
+ if(k){try{hit=await getHit(k,t);}catch(e){hit=null;}}
+ if(hit){
+  r={sheet:JSON.parse(JSON.stringify(hit.sheet)),devices:hit.devs.map(function(d){return Object.assign({},d);}),canvas:null};
+  try{if(r.devices.some(function(d){return !t||t.types.indexOf(d.type)>=0;}))r.canvas=await P.renderPage(pg);}catch(e){r.canvas=null;}
+  if(r.devices.length&&!r.canvas){r.devices=[];}
+  R.pagesReused++;
+  r.sheet.flags=(r.sheet.flags||[]).slice();
+  r.sheet.flags.unshift('Sheet reused from an earlier job (same drawing file, same page); reviewed again for the '+(t?t.name:'all')+' trade');
+ }else{
+  r=await ap.apply(null,arguments);R.pagesRead++;
+  if(k&&r&&r.sheet){try{await putHit(k,r,t);}catch(e){}}
+ }
+ return scope(r,t);
+};
+
+/* ---------- 5. the job: set the trade, report what was reused ---------- */
+var rj=AIP.runJob;
+AIP.runJob=async function(job){
+ var ref=job.bid_ref;
+ if(!ref&&job.bid_id){try{var b=await sb.from('bids').select('ref').eq('id',job.bid_id).maybeSingle();ref=b.data&&b.data.ref;}catch(e){}}
+ var t=AIP.tradeOf(ref)||AIP.tradeOf(job.project_name);
+ AIP.curTrade=t;['text','dupDrawing','dupDocs','pagesReused','pagesRead'].forEach(function(k){R[k]=0;});
+ if(t){try{await P.step(job,'Starting',2,'Trade '+t.code+' - '+t.name+': this proposal is scoped to '+t.scopeText);}catch(e){}}
+ try{return await rj.apply(this,arguments);}
+ finally{
+  try{
+   if(job.result&&job.status==='done'){
+    var res=Object.assign({},job.result,{trade:t?{code:t.code,name:t.name}:null,reuse:Object.assign({},R)});
+    job.result=res;await sb.from('ai_proposal_jobs').update({result:res}).eq('id',job.id);
+   }
+  }catch(e){}
+  AIP.curTrade=null;
+ }
 };
 })();
 
