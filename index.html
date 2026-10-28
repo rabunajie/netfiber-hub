@@ -1669,7 +1669,7 @@ async function adminAction(action,payload,_isRetry){
 function inits(n){if(!n)return'?';return n.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);}
 function closeModal(id){document.getElementById(id).classList.remove('open');}
 // Modal close on outside click disabled — caused issues when selecting/copying text inside modals
-async function logAct(action,table,rid,details){await sb.from('activity_log').insert({user_id:CU.id,user_name:CP.full_name||CU.email,action,table_name:table,record_id:rid,details});}
+async function logAct(action,table,rid,details){var r=await sb.from('activity_log').insert({user_id:CU.id,user_name:CP.full_name||CU.email,action,table_name:table,record_id:rid,details});if(r&&r.error)console.warn('Activity log not saved ('+action+'): '+r.error.message);return r;}
 // Fetches the full row and saves it into activity_log BEFORE it's deleted, so it can be
 // restored later from Management → Recently Deleted, even if the delete itself succeeds.
 async function logDeletionSnapshot(table,id,label,name){
@@ -8541,7 +8541,7 @@ async function bdAIContext(q){
   }catch(e){return '';}
 }
 
-var APP_VERSION='2.10.1',APP_BUILD_DATE='Oct 26, 2026';
+var APP_VERSION='2.10.2',APP_BUILD_DATE='Oct 26, 2026';
 (function(){function s(){var e=document.getElementById('sb-ver');if(e)e.textContent='Vantage v'+APP_VERSION+' · '+APP_BUILD_DATE;}s();document.addEventListener('DOMContentLoaded',s);})();
 
 </script>
@@ -8983,7 +8983,7 @@ AIP.setMode=async function(mode){
  if(mode==='full'&&!confirm('Full Automation: Vantage AI will automatically create proposals for every bid coming due (status "Under Review") and save files into Build. Turn it on?'))return;
  var r=await sb.from('ai_proposal_settings').upsert({id:1,mode:mode,updated_by:CU.id,updated_at:new Date().toISOString()});
  if(r.error){alert('Could not save mode: '+r.error.message+'\n\nHave you run SQL_ai_proposals.sql in Supabase?');return;}
- AIP.st.mode=mode;try{await logAct('AI proposal mode','ai_proposal_settings','1','Mode set to '+mode);}catch(e){}
+ AIP.st.mode=mode;try{await logAct('AI proposal mode','ai_proposal_settings',CU.id,'Mode set to '+mode);}catch(e){}
  AIP.refreshBar();if(mode!=='off')AIP.tick(true);
 };
 
