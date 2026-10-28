@@ -8541,7 +8541,7 @@ async function bdAIContext(q){
   }catch(e){return '';}
 }
 
-var APP_VERSION='2.10.2',APP_BUILD_DATE='Oct 26, 2026';
+var APP_VERSION='2.11.0',APP_BUILD_DATE='Oct 26, 2026';
 (function(){function s(){var e=document.getElementById('sb-ver');if(e)e.textContent='Vantage v'+APP_VERSION+' · '+APP_BUILD_DATE;}s();document.addEventListener('DOMContentLoaded',s);})();
 
 </script>
@@ -9174,6 +9174,7 @@ async function pickPages(job,ctx){
    }
   }catch(e){ctx.skipped.push(d.f.name+' (drawing could not be opened)');}
  }
+ ctx.allPages=pages;
  var rel=pages.filter(function(p){return p.score>0;}).sort(function(a,b){return b.score-a.score;});
  if(!rel.length)rel=pages.slice(0,12);
  return rel.slice(0,40).sort(function(a,b){return (a.file.name+(1000+a.n)).localeCompare(b.file.name+(1000+b.n));});
@@ -11250,7 +11251,7 @@ var SHEETQ='This is one sheet of a construction drawing set. Study it and return
 'legend_boxes = every area where symbols are shown only as EXAMPLES or listings and are NOT real devices on the plan: LEGEND / SYMBOL LIST, keynotes, general notes, schedules, title block, revision table, detail callouts. Use fractions (0 to 1) of this image width and height. Be generous - include the whole box and its text. If none, return [].\n'+
 'schedule_counts = outlet/device quantities that are WRITTEN on the sheet (schedule, riser or notes). Use ONLY these type keys:\n';
 
-async function exact(job,pg,lessons,req){
+async function exact(job,pg,lessons,req,nolg){
  await loadLib();
  var page=await pg.pdf.getPage(pg.pageNo),v0=page.getViewport({scale:1}),scl=Math.min(6,3200/Math.max(v0.width,v0.height)),vp=page.getViewport({scale:scl}),W=Math.round(vp.width),Ht=Math.round(vp.height);
  var shapes=[];try{shapes=await VC.extractShapes(page,vp);}catch(e){}
@@ -11268,6 +11269,13 @@ async function exact(job,pg,lessons,req){
  cls=cls.filter(function(c){return c.count>0||c.leg.length>0;});
  var libHits=0;
  cls.forEach(function(c){var e=LIB.list.find(function(l){return libMatch(l,c.rep,W);});if(e){c.type=e.type;c.mount=e.mount||'';c.conf=0.95;c.src='library';c.ports=e.ports||1;libHits++;}});
+ // project legend (read from the legend / general-information sheets): match every symbol class to the legend instead of guessing
+ var LG=(!nolg&&AIP.legendOn&&AIP.legendOn())?AIP.legendEntries():null,lgHit=0,lgMiss=[];
+ if(LG){cls.forEach(function(c){
+  var le=null;for(var q=0;q<LG.length;q++){if(libMatch(LG[q],c.rep,W)){le=LG[q];break;}}
+  if(le){c.type=(!le.type||le.type==='none')?'none':le.type;c.ports=le.ports||1;c.mount=le.mount||c.mount||'';c.conf=0.97;c.src='legend';c.meaning=le.label||'';c.lgEntry=le;if(c.type!=='none')lgHit++;}
+  else if(c.count>0){c.type='none';c.lgMiss=true;if(c.count>=3)lgMiss.push('Symbol class #'+c.id+' ('+VC.shapeLabel(c.rep)+' x'+c.count+') is not in the project legend - not counted');}
+ });}
  function rk(c){return (c.leg.length?1000:0)+Math.min(c.count,300)+((c.rep.desc||[]).length?60:0)+(c.count>=2?20:0);}
  var cand=cls.filter(function(c){return !c.type&&c.count>=1&&c.count<=800;}).sort(function(a,b){return rk(b)-rk(a);}).slice(0,21);
  // text tags that look like device tags
@@ -11279,7 +11287,7 @@ async function exact(job,pg,lessons,req){
   var imgs=[],desc=[];
   for(var i=0;i<cand.length;i+=7){var rows=cand.slice(i,i+7).map(function(c){return {id:c.id,count:c.count,rep:c.rep,leg:c.leg[0]||null,plan:c.plan};});imgs.push(blk(sheetOf(rows,hi),0.88));}
   cand.forEach(function(c){desc.push('#'+c.id+': '+VC.shapeLabel(c.rep)+(c.rep.fill?', filled':', outline')+((c.rep.desc||[]).length?', with '+c.rep.desc.length+' smaller shape(s) inside it (part of the same symbol)':'')+', '+c.count+' on the plan'+(c.leg.length?', also shown in the legend':'')+(nearTokens(c.plan,txt,c.rep.size).length?', labels next to it: '+nearTokens(c.plan,txt,c.rep.size).join(', '):''));});
-  var q='Each picture row is ONE symbol class cut out of the drawing. Left = the symbol next to its legend text (if it is in the legend), right = two places where it appears on the plan. The red square marks the exact shape that is counted.\nDecide what each class is. Use ONLY these type keys (or "none"):\n'+typeList()+'\n'+STD+'\n\nClasses:\n'+desc.join('\n')+'\n\nSheet legend read earlier: '+JSON.stringify((info.legend||[]).slice(0,40))+'\nText on the sheet that repeats (tag x times): '+toks.map(function(k){return k+' x'+tcnt[k];}).join(', ')+(req?'\nWhat the specs ask NetFiber to do: '+req.slice(0,1200):'')+(lessons?'\nLessons from past corrections (follow them):\n'+lessons:'')+'\n\nRules: say "none" for anything that is not a real low-voltage device or that is only a PART of a bigger symbol (set part_of_other true). Give mount = ceiling | wall | floor | unknown. Give conf 0 to 1. For telecom outlets give ports = the number of Cat6 cables that ONE symbol stands for (half-filled VOICE/DATA = 2, solid VOICE = 1, outline DATA = 1, a number or tag on the symbol can override, quad = 4); use 1 for everything else. For text_tags list only tags that label a device by themselves (for example "WAP*" or "CAM-*"; a trailing * means starts-with) - skip room names and notes.\nReturn ONLY JSON: {"classes":[{"id":1,"type":"<type key or none>","mount":"","meaning":"","ports":1,"part_of_other":false,"conf":0.9}],"text_tags":[{"pattern":"","type":"<type key>","conf":0.9}]}';
+  var q='Each picture row is ONE symbol class cut out of the drawing. Left = the symbol next to its legend text (if it is in the legend), right = two places where it appears on the plan. The red square marks the exact shape that is counted.\nDecide what each class is. Use ONLY these type keys (or "none"):\n'+typeList()+'\n'+STD+'\n\nClasses:\n'+desc.join('\n')+'\n\nSheet legend read earlier: '+JSON.stringify((info.legend||[]).slice(0,40))+'\nText on the sheet that repeats (tag x times): '+toks.map(function(k){return k+' x'+tcnt[k];}).join(', ')+(req?'\nWhat the specs ask NetFiber to do: '+req.slice(0,1200):'')+(AIP.legendText&&!nolg?AIP.legendText():'')+(lessons?'\nLessons from past corrections (follow them):\n'+lessons:'')+'\n\nRules: say "none" for anything that is not a real low-voltage device or that is only a PART of a bigger symbol (set part_of_other true). Give mount = ceiling | wall | floor | unknown. Give conf 0 to 1. For telecom outlets give ports = the number of Cat6 cables that ONE symbol stands for (half-filled VOICE/DATA = 2, solid VOICE = 1, outline DATA = 1, a number or tag on the symbol can override, quad = 4); use 1 for everything else. For text_tags list only tags that label a device by themselves (for example "WAP*" or "CAM-*"; a trailing * means starts-with) - skip room names and notes.\nReturn ONLY JSON: {"classes":[{"id":1,"type":"<type key or none>","mount":"","meaning":"","ports":1,"part_of_other":false,"conf":0.9}],"text_tags":[{"pattern":"","type":"<type key>","conf":0.9}]}';
   var A={};try{A=await aiJson(P.SYS_EST,imgs.concat([{type:'text',text:q}]),4000)||{};}catch(e){A={};}
   (A.classes||[]).forEach(function(m){maps[m.id|0]=m;});tags=(A.text_tags||[]).filter(function(t){return t&&t.pattern&&TYPES[typeKey(t.type)]&&(+t.conf||0)>=0.7;});
  }
@@ -11300,12 +11308,15 @@ async function exact(job,pg,lessons,req){
    var near=devs.find(function(d){return d.type===ty&&Math.hypot(d.px-t.x,d.py-t.y)<trad;});
    if(near){if(near.m==='shape'){near.m='shape+text';near.src='both';}if(!near.label)near.label=t.s;return;}
    devs.push({type:ty,x:t.x/W,y:t.y/Ht,px:t.x,py:t.y,room:'',label:t.s,note:'',mount:'',ports:1,src:'tile',m:'text'});textOnly++;});});
+ if(LG&&!devs.some(function(d){return !AIP.curTrade||AIP.curTrade.types.indexOf(d.type)>=0;})&&cls.some(function(c){return c.lgMiss;})&&!nolg){var rr=await exact(job,pg,lessons,req,true);if(rr){rr.sheet.flags.unshift('No symbol on this sheet matched the project legend - counted by AI symbol reading instead, please verify');return rr;}}
  if(!devs.length)return null;
  // 6) totals, report, flags
  var counts={},mounts={},meth={},cables={};
  devs.forEach(function(d){cables[d.type]=(cables[d.type]||0)+(d.ports||1);counts[d.type]=(counts[d.type]||0)+1;mounts[d.type]=mounts[d.type]||{};var mk=d.mount||'unknown';mounts[d.type][mk]=(mounts[d.type][mk]||0)+1;meth[d.type]=meth[d.type]||{};meth[d.type][d.m]=(meth[d.type][d.m]||0)+1;});
  var sched={};(info.schedule_counts||[]).forEach(function(s){var k=typeKey(s.type);if(+s.count>0)sched[k]=(sched[k]||0)+(+s.count);});
  var flags=['Counted by exact symbol shapes read from the PDF ('+shapes.length+' shapes, '+cls.length+' symbol classes'+(libHits?', '+libHits+' known from earlier jobs':'')+')'];
+ if(LG)flags.push(lgHit+' symbol class(es) matched to the project legend'+(AIP.curLegend&&AIP.curLegend.sheets&&AIP.curLegend.sheets.length?' ('+AIP.curLegend.sheets.join(', ')+')':''));
+ lgMiss.slice(0,4).forEach(function(m){flags.push(m);});
  var conf=92;
  Object.keys(sched).forEach(function(k){if((counts[k]||0)!==sched[k]){flags.push('Sheet schedule says '+sched[k]+' '+TYPES[k].label+', exact count is '+(counts[k]||0));conf-=15;}});
  if(noLegend){flags.push('No legend area found - legend example symbols may be included in the count');conf-=10;}
@@ -11353,6 +11364,21 @@ async function promote(){
  AIP[k]=async function(){var r=await o.apply(this,arguments);try{var n=await promote();if(n)bdToast('Vantage learned '+n+' new symbol'+(n===1?'':'s')+' from this confirmed job');}catch(e){}return r;};});
 AIP.promoteSymbols=promote;
 AIP.exactOnly=function(job,pg,lessons,req){return exact(job,pg,lessons,req);};
+AIP.scanLegendPage=async function(pg){ // every vector symbol on a legend sheet with the text written to its right
+ var page=await pg.pdf.getPage(pg.pageNo),v0=page.getViewport({scale:1}),scl=Math.min(6,3200/Math.max(v0.width,v0.height)),vp=page.getViewport({scale:scl}),W=Math.round(vp.width);
+ var shapes=[];try{shapes=await VC.extractShapes(page,vp);}catch(e){}
+ var txt=[];try{var tc=await page.getTextContent(),U=pdfjsLib.Util;tc.items.forEach(function(it){var s=(it.str||'').trim();if(!s)return;var t=U.transform(vp.transform,it.transform),w=(it.width||0)*scl,h=(it.height||Math.abs(t[3]))*scl;txt.push({s:s,x0:t[4],x1:t[4]+w,y:t[5]-h/2});});}catch(e){}
+ if(shapes.length<2||!txt.length)return {W:W,entries:[]};
+ buildClasses(shapes);var cls=groupSymbols(shapes,W),out=[],seen={};
+ cls.forEach(function(c){c.items.forEach(function(s){
+  var ln=txt.filter(function(t){return Math.abs(t.y-s.y)<s.size*0.8&&t.x0>s.x+s.size*0.4&&t.x0-s.x<s.size*40;}).sort(function(a,b){return a.x0-b.x0;});
+  if(!ln.length)return;var lab=ln[0].s,end=ln[0].x1;for(var i=1;i<ln.length;i++){if(ln[i].x0-end>s.size*3)break;lab+=' '+ln[i].s;end=ln[i].x1;}
+  lab=lab.replace(/\s+/g,' ').trim().slice(0,90);if(lab.length<3||!/[A-Za-z]{3}/.test(lab))return;
+  var k=c.id+'|'+lab.toLowerCase();if(seen[k])return;seen[k]=1;
+  out.push({n:c.rep.n,ang:c.rep.ang.map(function(v){return Math.round(v*10)/10;}),sides:c.rep.sides.map(function(v){return Math.round(v*1000)/1000;}),rel:Math.round(c.rep.size/W*10000)/10000,fill:!!c.rep.fill,inn:c.rep.desc||[],label:lab});
+ });});
+ return {W:W,entries:out};
+};
 AIP.cableTotals=function(sheets){var t={};(sheets||[]).forEach(function(s){var c=s.cables||s.counts||{};Object.keys(c).forEach(function(k){t[k]=(t[k]||0)+c[k];});});return t;};
 })();
 
@@ -11520,7 +11546,7 @@ P.extractRequirements=async function(job,ctx,bid,lessons){
 };
 
 /* ---------- 4. drawings: read each sheet once, then score it for THIS trade ---------- */
-var CV='v1';
+var CV='v2';
 function sk(pg){return pg&&pg.hash?('ai_sheet_'+String(pg.hash).slice(0,24)+'_'+pg.n):null;}
 var MEM={};
 async function getHit(k,t){
@@ -11589,6 +11615,203 @@ AIP.runJob=async function(job){
   }catch(e){}
   AIP.curTrade=null;
  }
+};
+})();
+
+/* ===== AI Proposal Engine: count only on the right sheets + read the project legend first ===== */
+(function(){
+if(!window.AIP||!AIP._p||!AIP._h||!AIP.TYPES||!AIP.scanLegendPage||!AIP.tradeOf)return;
+var P=AIP._p,TYPES=AIP.TYPES,H=AIP._h,aiJson=H.aiJson;
+var IV='v1',MEM={};
+async function cget(k){
+ if(MEM[k])return MEM[k];
+ try{var r=await sb.from('vg_settings').select('value').eq('key',k).maybeSingle();var v=r&&r.data&&r.data.value;if(v&&v.v===IV){MEM[k]=v;return v;}}catch(e){}
+ return null;
+}
+async function cput(k,v){
+ v.v=IV;MEM[k]=v;var s=JSON.stringify(v);if(s.length>900000)return;
+ try{await sb.from('vg_settings').upsert({key:k,value:v,updated_by:(window.CU&&CU.id)||null,updated_at:new Date().toISOString()});}catch(e){}
+}
+function h24(pg){return String(pg.hash||pg.file.id||pg.file.name).replace(/[^A-Za-z0-9]/g,'').slice(0,24);}
+
+/* ---------- 1. what is on every sheet (read once per file, shared by all trades) ---------- */
+async function tbOf(pg){ // title block + sheet headings, with positions
+ var page=await pg.pdf.getPage(pg.pageNo),v=page.getViewport({scale:1}),tc=await page.getTextContent(),U=pdfjsLib.Util,items=[];
+ tc.items.forEach(function(it){var s=(it.str||'').trim();if(!s)return;var t=U.transform(v.transform,it.transform);items.push({s:s,x:t[4]/v.width,y:t[5]/v.height});});
+ var inTb=function(i){return i.x>0.80||(i.y>0.9&&i.x>0.5);},seen={},tb=[],heads=[],hs={};
+ items.filter(inTb).forEach(function(i){if(!seen[i.s]){seen[i.s]=1;tb.push(i.s);}});
+ items.forEach(function(i){if(!inTb(i)&&i.s.length>=6&&i.s.length<=90&&/\b(PLAN|DETAIL|DETAILS|ELEVATION|ELEVATIONS|SECTION|SECTIONS|LEGEND|DIAGRAM|SCHEDULE|NOTES|RISER|SYMBOLS|ABBREVIATIONS|GENERAL INFORMATION)\b/.test(i.s)&&!hs[i.s]){hs[i.s]=1;heads.push(i.s);}});
+ var re=/^[A-Z]{1,3}[-\s]?\d{1,3}(?:[.\-]\d{1,3}){0,2}[A-Z]?$/;
+ var c=items.filter(function(i){return re.test(i.s)&&inTb(i);}).sort(function(a,b){return (b.y+b.x)-(a.y+a.x);});
+ return {tb:tb.join(' | ').slice(0,380),heads:heads.slice(0,6).join(' | ').slice(0,300),num:c[0]?c[0].s:'',len:items.length,body:items.filter(function(i){return !inTb(i);}).slice(0,40).map(function(i){return i.s;}).join(' ').slice(0,160)};
+}
+var KINDS='plan_technology|plan_power_data|plan_power|plan_av|plan_security|architectural_plan|rcp|elevation|section_detail|schedule|riser|legend_general|cover_index|civil_site|mechanical|plumbing|structural|fire_alarm|lighting|other';
+var CLS_Q='You are indexing a construction drawing set (all trades share the same PDF). For EVERY page below decide what kind of sheet it is, from its sheet number, title and headings. Return ONLY JSON: {"pages":[{"id":1,"sheet_number":"","title":"","kind":"<one of: '+KINDS+'>","level":"","area":""}]}\nKinds:\n'
+ +'- plan_technology = a FLOOR PLAN that shows technology / telecom / communications / data / low-voltage devices (examples: "First Floor Technology Plan", "Floor Plan - Low Voltage", "Telecommunications Plan", "T-101 Data Plan").\n'
+ +'- plan_power_data = a floor plan with BOTH power and low-voltage / data devices (example: "Power & Low Voltage Plan", "Power and Data Plan").\n'
+ +'- plan_power = an electrical power / receptacle floor plan (examples: "Electrical Power Plan", "Floor Plan - Power", "Level 1 Power Plan").\n'
+ +'- plan_av = an audio-visual device floor plan. plan_security = a security / access control / camera floor plan.\n'
+ +'- architectural_plan = architectural floor plan, furniture plan, finish plan, life-safety plan. rcp = reflected ceiling plan. lighting = lighting plan.\n'
+ +'- elevation = any elevation (including MDF/IDF/telecom room elevations). section_detail = details, typical details, mounting details, sections, ENLARGED plans/rooms. schedule = schedules and tables. riser = riser, one-line and block diagrams.\n'
+ +'- legend_general = legend, symbols, abbreviations, general notes, general information (E-0.x electrical general information, T-0.x technology general information). cover_index = cover, index, project information.\n'
+ +'- civil_site = civil, site, grading, drainage, utility, landscape and irrigation sheets. mechanical, plumbing, structural, fire_alarm, other as named.\n'
+ +'level = the building level the plan covers, normalised: "L1","L2","L3","BASEMENT","MEZZ","ROOF","SITE" or "" when it is not a plan or not stated. area = a part of that level when the level is split ("AREA A","NORTH","PART 1 OF 2") or "".\n'
+ +'Be strict: only a true floor plan of a level is a plan_*. Details, enlarged views, elevations, sections, diagrams and schedules are NOT plans even when their title contains a device name.\n\nPAGES:\n';
+function normLevel(title,lv){
+ var t=(String(title||'')+' '+String(lv||'')).toLowerCase();
+ if(/roof/.test(t))return 'ROOF';if(/basement|lower level/.test(t))return 'BASEMENT';if(/mezz/.test(t))return 'MEZZ';
+ if(/first|1st|level\s*0?1\b|\bl0?1\b|ground/.test(t))return 'L1';if(/second|2nd|level\s*0?2\b|\bl0?2\b/.test(t))return 'L2';if(/third|3rd|level\s*0?3\b|\bl0?3\b/.test(t))return 'L3';if(/fourth|4th|level\s*0?4\b|\bl0?4\b/.test(t))return 'L4';
+ var m=t.match(/(?:level|floor)\s*0?(\d+)/);return m?'L'+m[1]:(String(lv||'').toUpperCase().slice(0,8));
+}
+function fixKind(inf,row){ // hard rules on top of the AI answer: details, enlarged views, elevations, civil and other trades are never counted
+ var title=((inf.title||'')+' '+(row.heads||'')).toLowerCase(),num=String(inf.sheet_number||row.num||'').toUpperCase().replace(/\s+/g,''),k=inf.kind||'other';
+ var tech=/technolog|telecom|communicat|low[\s-]?voltage|\bdata\b|\bvoice\b|security|\bav\b|audio|power/;
+ if(/^plan_/.test(k)){
+  if(/enlarged|detail|elevation|section|riser|diagram|mounting|typical|schedule|legend/.test(title))k='section_detail';
+  else if(/reflected|ceiling plan|\brcp\b/.test(title))k='rcp';
+  else if(/^(C|L|S|M|P|FP|FA|LS|G|I|ID)-?\d/.test(num)&&!tech.test(title))k='other';
+  else if(/^A-?\d/.test(num)&&!/power|data|technolog|telecom|low[\s-]?voltage|communicat/.test(title))k='architectural_plan';
+ }
+ return k;
+}
+async function indexPages(job,all){
+ var groups={},order=[];
+ all.forEach(function(pg){var g=h24(pg);if(!groups[g]){groups[g]=[];order.push(g);}groups[g].push(pg);});
+ var todo=[],byId={};
+ for(var gi=0;gi<order.length;gi++){
+  var g=order[gi],c=await cget('ai_sheetindex_'+g),rows=groups[g];
+  for(var i=0;i<rows.length;i++){
+   var pg=rows[i];
+   if(c&&c.pages&&c.pages[pg.n]){pg.idx=c.pages[pg.n];continue;}
+   if(pg.scanned||!pg.pdf){pg.idx={sheet_number:'',title:'',kind:'unknown',level:'',area:'',len:0};continue;}
+   var t=null;try{t=await tbOf(pg);}catch(e){t={tb:'',heads:'',num:'',len:0,body:''};}
+   if(t.len<3){pg.idx={sheet_number:t.num||'',title:'',kind:'unknown',level:'',area:'',len:t.len};continue;}
+   pg.tbx=t;todo.push(pg);
+  }
+ }
+ for(var s=0;s<todo.length;s+=40){
+  var chunk=todo.slice(s,s+40),map={};
+  var lines=chunk.map(function(pg,i){map[i+1]=pg;var t=pg.tbx;return (i+1)+' | file '+pg.file.name+' p'+pg.n+' | number guess: '+t.num+' | title block: '+t.tb+' | headings: '+t.heads+' | text: '+t.body;}).join('\n');
+  var res=null;try{res=await aiJson(P.SYS_EST,CLS_Q+lines,6000);}catch(e){res=null;}
+  ((res&&res.pages)||[]).forEach(function(r){var pg=map[r.id|0];if(!pg)return;var k=String(r.kind||'other');if(KINDS.split('|').indexOf(k)<0)k='other';
+   var inf={sheet_number:String(r.sheet_number||pg.tbx.num||'').slice(0,20),title:String(r.title||'').slice(0,90),kind:k,level:'',area:String(r.area||'').slice(0,30),len:pg.tbx.len};
+   inf.kind=fixKind(inf,pg.tbx);inf.level=/^plan_/.test(inf.kind)?normLevel(inf.title,r.level):'';pg.idx=inf;});
+  chunk.forEach(function(pg){if(!pg.idx)pg.idx={sheet_number:pg.tbx.num||'',title:'',kind:'unknown',level:'',area:'',len:pg.tbx.len};});
+ }
+ for(var gj=0;gj<order.length;gj++){ // save for the next job / trade
+  var g2=order[gj],rows2=groups[g2],pgs={},fresh=false;
+  rows2.forEach(function(pg){pgs[pg.n]=pg.idx;if(pg.tbx)fresh=true;});
+  if(fresh)await cput('ai_sheetindex_'+g2,{pages:pgs});
+ }
+}
+
+/* ---------- 2. choose the sheets this trade counts on ---------- */
+var ELIG={
+ '22':['plan_technology','plan_power_data','plan_power'],
+ '23':['plan_av','plan_technology','plan_power_data','plan_power'],
+ '24':['plan_security','plan_technology','plan_power_data'],
+ '':['plan_technology','plan_power_data','plan_power','plan_av','plan_security']
+};
+function prio(k,t){if(k==='plan_technology')return 3;if(t&&((t.code==='23'&&k==='plan_av')||(t.code==='24'&&k==='plan_security')))return 3;if(k==='plan_av'||k==='plan_security')return 3;if(k==='plan_power_data')return 2;return 1;}
+var KLAB={plan_technology:'technology / low-voltage plan',plan_power_data:'power & data plan',plan_power:'power plan',plan_av:'AV plan',plan_security:'security plan'};
+function sname(pg){var i=pg.idx||{};return (i.sheet_number||pg.file.name+' p'+pg.n)+(i.title?' '+i.title:'');}
+function levelKey(pg){var i=pg.idx,lv=i.level;if(!lv){var m=String(i.sheet_number||'').match(/\d+(?:\.\d+)?/);lv=m?'#'+m[0]:'';}return lv+'|'+String(i.area||'').toLowerCase();}
+
+async function selectSheets(job,ctx,all,fallback){
+ await indexPages(job,all);
+ var t=AIP.curTrade,el=ELIG[t?t.code:''],plan=[],rows=[];
+ var plans=all.filter(function(pg){return pg.idx&&el.indexOf(pg.idx.kind)>=0;});
+ if(!plans.length){AIP.sheetPlan=[{note:'Could not identify the technology / power plan sheets by their titles - all drawing pages with device keywords were used (counts may include sheets that should not be counted).'}];return null;}
+ // same level seen on several sheets (power plan + technology plan): count the best sheet type once
+ var grp={};plans.forEach(function(pg){var k=levelKey(pg);(grp[k]=grp[k]||[]).push(pg);});
+ var keep=[],drop={};
+ Object.keys(grp).forEach(function(k){
+  var g=grp[k],best=Math.max.apply(null,g.map(function(pg){return prio(pg.idx.kind,t);})),top=g.filter(function(pg){return prio(pg.idx.kind,t)===best;});
+  var topKind=top[0].idx.kind;
+  g.forEach(function(pg){if(prio(pg.idx.kind,t)===best)keep.push(pg);else drop[all.indexOf(pg)]='the same level is counted once, from '+sname(top[0])+' ('+KLAB[topKind]+')';});
+ });
+ all.forEach(function(pg,i){
+  var inf=pg.idx||{},nm=sname(pg);
+  if(keep.indexOf(pg)>=0)rows.push({name:nm,kind:inf.kind,level:inf.level,used:true});
+  else if(drop[i]!==undefined)rows.push({name:nm,kind:inf.kind,level:inf.level,used:false,why:drop[i]});
+  else rows.push({name:nm,kind:inf.kind,level:inf.level,used:false,why:inf.kind==='unknown'?'sheet type could not be read':'read for context only ('+String(inf.kind).replace(/_/g,' ')+')'});
+ });
+ AIP.sheetPlan=rows;
+ keep.forEach(function(pg){pg.score=Math.max(pg.score||0,5);pg.sheetInfo=pg.idx;});
+ await P.step(job,'Finding drawing sheets',35,'Identified '+all.length+' sheets: counting on '+keep.length+' device/plan sheet(s) for this trade, the rest are read for context only');
+ // the legend sheets (E-x.x / T-x.x general information) are read before any counting
+ try{await buildLegend(job,all);}catch(e){console.warn('legend',e);}
+ return keep.sort(function(a,b){return (a.file.name+(1000+a.n)).localeCompare(b.file.name+(1000+b.n));}).slice(0,60);
+}
+var pp=P.pickPages;
+P.pickPages=async function(job,ctx){
+ var rel=await pp.apply(null,arguments),all=ctx.allPages||[];
+ if(!all.length)return rel;
+ try{var sel=await selectSheets(job,ctx,all,rel);if(sel&&sel.length)return sel;}catch(e){console.warn('sheet selection',e);AIP.sheetPlan=[{note:'Sheet selection failed ('+(e.message||e)+'); all drawing pages with device keywords were used.'}];}
+ return rel;
+};
+
+/* ---------- 3. the project symbol legend (what the data / phone, AV and security symbols look like) ---------- */
+var MAP_Q='These are the legend entries of a construction drawing set: the words written next to a symbol. Decide for each what it is. Use ONLY these type keys, or "none" when it is not a low-voltage device (power receptacle, light fixture, switch, junction box, fire alarm, door hardware, equipment, mechanical, etc.):\n';
+async function buildLegend(job,all){
+ var leg=all.filter(function(pg){return pg.idx&&pg.idx.kind==='legend_general'&&pg.pdf;});
+ leg.sort(function(a,b){var s=function(p){var t=String(p.idx.title||'').toLowerCase();return (/legend|symbol/.test(t)?2:0)+(/^(T|TY|TD|E)/i.test(p.idx.sheet_number||'')?1:0);};return s(b)-s(a);});
+ leg=leg.slice(0,5);if(!leg.length){AIP.curLegend=null;return;}
+ var ents=[],names=[];
+ for(var i=0;i<leg.length;i++){
+  var pg=leg[i],k='ai_legendscan_'+h24(pg)+'_'+pg.n,c=await cget(k),sc=c&&c.entries;
+  if(!sc){var r=await AIP.scanLegendPage(pg);sc=r.entries||[];await cput(k,{entries:sc});}
+  if(sc.length){names.push(pg.idx.sheet_number||pg.file.name+' p'+pg.n);sc.forEach(function(e){ents.push(e);});}
+ }
+ if(!ents.length){AIP.curLegend=null;return;}
+ var lm=(await cget('ai_legend_labels'))||{labels:{}},labs={};ents.forEach(function(e){labs[e.label.toLowerCase()]=e.label;});
+ var need=Object.keys(labs).filter(function(k){return !lm.labels[k];});
+ for(var s=0;s<need.length;s+=70){
+  var chunk=need.slice(s,s+70).map(function(k){return labs[k];}),res=null;
+  try{res=await aiJson(P.SYS_EST,MAP_Q+Object.keys(TYPES).map(function(k){return k+' = '+TYPES[k].hint;}).join('\n')+'\nRules: a telecom / data / phone / voice outlet or jack is data_drop. ports = the number of Cat6 cables ONE symbol stands for: "DATA / PHONE", "VOICE / DATA" or "TELEPHONE / DATA" = 2, "DATA" = 1, "PHONE" or "VOICE" or "TELEPHONE" = 1, quad / 4 port = 4; 1 for everything else. mount = ceiling | wall | floor | "" from the words (ceiling mounted, wall, floor box).\nReturn ONLY JSON: {"map":[{"label":"","type":"<type key or none>","ports":1,"mount":""}]}\n\nENTRIES:\n'+chunk.map(function(l,i){return (i+1)+'. '+l;}).join('\n'),5000);}catch(e){res=null;}
+  var got={};((res&&res.map)||[]).forEach(function(m){got[String(m.label||'').toLowerCase()]=m;});
+  chunk.forEach(function(l){var m=got[l.toLowerCase()];if(!m)return;var ty=H.typeKey(m.type);lm.labels[l.toLowerCase()]={type:(m.type==='none'||!TYPES[ty])?'none':ty,ports:Math.max(1,Math.min(8,Math.round(+m.ports||1))),mount:/^(ceiling|wall|floor)$/i.test(m.mount||'')?String(m.mount).toLowerCase():''};});
+ }
+ if(need.length)await cput('ai_legend_labels',lm);
+ var out=[];
+ ents.forEach(function(e){var m=lm.labels[e.label.toLowerCase()];if(!m)return;out.push(Object.assign({},e,{type:m.type,ports:m.ports,mount:m.mount}));});
+ AIP.curLegend={entries:out,sheets:names};
+ await P.step(job,'Reading legend',36,'Project symbol legend read from '+names.join(', ')+': '+out.filter(function(e){return e.type!=='none';}).length+' low-voltage symbol(s) found');
+}
+AIP.legendEntries=function(){return AIP.curLegend?AIP.curLegend.entries:[];};
+AIP.legendOn=function(){
+ var L=AIP.curLegend,t=AIP.curTrade;if(!L||!L.entries.length)return false;
+ return L.entries.some(function(e){return e.type&&e.type!=='none'&&(!t||t.types.indexOf(e.type)>=0);});
+};
+AIP.legendText=function(){
+ var L=AIP.curLegend;if(!L||!L.entries.length)return '';
+ var lines=L.entries.filter(function(e){return e.type&&e.type!=='none';}).slice(0,40).map(function(e){return e.label+' = '+e.type+(e.ports>1?' ('+e.ports+' cables)':'');});
+ return '\nPROJECT SYMBOL LEGEND (read from '+L.sheets.join(', ')+'): '+lines.join('; ')+'. Count ONLY symbols that match this legend (the data drop symbol is the one labelled DATA / PHONE or similar). Do not count any other shape.';
+};
+
+/* ---------- 4. the notes + per-sheet info ---------- */
+var rn=AIP.reuseNote;
+AIP.reuseNote=function(ctx){
+ var base=rn?rn(ctx):'',sp=AIP.sheetPlan;
+ if(!sp||!sp.length)return base;
+ var L=['\n\nSHEET SELECTION (counts come only from device / plan sheets for this trade; everything else is read for context)'];
+ if(AIP.curLegend)L.push('Project symbol legend: '+AIP.curLegend.sheets.join(', ')+' ('+AIP.curLegend.entries.filter(function(e){return e.type!=='none';}).length+' low-voltage symbols matched against the plans)');
+ else L.push('Project symbol legend: not found as vector symbols - symbols were identified by AI reading (please verify counts)');
+ sp.slice(0,90).forEach(function(r){if(r.note){L.push('- '+r.note);return;}L.push((r.used?'- COUNTED: ':'- not counted: ')+r.name+(r.level?' ['+r.level+']':'')+(r.used?'':' ('+r.why+')'));});
+ return base+L.join('\n');
+};
+var ap=P.analyzePage;
+P.analyzePage=async function(job,pg,idx,total,lessons,req,grid){
+ var a=Array.prototype.slice.call(arguments);
+ var lt=AIP.legendText?AIP.legendText():'';if(lt)a[5]=String(req||'')+lt;
+ var r=await ap.apply(null,a);
+ if(r&&r.sheet&&pg.sheetInfo){var i=pg.sheetInfo;r.sheet.kind=i.kind;r.sheet.level=i.level||'';if(!r.sheet.sheet_number&&i.sheet_number)r.sheet.sheet_number=i.sheet_number;if(!r.sheet.title&&i.title)r.sheet.title=i.title;}
+ return r;
+};
+var rj=AIP.runJob;
+AIP.runJob=async function(job){
+ AIP.curLegend=null;AIP.sheetPlan=null;
+ try{return await rj.apply(this,arguments);}finally{AIP.curLegend=null;AIP.sheetPlan=null;}
 };
 })();
 
