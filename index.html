@@ -8541,7 +8541,7 @@ async function bdAIContext(q){
   }catch(e){return '';}
 }
 
-var APP_VERSION='2.11.0',APP_BUILD_DATE='Oct 26, 2026';
+var APP_VERSION='2.11.1',APP_BUILD_DATE='Oct 26, 2026';
 (function(){function s(){var e=document.getElementById('sb-ver');if(e)e.textContent='Vantage v'+APP_VERSION+' · '+APP_BUILD_DATE;}s();document.addEventListener('DOMContentLoaded',s);})();
 
 </script>
@@ -11755,8 +11755,11 @@ P.pickPages=async function(job,ctx){
 var MAP_Q='These are the legend entries of a construction drawing set: the words written next to a symbol. Decide for each what it is. Use ONLY these type keys, or "none" when it is not a low-voltage device (power receptacle, light fixture, switch, junction box, fire alarm, door hardware, equipment, mechanical, etc.):\n';
 async function buildLegend(job,all){
  var leg=all.filter(function(pg){return pg.idx&&pg.idx.kind==='legend_general'&&pg.pdf;});
- leg.sort(function(a,b){var s=function(p){var t=String(p.idx.title||'').toLowerCase();return (/legend|symbol/.test(t)?2:0)+(/^(T|TY|TD|E)/i.test(p.idx.sheet_number||'')?1:0);};return s(b)-s(a);});
- leg=leg.slice(0,5);if(!leg.length){AIP.curLegend=null;return;}
+ var tc=AIP.curTrade?AIP.curTrade.code:'';
+ // the trade's own legend first (22 = T/E technology & electrical, 23 = AV / A/V, 24 = security / S); any general legend is the fallback
+ var own={'22':/\b(tech|telecom|communic|data|low.?voltage|electrical)\b|^(T|TY|TD|TC|E)[-\s.]?\d/i,'23':/\b(audio|a\/v|av|visual|sound|paging|display)\b|^(AV|A\/V|AVL|V)[-\s.]?\d/i,'24':/\b(security|access|camera|cctv|video surv|intrusion)\b|^(S|SY|SEC|SC)[-\s.]?\d/i}[tc];
+ leg.sort(function(a,b){var s=function(p){var t=String(p.idx.title||'')+' '+String(p.idx.sheet_number||'');return (/legend|symbol/i.test(t)?2:0)+(own&&own.test(t)?3:0)+(/^(T|TY|TD|E)/i.test(p.idx.sheet_number||'')?1:0);};return s(b)-s(a);});
+ leg=leg.slice(0,8);if(!leg.length){AIP.curLegend=null;return;}
  var ents=[],names=[];
  for(var i=0;i<leg.length;i++){
   var pg=leg[i],k='ai_legendscan_'+h24(pg)+'_'+pg.n,c=await cget(k),sc=c&&c.entries;
