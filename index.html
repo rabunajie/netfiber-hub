@@ -8541,7 +8541,7 @@ async function bdAIContext(q){
   }catch(e){return '';}
 }
 
-var APP_VERSION='2.13.1',APP_BUILD_DATE='Oct 26, 2026';
+var APP_VERSION='2.14.0',APP_BUILD_DATE='Oct 26, 2026';
 (function(){function s(){var e=document.getElementById('sb-ver');if(e)e.textContent='Vantage v'+APP_VERSION+' · '+APP_BUILD_DATE;}s();document.addEventListener('DOMContentLoaded',s);})();
 
 </script>
@@ -9188,7 +9188,7 @@ async function renderPage(pg){
 function typeGuide(){return Object.keys(TYPES).map(function(k){return k+' = '+TYPES[k].hint;}).join('\n');}
 var DET_SCHEMA='{"sheet_number":"","sheet_title":"","discipline":"data|av|security|mixed|architectural|other","legend":[{"symbol":"","meaning":""}],"devices":[{"type":"<type key>","x":0.0,"y":0.0,"room":"","label":"","note":""}],"schedule_counts":[{"type":"","count":0,"source":""}],"notes":[""],"uncertain":[""]}';
 function detectPrompt(extra,ctxText,lessons,req){
- return 'Study this construction drawing very carefully. First read the LEGEND / symbol list and general notes, then find EVERY low-voltage device symbol: data outlets/drops, wireless APs, racks/IDF rooms, AV devices (displays, speakers, microphones, AV plates, cameras, touch panels), and security devices (cameras, card readers, mag locks/strikes, door contacts, REX, intercoms, alarms). Count each symbol separately - do not summarise, do not guess. Give x and y as the CENTRE of the symbol as a fraction of this image width/height (0-1). Use ONLY these type keys:\n'+typeGuide()+'\n'+(extra||'')+'\nText extracted from the sheet (may help read legend): '+(ctxText||'(none)').slice(0,2500)+(req?'\nWhat the specs ask NetFiber to do (use to decide what matters): '+req.slice(0,1500):'')+(lessons?'\nLessons from past corrections (follow them):\n'+lessons:'')+'\nReturn ONLY JSON: '+DET_SCHEMA;
+ return 'Study this construction drawing very carefully. First read the LEGEND / symbol list and general notes, then find EVERY low-voltage device symbol: data outlets/drops, wireless APs, racks/IDF rooms, AV devices (displays, speakers, microphones, AV plates, cameras, touch panels), and security devices (cameras, card readers, mag locks/strikes, door contacts, REX, intercoms, alarms). Count each symbol separately - do not summarise, do not guess. Count ONLY symbols that match the legend; do NOT count keynote tags or callouts (a circle, hexagon or diamond with a number or letter inside), column grid bubbles, detail / section / elevation markers or view-title bubbles. Give x and y as the CENTRE of the symbol as a fraction of this image width/height (0-1). Use ONLY these type keys:\n'+typeGuide()+'\n'+(extra||'')+'\nText extracted from the sheet (may help read legend): '+(ctxText||'(none)').slice(0,2500)+(req?'\nWhat the specs ask NetFiber to do (use to decide what matters): '+req.slice(0,1500):'')+(lessons?'\nLessons from past corrections (follow them):\n'+lessons:'')+'\nReturn ONLY JSON: '+DET_SCHEMA;
 }
 function dist(a,b){var dx=a.x-b.x,dy=a.y-b.y;return Math.sqrt(dx*dx+dy*dy);}
 function cleanDevs(arr){return (arr||[]).map(function(d){return {type:typeKey(d.type),x:Math.min(1,Math.max(0,+d.x||0)),y:Math.min(1,Math.max(0,+d.y||0)),room:d.room||'',label:d.label||'',note:d.note||''};}).filter(function(d){return isFinite(d.x)&&isFinite(d.y);});}
@@ -11195,7 +11195,7 @@ var STD='STANDARD LOW-VOLTAGE DRAWING SYMBOLS (use these when the sheet legend d
 '- Symbol drawn on a wall line, or with a mounting height such as +18" or +48" AFF = wall mounted. FLR / FB / POKE = floor.\n'+
 '- Camera = dome (circle) or wedge/trapezoid with a circle. Card reader = square or rectangle with R or CR. Door contact = DC, REX = request to exit, speaker = circle/square with X or concentric circle, TV/display = rectangle with TV or D.\n'+
 '- The work may be called LOW VOLTAGE, LV, telecommunications, communications, data, technology or Division 27 on the sheet.\n'+
-'- Ignore: door swings, column grid bubbles, room tags, section markers, dimension marks, fixtures, furniture, parts of a bigger symbol.';
+'- Ignore: door swings, column grid bubbles, KEYNOTE TAGS and callouts (a circle, hexagon or diamond with a number or letter inside), detail / section / elevation markers, view-title bubbles, room tags, dimension marks, fixtures, furniture, parts of a bigger symbol. Count ONLY symbols that match the project legend.';
 
 /* ---- learned symbol library (saved in vg_settings) ---- */
 async function loadLib(){if(LIB.loaded)return;try{var r=await sb.from('vg_settings').select('value').eq('key','ai_symbols').maybeSingle();LIB.list=(r.data&&r.data.value&&r.data.value.list)||[];}catch(e){}LIB.loaded=true;}
@@ -11269,6 +11269,15 @@ async function exact(job,pg,lessons,req,nolg){
  // 2) group identical shapes into symbol classes
  buildClasses(shapes);var cls=groupSymbols(shapes,W);
  cls.forEach(function(c){c.leg=c.items.filter(function(s){return inBoxes(s.x,s.y,boxes,W,Ht);});c.plan=c.items.filter(function(s){return !inBoxes(s.x,s.y,boxes,W,Ht);});c.count=c.plan.length;});
+ // keynote tags, column-grid bubbles, detail / section callouts and view-title bubbles are shapes with a short number or letter INSIDE: reference marks, never devices
+ var ign=0,KEYT=/^(?:[A-Z]{0,2}\d{1,3}[A-Z]?|[A-Z])$/,tcell=Math.max(20,W/40),tb={};
+ txt.forEach(function(t){var k=Math.floor(t.x/tcell)+','+Math.floor(t.y/tcell);(tb[k]=tb[k]||[]).push(t);});
+ function inner(sh){var r=Math.max(4,sh.size*0.55),o=[],cx=Math.floor(sh.x/tcell),cy=Math.floor(sh.y/tcell);for(var dx=-1;dx<=1;dx++)for(var dy=-1;dy<=1;dy++)(tb[(cx+dx)+','+(cy+dy)]||[]).forEach(function(t){if(Math.abs(t.x-sh.x)<=r&&Math.abs(t.y-sh.y)<=r)o.push(t.s);});return o.join('').replace(/\s+/g,'');}
+ cls.forEach(function(c){
+  var lt={},lp={};c.leg.forEach(function(sh){var q=inner(sh);if(q){lt[q]=1;var pm=q.match(/^[A-Z]+/);if(pm)lp[pm[0]]=1;}});
+  c.plan=c.plan.filter(function(sh){var q=inner(sh);if(q&&KEYT.test(q)&&!lt[q]){var pm=q.match(/^[A-Z]+/);if(!(pm&&lp[pm[0]])){ign++;return false;}}return true;});
+  c.count=c.plan.length;
+ });
  cls=cls.filter(function(c){return c.count>0||c.leg.length>0;});
  var libHits=0;
  cls.forEach(function(c){var e=LIB.list.find(function(l){return libMatch(l,c.rep,W);});if(e){c.type=e.type;c.mount=e.mount||'';c.conf=0.95;c.src='library';c.ports=e.ports||1;libHits++;}});
@@ -11318,6 +11327,7 @@ async function exact(job,pg,lessons,req,nolg){
  devs.forEach(function(d){cables[d.type]=(cables[d.type]||0)+(d.ports||1);counts[d.type]=(counts[d.type]||0)+1;mounts[d.type]=mounts[d.type]||{};var mk=d.mount||'unknown';mounts[d.type][mk]=(mounts[d.type][mk]||0)+1;meth[d.type]=meth[d.type]||{};meth[d.type][d.m]=(meth[d.type][d.m]||0)+1;});
  var sched={};(info.schedule_counts||[]).forEach(function(s){var k=typeKey(s.type);if(+s.count>0)sched[k]=(sched[k]||0)+(+s.count);});
  var flags=['Counted by exact symbol shapes read from the PDF ('+shapes.length+' shapes, '+cls.length+' symbol classes'+(libHits?', '+libHits+' known from earlier jobs':'')+')'];
+ if(ign)flags.push(ign+' keynote / grid / callout tag(s) (a circle or other shape with a number or letter inside) were ignored - they are reference marks, not devices');
  if(LG)flags.push(lgHit+' symbol class(es) matched to the project legend'+(AIP.curLegend&&AIP.curLegend.sheets&&AIP.curLegend.sheets.length?' ('+AIP.curLegend.sheets.join(', ')+')':''));
  lgMiss.slice(0,4).forEach(function(m){flags.push(m);});
  var conf=92;
@@ -11855,19 +11865,31 @@ function normNum(s){return String(s).replace(/\s+/g,'').replace(/(\d{2})(\d{2})(
 function isSpecDoc(d){
  return /specification|\bspecs?\b|project manual|division/i.test(d.path||'')||/^\s*(?:SECTION|DIVISION)\s+\d{2}\s?\d{2}\s?\d{2}/im.test((d.text||'').slice(0,4000))||(/\bSECTION\s+(27|28|26|25)\s?\d{2}\s?\d{2}\b/i.test(d.text||'')&&/\bPART\s+[123]\b/i.test(d.text||''));
 }
-function sectionsFor(doc,code){
- var t=doc.text||'',re=/(?:^|\n)\s*(?:SECTION|Section)\s+(\d{2}\s?\d{2}\s?\d{2})\b[^\n]{0,120}/g,m,marks=[];
- while((m=re.exec(t)))marks.push({i:m.index,num:normNum(m[1])});
- var out=[];
- if(marks.length){
-  // a section can be mentioned inside another one ("see Section 27 15 00"): only count a header that starts a line and is followed by PART 1 or GENERAL soon
-  var heads=marks.filter(function(k,ix){var nxt=marks[ix+1]?marks[ix+1].i:t.length;return /PART\s*1|GENERAL|SUMMARY|SCOPE/i.test(t.slice(k.i,Math.min(nxt,k.i+1500)));});
-  if(!heads.length)heads=marks;
-  heads.forEach(function(k,ix){var end=heads[ix+1]?heads[ix+1].i:t.length;if(wanted(k.num,code))out.push({num:k.num,text:t.slice(k.i,end)});});
- }
- if(!out.length){ // no usable section markers: take the pages that talk about this division
+function sectionsFor(doc,code,info){
+ var t=doc.text||'',re=/SECTION\s+(\d{2}\s?\d{2}\s?\d{2})(?:\.\d+)?\b/gi,m,all=[];
+ while((m=re.exec(t)))all.push({i:m.index,num:normNum(m[1])});
+ // the table of contents is only a MAP: it lists the numbers. The real section is the place where the header "SECTION 271500" is followed by PART 1 - GENERAL.
+ var starts=[],seen={};
+ all.forEach(function(k,ix){
+  if(seen[k.num])return;
+  var nx=null;for(var q=ix+1;q<all.length;q++){if(all[q].num!==k.num){nx=all[q].i;break;}}
+  var w=t.slice(k.i,Math.min(nx==null?t.length:nx,k.i+6000));
+  if(/PART\s*1\b/i.test(w)||/\b1\.1\s+(SUMMARY|SECTION INCLUDES|RELATED DOCUMENTS|SCOPE|REFERENCES)/i.test(w)){seen[k.num]=1;starts.push({i:k.i,num:k.num});}
+ });
+ starts.sort(function(a,b){return a.i-b.i;});
+ // what the table of contents says should exist (for the report)
+ var toc=[],ti=t.search(/TABLE OF CONTENTS/i);
+ if(ti>=0){var tw=t.slice(ti,ti+16000),r2=/\b(\d{2}\s?\d{2}\s?\d{2})\s+(?=[A-Z][A-Za-z])/g,m2,tseen={};while((m2=r2.exec(tw))){var n2=normNum(m2[1]);if(!tseen[n2]&&wanted(n2,code)){tseen[n2]=1;toc.push(n2);}}}
+ var out=[],got={};
+ starts.forEach(function(k,ix){
+  if(!wanted(k.num,code))return;
+  var end=starts[ix+1]?starts[ix+1].i:Math.min(t.length,k.i+80000);
+  out.push({num:k.num,text:t.slice(k.i,end).slice(0,40000)});got[k.num]=1;
+ });
+ if(info){info.toc=(info.toc||[]).concat(toc.filter(function(n){return (info.toc||[]).indexOf(n)<0;}));info.nums=(info.nums||[]).concat(out.map(function(x){return x.num;}));info.sectionsTotal=(info.sectionsTotal||0)+starts.length;}
+ if(!out.length&&!starts.length){ // no section headers at all in this file: take the pages that talk about this division
   var f=(typeof bdPickPages==='function')?bdPickPages(t,DIV[code].kw,60000):t.slice(0,60000);
-  if(f&&f.length>200&&(marks.length===0||/division\s*(27|28)/i.test(t)))out.push({num:'',text:f});
+  if(f&&f.length>200&&/division\s*(26|27|28)/i.test(t))out.push({num:'',text:f});
  }
  return out;
 }
@@ -11901,15 +11923,15 @@ async function readSpec(job,ctx){
  var docs=(ctx.docs||[]).filter(isSpecDoc);
  if(!docs.length){return;}
  var parts=[],files=[];
- docs.forEach(function(d){var s=sectionsFor(d,code);if(s.length){files.push(d.name);s.forEach(function(x){parts.push('### '+d.name+(x.num?' - SECTION '+x.num:'')+'\n'+x.text);});}});
+ docs.forEach(function(d){var s=sectionsFor(d,code,AIP.specInfo);if(s.length){files.push(d.name);s.forEach(function(x){parts.push('### '+d.name+(x.num?' - SECTION '+x.num:'')+'\n'+x.text);});}});
  AIP.specInfo.files=files;
- if(!parts.length){AIP.specInfo.note='Specification file(s) found ('+docs.map(function(d){return d.name;}).join(', ')+') but no section for '+DIV[code].name+' was found in them.';return;}
+ if(!parts.length){AIP.specInfo.note='Specification file(s) found ('+docs.map(function(d){return d.name;}).join(', ')+') but no section for '+DIV[code].name+' was found in them'+(AIP.specInfo.toc&&AIP.specInfo.toc.length?' (the table of contents lists '+AIP.specInfo.toc.join(', ')+' but the section text itself could not be located)':'')+'.';return;}
  var all=parts.join('\n\n'),hash='';
  try{hash=(await nfHashBlob(new Blob([all]))).replace(/[^A-Za-z0-9]/g,'').slice(0,24);}catch(e){hash=String(all.length);}
  var key='ai_spec_'+code+'_'+hash,c=await cget(key);
  if(c&&c.spec){AIP.spec=c.spec;AIP.specInfo.found=true;AIP.specInfo.cached=true;await P.step(job,'Reading the specification',33,'Specification for '+DIV[code].name+' reused (already read)');return;}
  // split to chunks of about 55000 characters, at most 4 calls
- var chunks=[],cur='';parts.forEach(function(p){if((cur+p).length>55000&&cur){chunks.push(cur);cur='';}cur+=(cur?'\n\n':'')+p.slice(0,55000);});if(cur)chunks.push(cur);chunks=chunks.slice(0,4);
+ var chunks=[],cur='';parts.forEach(function(p){if((cur+p).length>55000&&cur){chunks.push(cur);cur='';}cur+=(cur?'\n\n':'')+p.slice(0,55000);});if(cur)chunks.push(cur);chunks=chunks.slice(0,8);
  var res=[];
  for(var i=0;i<chunks.length;i++){
   await P.step(job,'Reading the specification',32,'Reading the '+DIV[code].name+' specification (part '+(i+1)+' of '+chunks.length+')');
@@ -11926,6 +11948,8 @@ AIP.specText=function(){
  var sp=AIP.spec,info=AIP.specInfo||{},t=AIP.curTrade;
  if(!sp){return 'SPECIFICATION SUMMARY - '+(info.div||'')+'\nNo specification was found for this division in 7.0 REFERENCE, FORMS & TEMPLATES / Specifications.'+(info.note?'\n'+info.note:'')+'\nMaterials in the proposal are NOT confirmed by a spec. Please check.\n';}
  var o='SPECIFICATION SUMMARY - '+info.div+'\nProject trade: '+(t?t.name:'')+'\nSource files: '+info.files.join(', ')+'\n';
+ if(info.nums&&info.nums.length)o+='Sections read from the document: '+info.nums.join(', ')+'\n';
+ if(info.toc&&info.toc.length){var miss=info.toc.filter(function(n){return (info.nums||[]).indexOf(n)<0;});if(miss.length)o+='Listed in the table of contents but not found in the document: '+miss.join(', ')+'\n';}
  if(sp.sections.length)o+='Sections read: '+sp.sections.map(function(s){return (s.number||'')+' '+(s.title||'');}).join('; ')+'\n';
  o+='\n';
  if(sp.cable.length)o+='CABLE\n'+sp.cable.map(function(c){return '- '+[c.item,c.category,c.jacket,c.shielded,c.manufacturer&&('mfr: '+c.manufacturer),c.part&&('part: '+c.part)].filter(Boolean).join(' | ')+(c.source?'  ['+c.source+']':'');}).join('\n')+'\n\n';
