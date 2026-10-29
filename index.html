@@ -6398,8 +6398,10 @@ async function bdCallAI(system,messages,max){
   var KEY=(typeof SB_KEY!=='undefined')?SB_KEY:'';
   var tok=KEY;try{var ss=await sb.auth.getSession();if(ss&&ss.data&&ss.data.session&&ss.data.session.access_token)tok=ss.data.session.access_token;}catch(e){}
   var resp=await fetch(PROXY,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok,'apikey':KEY},body:JSON.stringify({model:'claude-sonnet-4-5',max_tokens:max||1200,system:system,messages:messages})});
-  var data=await resp.json();
+  var data=null;try{data=await resp.json();}catch(e){data=null;}
+  if(!data)throw new Error('AI proxy timeout / gateway error (HTTP '+resp.status+')');
   if(data.error)throw new Error(data.error.message||JSON.stringify(data.error));
+  if(!resp.ok&&!data.content)throw new Error('AI proxy timeout / gateway error (HTTP '+resp.status+')');
   return (data.content&&data.content[0]&&data.content[0].text)||'';
 }
 
@@ -8541,7 +8543,7 @@ async function bdAIContext(q){
   }catch(e){return '';}
 }
 
-var APP_VERSION='2.14.0',APP_BUILD_DATE='Oct 26, 2026';
+var APP_VERSION='2.14.1',APP_BUILD_DATE='Oct 26, 2026';
 (function(){function s(){var e=document.getElementById('sb-ver');if(e)e.textContent='Vantage v'+APP_VERSION+' · '+APP_BUILD_DATE;}s();document.addEventListener('DOMContentLoaded',s);})();
 
 </script>
@@ -8961,7 +8963,7 @@ async function ai(sys,content,max){
  var last;
  for(var i=0;i<4;i++){
   try{return await bdCallAI(sys,[{role:'user',content:content}],max||3000);}
-  catch(e){last=e;var m=String(e&&e.message||e);if(/rate|429|too many|overload|529|busy|timeout|fetch/i.test(m)&&i<3){await sleep(7000*(i+1));continue;}throw e;}
+  catch(e){last=e;var m=String(e&&e.message||e);if(/rate|429|too many|overload|529|busy|timeout|fetch|gateway|50[234]/i.test(m)&&i<3){await sleep(7000*(i+1));continue;}throw e;}
  }
  throw last;
 }
@@ -9308,7 +9310,7 @@ async function generateProposal(job,bid,proj,req,sheets,totals,lessons){
  var st=await styleSamples(bid),lib=await libraryText();
  var gcn=bid?bid.gc:'';
  var prompt='Create a proposal for NetFiber. Copy the WRITING STYLE, section layout, wording of scope/exclusions/notes and the way items are named and described from the EXAMPLE proposals NetFiber wrote earlier. Quantities MUST come from the drawing counts and requirements below (never invent quantities; if the SOW names a quantity and the drawings disagree, use the drawing count and add a flag). Prices: use the ITEM LIBRARY rates when an item matches; otherwise use the rate from a similar line in the examples; if no price exists set rate 0 and price_source "none". Separate sections for Data, AV and Security only when that scope exists. Only include work NetFiber is responsible for.'+(AIP.tradeLine?AIP.tradeLine():'')+' ALSO write a one-page PROJECT SUMMARY AND SOW for the client (field summary_page) in the style of this example: title "Scope of Work: Network Cabling - New Installation & Relocation (Cat6)"; overview = 3 to 5 sentences (what the project includes with the real quantities, who the work is coordinated with, the drawings and codes/standards it follows); services = 6 to 10 items, each a short label (for example "Site Assessment & Planning", "New Cable Installation (18 Drops)", "Cable Relocation (12 Drops)", "Termination", "Labeling", "Testing & Certification", "Cleanup") and one or two sentences starting with "Furnish and install", "Verify", "Terminate" and so on; exclusions = the things NOT included. Use only real numbers from the drawing counts and requirements, and only NetFiber scope.\n\nPROJECT: '+(bid?bid.project:proj.name)+' | GC/client: '+gcn+' | city: '+(bid?bid.city:'')+' | SOW FIELD FROM THE BID (the estimator decided this; include ONLY these scopes - Comm = data/communications cabling, AV, Security; if empty decide from the documents): "'+(bid?bid.scope||'':'')+'" | bid notes: '+(bid?bid.notes||'':'')+(AIP.specPrompt?AIP.specPrompt():'')+'\n\nREQUIREMENTS FROM THE SPECS:\n'+JSON.stringify({data:req.data,av:req.av,security:req.security,exclusions:req.exclusions}).slice(0,22000)+'\n\nDRAWING TOTALS (symbols): '+JSON.stringify(totals)+'\nCABLES TO PRICE (use the cable category the SPECIFICATION SUMMARY requires, Cat6 only when no spec says otherwise; drops; a VOICE/DATA outlet = 2 cables, VOICE = 1, DATA = 1 - use THESE numbers for cable drop quantities, not the symbol count): '+JSON.stringify(AIP.cableTotals?AIP.cableTotals(sheets):{})+'\nPER SHEET: '+JSON.stringify(sheets.map(function(s){return {sheet:s.sheet_number||s.file+' p'+s.page,title:s.title,counts:s.counts,cables:s.cables,mounts:s.mounts,method:s.method,flags:s.flags};})).slice(0,9000)+(lessons?'\n\nLESSONS FROM PAST CORRECTIONS (must follow):\n'+lessons:'')+'\n\nITEM LIBRARY:\n'+lib+'\n\n'+st.text+'\n\nReturn ONLY JSON: {"project_sow":"short SOW label e.g. DATA / AV / SECURITY","scope_of_work":"bullet lines starting with the bullet character, one per line","exclusions":"bullet lines","notes":"lines","sections":[{"header":"DATA CABLING","items":[{"product":"","description":"","qty":0,"rate":0,"cost":0,"taxable":true,"price_source":"library|history|none","basis":"where the qty came from"}]}],"summary_page":{"title":"Scope of Work: ...","overview":"","services":[{"label":"","text":""}],"exclusions":[""]},"flags":["anything the reviewer must check"],"confidence":0}';
- var p=await aiJson(P.SYS_TRADE,prompt,8000);
+ var p=await (AIP.genCall?AIP.genCall(prompt):aiJson(P.SYS_TRADE,prompt,8000));
  if(AIP.specFix)AIP.specFix(p);
  var lib2=window._aipLib||[],flags=(p.flags||[]).slice(),n=0;
  (p.sections||[]).forEach(function(s){(s.items||[]).forEach(function(it){
@@ -11963,7 +11965,7 @@ AIP.specPrompt=function(){
  var sp=AIP.spec,info=AIP.specInfo||{};
  if(!sp)return '\n\nSPECIFICATION: NONE FOUND for '+(info.div||'this division')+' in the Build project. Do not assume the spec; use the cable category / products shown on the drawings and bid documents, and add a flag "No specification found - confirm materials".\n';
  var cats=AIP.specCats();
- return '\n\nSPECIFICATION SUMMARY FOR '+info.div+' (BINDING - the proposal must price the materials the spec requires, name each item with the spec cable category / manufacturer / product, and put the spec testing, labeling and warranty requirements in the scope):\n'+JSON.stringify(sp).slice(0,12000)
+ return '\n\nSPECIFICATION SUMMARY FOR '+info.div+' (BINDING - the proposal must price the materials the spec requires, name each item with the spec cable category / manufacturer / product, and put the spec testing, labeling and warranty requirements in the scope):\n'+JSON.stringify(sp).slice(0,8000)
   +(cats.length?'\nCABLE CATEGORY REQUIRED BY THE SPEC: '+cats.join(' / ')+' - never price a different category (for example never Cat6 when the spec says Cat6A). If the ITEM LIBRARY has no item for that category, still use the correct name, set rate 0, price_source "none" and flag it.':'')
   +((AIP.specConflicts||[]).length?'\nCONFLICTS BETWEEN SPEC AND DRAWINGS (already found, keep them in flags): '+AIP.specConflicts.join(' || '):'')+'\n';
 };
@@ -12249,6 +12251,55 @@ AIP.cmpConfirm=async function(cid,ri,mode){
 };
 var css=document.createElement('style');css.textContent='#aip-cmp{border-top:2px solid #e3e8f0;margin-top:18px;padding-top:4px}.aip-rg{display:flex;gap:16px;flex-wrap:wrap;font-size:12.5px}.aip-ci{border:1px solid #e3e8f0;border-radius:10px;padding:10px;margin-bottom:10px}.aip-cc{background:#fafbfd;border-radius:8px;padding:8px 10px;margin-top:8px}.aip-vb{font-size:11px;font-weight:700;padding:2px 8px;border-radius:99px}.aip-cb{margin-top:6px}.aip-lessonin{width:100%;border:1px solid #cdd6e4;border-radius:6px;padding:5px 8px;font:inherit;font-size:12px;margin-top:2px}';
 document.head.appendChild(css);
+})();
+
+/* ===== AI Proposal Engine: the proposal write survives an AI server timeout (504) ===== */
+(function(){
+if(!window.AIP||!AIP._p||!AIP._h)return;
+var P=AIP._p,H=AIP._h,aiJson=H.aiJson,sleep=H.sleep||function(ms){return new Promise(function(r){setTimeout(r,ms);});};
+function capBetween(p,start,ends,cap){
+ var i=p.indexOf(start);if(i<0)return p;
+ var from=i+start.length,j=p.length;
+ ends.forEach(function(e){var k=p.indexOf(e,from);if(k>=0&&k<j)j=k;});
+ if(j-from<=cap)return p;
+ return p.slice(0,from)+p.slice(from,from+cap)+'\n(shortened)'+p.slice(j);
+}
+function lean(p,lvl){
+ var c=lvl===1?{spec:6000,req:12000,sheets:5000,lib:16000}:{spec:3500,req:6000,sheets:2500,lib:8000};
+ p=capBetween(p,'\n\nSPECIFICATION SUMMARY FOR',['\n\nREQUIREMENTS FROM THE SPECS:'],c.spec);
+ p=capBetween(p,'REQUIREMENTS FROM THE SPECS:\n',['\n\nDRAWING TOTALS'],c.req);
+ p=capBetween(p,'\nPER SHEET: ',['\n\nLESSONS FROM','\n\nITEM LIBRARY:'],c.sheets);
+ p=capBetween(p,'ITEM LIBRARY:\n',['\n\nReturn ONLY JSON'],c.lib);
+ // the one-page summary is written in a separate, small request
+ p=p.replace(/\nReturn ONLY JSON:/,'\nIMPORTANT: leave "summary_page" as {} (it is written separately). Return ONLY JSON:');
+ return p;
+}
+function msg(t){try{if(AIP._curJob)P.step(AIP._curJob,'Writing proposal',80,t);}catch(e){}}
+async function once(prompt,max){
+ var t=await bdCallAI(P.SYS_TRADE,[{role:'user',content:prompt}],max);
+ return H.jparse(t);
+}
+AIP.genCall=async function(prompt){
+ var tries=[{p:prompt,max:8000,lean:0},{p:lean(prompt,1),max:6000,lean:1},{p:lean(prompt,2),max:5000,lean:2}],p=null,last=null;
+ for(var i=0;i<tries.length;i++){
+  try{p=await once(tries[i].p,tries[i].max);if(p&&typeof p==='object'&&(p.sections||p.scope_of_work)){p._lean=tries[i].lean;break;}p=null;last=new Error('AI returned an incomplete proposal');}
+  catch(e){last=e;p=null;}
+  if(i<tries.length-1){msg('The AI server timed out or answered badly ('+String(last&&last.message||last).slice(0,80)+') - retrying with a shorter request ('+(i+1)+' of '+(tries.length-1)+')');await sleep(6000);}
+ }
+ if(!p)throw last||new Error('AI returned no proposal');
+ if(p._lean){
+  msg('Writing the project summary page');
+  try{
+   var facts={project:(AIP._curJob&&AIP._curJob.project_name)||'',scope:p.scope_of_work||'',exclusions:p.exclusions||'',items:((p.sections||[]).reduce(function(a,s){return a.concat((s.items||[]).map(function(it){return {section:s.header,product:it.product,qty:it.qty};}));},[])).slice(0,40),spec:AIP.specCats?AIP.specCats():[]};
+   var sp=await aiJson(P.SYS_TRADE,'Write the ONE-PAGE PROJECT SUMMARY AND SOW for the client of this proposal. Return ONLY JSON {"title":"Scope of Work: ... (use the cable category from the facts if there is one)","overview":"3 to 5 sentences with the real quantities","services":[{"label":"short label","text":"one or two sentences starting with Furnish and install, Verify, Terminate ..."}],"exclusions":["things NOT included"]}. 6 to 10 services. Use only these facts (NetFiber scope only):\n'+JSON.stringify(facts).slice(0,9000),2500);
+   if(sp&&(sp.overview||sp.services))p.summary_page=sp;
+  }catch(e){console.warn('summary page',e);}
+  p.flags=(p.flags||[]).concat(['The AI server timed out while writing the proposal, so it was written from a shortened request. Please check that every requirement and the library prices were applied.']);
+ }
+ return p;
+};
+var rj=AIP.runJob;
+AIP.runJob=async function(job){AIP._curJob=job;try{return await rj.apply(this,arguments);}finally{AIP._curJob=null;}};
 })();
 
 </script>
