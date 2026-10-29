@@ -8543,7 +8543,7 @@ async function bdAIContext(q){
   }catch(e){return '';}
 }
 
-var APP_VERSION='2.14.1',APP_BUILD_DATE='Oct 26, 2026';
+var APP_VERSION='2.14.3',APP_BUILD_DATE='Oct 26, 2026';
 (function(){function s(){var e=document.getElementById('sb-ver');if(e)e.textContent='Vantage v'+APP_VERSION+' · '+APP_BUILD_DATE;}s();document.addEventListener('DOMContentLoaded',s);})();
 
 </script>
@@ -9461,7 +9461,21 @@ AIP.runJob=async function(job){
   // files into 0.0 HAND-OFF DOCS / Kickoff Meeting
   await step(job,'Saving to Build',90,'Saving SOW summaries, proposal PDF and marked-up drawings to 0.0 HAND-OFF DOCS / Kickoff Meeting');
   var f0=training?null:await bdEnsureFolder(null,'0.0 HAND-OFF DOCS'),fk=training?tf.id:await bdEnsureFolder(f0,'Kickoff Meeting'),sref=bdSafe(ref).replace(/^_+|_+$/g,'');
-  async function put(name,blob,mime){var ex=BD.files.find(function(f){return !f.is_deleted&&(f.folder_id||null)===fk&&f.name.toLowerCase()===name.toLowerCase();});return await bdPutFile({folderId:fk,name:name,blob:blob,mime:mime,existing:ex||null,note:'Created by Vantage AI'});}
+  var failedPuts=[];
+  async function put(name,blob,mime){
+   // a file with this name may already be in the folder - also one that was DELETED earlier (it still holds the name): reuse that row and bring it back
+   var lc=name.toLowerCase();
+   function pick(){var all=BD.files.filter(function(f){return (f.folder_id||null)===fk&&String(f.name).toLowerCase()===lc;});return all.find(function(f){return !f.is_deleted;})||all[0]||null;}
+   try{return await bdPutFile({folderId:fk,name:name,blob:blob,mime:mime,existing:pick(),note:'Created by Vantage AI'});}
+   catch(e){
+    try{ // the list in memory may be stale: ask the database for the row that holds this name, then retry once
+     var q=await sb.from('build_files').select('*').eq('project_id',BD.proj.id).eq('folder_id',fk);
+     var row=(q.data||[]).filter(function(f){return String(f.name).toLowerCase()===lc;}).sort(function(a,b){return (a.is_deleted?1:0)-(b.is_deleted?1:0);})[0];
+     if(row){var mem=BD.files.find(function(f){return f.id===row.id;});if(!mem){BD.files.push(row);mem=row;}return await bdPutFile({folderId:fk,name:name,blob:blob,mime:mime,existing:mem,note:'Created by Vantage AI'});}
+    }catch(e2){e=e2;}
+    failedPuts.push(name);console.warn('AI save failed',name,e);try{bdToast('Could not save '+name+': '+(e&&e.message||e));}catch(x){}return null;
+   }
+  }
   var outputs=[];
   var names=training?{data:'AI_Summary_Data_',av:'AI_Summary_AV_',security:'AI_Summary_Security_'}:{data:'AI_SOW_Data_',av:'AI_SOW_AV_',security:'AI_SOW_Security_'};
   for(var c in names){if(sums[c]==null)continue;await put(names[c]+sref+'.txt',new Blob([sums[c]],{type:'text/plain'}),'text/plain');outputs.push(names[c]+sref+'.txt');}
@@ -9472,7 +9486,7 @@ AIP.runJob=async function(job){
   await put('AI_Proposal_'+sref+'.pdf',pdf,'application/pdf');outputs.push('AI_Proposal_'+sref+'.pdf');
   if(marks.length){var sumTxt=Object.keys(totals).map(function(k){return TYPES[k].label+': '+totals[k];}).join('\n')||'No devices found';var mk=buildMarkupPdf(job,marks,'Totals across all sheets\n'+sumTxt+'\n\nColours: blue = data, orange = AV, red = security. Yellow ring = seen in only one pass.');await put('AI_Markup_Drawings_'+sref+'.pdf',mk,'application/pdf');outputs.push('AI_Markup_Drawings_'+sref+'.pdf');}
   var conf=sheets.length?Math.round(sheets.reduce(function(a,s){return a+s.confidence;},0)/sheets.length):(gen.confidence||50);
-  var result={sheets:sheets,totals:totals,flags:gen.flags,confidence:conf,files_read:ctx.docs.length,drawing_files:ctx.drawings.length,skipped:ctx.skipped,outputs:outputs,proposal_total:total,draft:{items:allItems.map(function(x){return [x.section_header,x.product_service,x.qty,x.rate];}),scope:propData.scope_of_work,exclusions:propData.exclusions,notes:propData.notes,total:total},item_count:allItems.length,style_examples:gen._styleN,requirements:{data:req.data,av:req.av,security:req.security,exclusions:req.exclusions,questions:req.questions},seconds:Math.round((Date.now()-t0)/1000)};
+  var result={sheets:sheets,totals:totals,flags:gen.flags,confidence:conf,files_read:ctx.docs.length,drawing_files:ctx.drawings.length,skipped:ctx.skipped,outputs:outputs.filter(function(n){return failedPuts.indexOf(n)<0;}),save_errors:failedPuts,saved_to:(training?tf.name:'0.0 HAND-OFF DOCS / Kickoff Meeting'),proposal_total:total,draft:{items:allItems.map(function(x){return [x.section_header,x.product_service,x.qty,x.rate];}),scope:propData.scope_of_work,exclusions:propData.exclusions,notes:propData.notes,total:total},item_count:allItems.length,style_examples:gen._styleN,requirements:{data:req.data,av:req.av,security:req.security,exclusions:req.exclusions,questions:req.questions},seconds:Math.round((Date.now()-t0)/1000)};
   await upd(job,{status:'done',stage:'Done',progress:100,proposal_id:propId,result:result,finished_at:new Date().toISOString(),error:null});
   try{if(!training)await logAct('AI created proposal','proposals',propId,'Vantage AI created "'+pname+'" (Under Review)');}catch(e){}
   bdToast(training?'Training result saved in folder: '+pname:'AI proposal ready for review: '+pname);
@@ -9481,7 +9495,10 @@ AIP.runJob=async function(job){
   console.warn('AI job failed',e);
   await upd(job,{status:'error',error:String(e&&e.message||e).slice(0,500),finished_at:new Date().toISOString()});
  }finally{
+  var sameProj=snap.proj&&snap.proj.id===job.build_project_id;
   BD.proj=snap.proj;BD.folders=snap.folders;BD.files=snap.files;BD.members=snap.members;BD.role=snap.role;
+  // the person is looking at this very project in Build: show the files the AI just saved
+  if(sameProj){try{await bdFetchAll();}catch(e){}}
  }
 };
 })();
@@ -12300,6 +12317,25 @@ AIP.genCall=async function(prompt){
 };
 var rj=AIP.runJob;
 AIP.runJob=async function(job){AIP._curJob=job;try{return await rj.apply(this,arguments);}finally{AIP._curJob=null;}};
+})();
+
+/* ---- findings: where the files were saved ---- */
+(function(){
+if(!window.AIP||!AIP.openFindings)return;
+var of=AIP.openFindings;
+AIP.openFindings=async function(){
+ var r=await of.apply(this,arguments);
+ try{
+  var j=AIP._fj,res=j&&j.result,b=document.querySelector('#aip-ov .aip-b2');if(!res||!b||document.getElementById('aip-saved'))return r;
+  var E=bdE,out=(res.outputs||[]),errs=(res.save_errors||[]);
+  var h='<div id="aip-saved"><div class="aip-sec">Saved in Build</div>'
+   +(out.length?'<div class="aip-m">Folder: <b>'+E(res.saved_to||'0.0 HAND-OFF DOCS / Kickoff Meeting')+'</b> (project '+E(j.bid_ref||j.project_name||'')+')</div><ul class="aip-ul">'+out.map(function(n){return '<li>'+E(n)+'</li>';}).join('')+'</ul>':'<div class="aip-m err">No files were recorded as saved for this job.</div>')
+   +(errs.length?'<div class="aip-m err">Could not be saved: '+errs.map(E).join(', ')+'</div>':'')+'</div>';
+  var secs=b.querySelectorAll('.aip-sec'),at=null;secs.forEach(function(s){if(!at&&/Teach the AI/.test(s.textContent))at=s;});
+  if(at)at.insertAdjacentHTML('beforebegin',h);else b.insertAdjacentHTML('beforeend',h);
+ }catch(e){console.warn('saved list',e);}
+ return r;
+};
 })();
 
 </script>
