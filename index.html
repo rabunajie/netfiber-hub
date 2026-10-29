@@ -2045,7 +2045,7 @@ async function renderBids(){
 </select>
       <select autocomplete="off" id="bid-trade" onchange="filterBids()" class="bt-btn" title="Filter by trade (from the project code GC26-XX)">
   <option value="">All Trades</option>
-  <option value="22">Data Cabling (GC26-22)</option>
+  <option value="22">Comm (GC26-22)</option>
   <option value="23">AV (GC26-23)</option>
   <option value="24">Security (GC26-24)</option>
 </select>
@@ -2772,7 +2772,7 @@ async function renderPurchases(){
 }
 var _projects=[];
 async function loadPurchases(){
-  const {data:rows=[]}=await sb.from('purchase_projects').select('*').order('created_at',{ascending:false});
+  const _q1=await sb.from('purchase_projects').select('*').order('created_at',{ascending:false}); const rows=(_q1&&_q1.data)||[];
   _projects=rows;
   const body=document.getElementById('purchases-body');if(!body)return;
   if(!rows.length){body.innerHTML='<div class="tbl-wrap loading">No projects yet. Add your first project.</div>';return;}
@@ -2856,7 +2856,7 @@ function exportProjectToExcel(){
   _xlsxDownload(aoa,nm,'Purchases_'+nm.replace(/\s+/g,'_'),[4,5,6,7]);
 }
 async function loadMaterials(projId){
-  const {data:rows=[]}=await sb.from('purchase_materials').select('*').eq('project_id',projId).order('created_at',{ascending:true});
+  const _q2=await sb.from('purchase_materials').select('*').eq('project_id',projId).order('created_at',{ascending:true}); const rows=(_q2&&_q2.data)||[];
   _matRows=rows;
   const tbody=document.getElementById('mat-body');if(!tbody)return;
   tbody.innerHTML=rows.map((r,i)=>`<tr>
@@ -3357,7 +3357,7 @@ async function renderLog(){
     <div style="padding:16px" id="recent-deleted-wrap">Loading…</div>
   </div>
   <div class="tbl-wrap"><div id="log-body"><div class="loading"><span class="spinner"></span></div></div></div>`;
-  const {data:rows=[]}=await sb.from('activity_log').select('*').order('created_at',{ascending:false}).limit(150);
+  const _q3=await sb.from('activity_log').select('*').order('created_at',{ascending:false}).limit(150); const rows=(_q3&&_q3.data)||[];
   const lb=document.getElementById('log-body');
   lb.innerHTML=rows.map(r=>`<div class="log-item"><div class="log-av">${inits(r.user_name)}</div><div class="log-txt"><strong>${tfEsc(r.user_name||'Unknown')}</strong> ${tfEsc(r.action)} — <span style="color:#555">${formatLogLine(r)}</span><div class="log-time">${new Date(r.created_at).toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'})}</div></div></div>`).join('')||'<div class="loading">No activity yet.</div>';
   loadRecentDeleted();
@@ -3753,7 +3753,7 @@ async function deleteFuLog(id){
 }
 
 async function loadFUHistory(bidId){
-  const {data:logs=[]}=await sb.from('activity_log').select('*').eq('table_name','followup').eq('record_id',bidId).order('created_at',{ascending:false});
+  const _q4=await sb.from('activity_log').select('*').eq('table_name','followup').eq('record_id',bidId).order('created_at',{ascending:false}); const logs=(_q4&&_q4.data)||[];
   document.getElementById('fu-history').innerHTML=logs.length?logs.map(function(l){return fuLogItemHtml(l);}).join(''):'<div style="color:#bbb;font-size:13px;padding:1rem 0">No follow-ups logged yet. Double-click a bid row to get started.</div>';
 }
 async function logFollowUp(){
@@ -8543,7 +8543,7 @@ async function bdAIContext(q){
   }catch(e){return '';}
 }
 
-var APP_VERSION='2.14.3',APP_BUILD_DATE='Oct 26, 2026';
+var APP_VERSION='2.14.4',APP_BUILD_DATE='Oct 29, 2026';
 (function(){function s(){var e=document.getElementById('sb-ver');if(e)e.textContent='Vantage v'+APP_VERSION+' · '+APP_BUILD_DATE;}s();document.addEventListener('DOMContentLoaded',s);})();
 
 </script>
@@ -11907,12 +11907,13 @@ function sectionsFor(doc,code,info){
  });
  if(info){info.toc=(info.toc||[]).concat(toc.filter(function(n){return (info.toc||[]).indexOf(n)<0;}));info.nums=(info.nums||[]).concat(out.map(function(x){return x.num;}));info.sectionsTotal=(info.sectionsTotal||0)+starts.length;}
  if(!out.length&&!starts.length){ // no section headers at all in this file: take the pages that talk about this division
-  var f=(typeof bdPickPages==='function')?bdPickPages(t,DIV[code].kw,60000):t.slice(0,60000);
+  var pk=(typeof bdPickPages==='function')?bdPickPages(t,DIV[code].kw,60000):null,f=pk?(pk.text||''):t.slice(0,60000);
   if(f&&f.length>200&&/division\s*(26|27|28)/i.test(t))out.push({num:'',text:f});
  }
  return out;
 }
 
+AIP._spec={sectionsFor:sectionsFor,wanted:wanted,catOf:catOf,isSpecDoc:isSpecDoc};
 /* ---------- 1. read the spec ---------- */
 var SPEC_Q='You are reading the PROJECT SPECIFICATION for one trade. Extract what the estimator needs to price and install the work exactly as specified. Quote the spec; never invent. If a field is not in the text return an empty list / empty string. Return ONLY JSON:\n{"sections":[{"number":"27 15 00","title":""}],"cable":[{"item":"horizontal copper cable | backbone | fiber | patch cord | coax | other","category":"Cat6A | Cat6 | Cat5e | OM3 | OM4 | OS2 | other","jacket":"plenum CMP | riser CMR | LSZH | outdoor | ","shielded":"UTP | F/UTP | S/FTP | ","manufacturer":"","part":"","source":"section + paragraph"}],"materials":[{"item":"jacks, patch panels, faceplates, racks, cameras, readers, locks, speakers, displays...","requirement":"what the spec requires","manufacturers":[""],"approved_products":[""],"source":""}],"manufacturers":["all approved / basis-of-design manufacturers named"],"approved_products":["model numbers or product lines named"],"testing":["each test / certification requirement (Fluke, Level, TIA-568, OTDR, acceptance testing ...)"],"warranty":["each warranty requirement (system warranty years, manufacturer warranty, installer certification)"],"labeling":[""],"installer_qualifications":["BICSI RCDD, manufacturer certified installer, licenses ..."],"submittals":["submittals / shop drawings / as-builts / O&M"],"standards":["codes and standards named"],"substitutions":"substitution / or-equal rule","other":["any other requirement that changes the price (union, hours, firestop, pathway rules, owner furnished items ...)"]}\n\nSPECIFICATION TEXT:\n';
 function mergeSpec(list){
@@ -11926,7 +11927,7 @@ function mergeSpec(list){
 }
 function catOf(s){
  var t=String(s||'');
- if(/cat(?:egory|\.)?\s*-?\s*6\s*-?\s*a\b|cat6a|augmented/i.test(t))return 'Cat6A';
+ if(/cat(?:egory|\.)?\s*-?\s*6\s*-?\s*a(?![\/\w])|cat6a|augmented/i.test(t))return 'Cat6A';
  if(/cat(?:egory|\.)?\s*-?\s*6\b/i.test(t))return 'Cat6';
  if(/cat(?:egory|\.)?\s*-?\s*5e/i.test(t))return 'Cat5e';
  return '';
