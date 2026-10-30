@@ -5249,7 +5249,7 @@ function rteExec(cmd,val){
   if(_rteActiveField) _rteActiveField.focus();
   document.execCommand(cmd,false,val||null);
 }
-function rteToolbarHtml(){
+function rteToolbarHtml(pageId){
   return '<div class="rte-toolbar" onmousedown="event.preventDefault()">'
     +'<select onmousedown="event.stopPropagation()" onchange="rteExec(\'fontSize\',this.value);this.selectedIndex=0" style="font-size:11px;padding:3px 4px;border:1px solid #ddd;border-radius:5px;background:#fff">'
     +'<option value="">Size</option>'
@@ -5263,6 +5263,63 @@ function rteToolbarHtml(){
     +'<button type="button" onclick="rteExec(\'underline\')" style="text-decoration:underline;width:24px" title="Underline">U</button>'
     +'<input type="color" onmousedown="event.stopPropagation()" onchange="rteExec(\'foreColor\',this.value)" title="Text color" style="width:26px;height:24px;padding:0;border:1px solid #ddd;border-radius:5px;cursor:pointer">'
     +'<button type="button" onclick="rteExec(\'removeFormat\')" style="font-size:10px;padding:0 6px" title="Clear formatting">Clear</button>'
+    +(pageId?'<button type="button" onclick="addPageTable(\''+pageId+'\')" style="font-size:10px;padding:0 8px;font-weight:600;color:#1B5E9B" title="Add a table (Image, Qty, Description) to this page">Add Table</button>':'')
+    +'</div>';
+}
+// ---- Tables on Additional Pages (default columns Image / Qty / Description; images are shrunk and stored inside the page) ----
+function tblColW(cols){
+  var fx=0,nt=0;cols.forEach(function(c){if(c.t==='img')fx+=14;else if(c.t==='qty')fx+=8;else nt++;});
+  var each=nt?Math.max(10,(100-fx)/nt):0;
+  return cols.map(function(c){return c.t==='img'?14:c.t==='qty'?8:each;});
+}
+function addPageTable(pageId){
+  var p=_customPages.find(function(p){return p.id===pageId;});if(!p)return;
+  if(!p.blocks)p.blocks=[];
+  p.blocks.push({id:'blk_'+Date.now(),type:'table',heading:'',cols:[{k:'img',name:'Image',t:'img'},{k:'qty',name:'Qty',t:'qty'},{k:'desc',name:'Description',t:'text'}],rows:[{id:'r'+Date.now(),v:{}}]});
+  renderCustomPages();
+}
+function tblOf(pageId,blockId){var p=_customPages.find(function(p){return p.id===pageId;});return p?(p.blocks||[]).find(function(b){return b.id===blockId;}):null;}
+function tblAddRow(pageId,blockId){var b=tblOf(pageId,blockId);if(!b)return;(b.rows=b.rows||[]).push({id:'r'+Date.now()+Math.floor(Math.random()*1000),v:{}});renderCustomPages();}
+function tblDelRow(pageId,blockId,rid){var b=tblOf(pageId,blockId);if(!b)return;b.rows=(b.rows||[]).filter(function(r){return r.id!==rid;});renderCustomPages();}
+function tblAddCol(pageId,blockId){var b=tblOf(pageId,blockId);if(!b)return;b.cols.push({k:'c'+Date.now(),name:'Column',t:'text'});renderCustomPages();}
+function tblDelCol(pageId,blockId,ck){var b=tblOf(pageId,blockId);if(!b||b.cols.length<=1)return;b.cols=b.cols.filter(function(c){return c.k!==ck;});(b.rows||[]).forEach(function(r){delete r.v[ck];});renderCustomPages();}
+function tblSetCol(pageId,blockId,ck,val){var b=tblOf(pageId,blockId);if(!b)return;var c=b.cols.find(function(c){return c.k===ck;});if(c)c.name=val;}
+function tblSetCell(pageId,blockId,rid,ck,val){var b=tblOf(pageId,blockId);if(!b)return;var r=(b.rows||[]).find(function(r){return r.id===rid;});if(r){r.v=r.v||{};r.v[ck]=val;}}
+function tblClearImg(pageId,blockId,rid,ck){tblSetCell(pageId,blockId,rid,ck,'');renderCustomPages();}
+function tblShrink(file){ // product photos are shrunk to a small JPEG so the proposal stays light
+  return new Promise(function(res,rej){
+    if(!file||!/^image\//.test(file.type)){rej(new Error('Please choose an image file'));return;}
+    var rd=new FileReader();rd.onerror=function(){rej(new Error('Could not read the image'));};
+    rd.onload=function(){var im=new Image();im.onerror=function(){rej(new Error('Could not open the image'));};
+      im.onload=function(){var M=220,k=Math.min(1,M/Math.max(im.width,im.height)),w=Math.max(1,Math.round(im.width*k)),h=Math.max(1,Math.round(im.height*k)),cv=document.createElement('canvas');cv.width=w;cv.height=h;var cx=cv.getContext('2d');cx.fillStyle='#fff';cx.fillRect(0,0,w,h);cx.drawImage(im,0,0,w,h);res(cv.toDataURL('image/jpeg',0.82));};
+      im.src=rd.result;};
+    rd.readAsDataURL(file);
+  });
+}
+async function tblImg(pageId,blockId,rid,ck,inp){
+  var f=inp.files&&inp.files[0];if(!f)return;
+  try{var d=await tblShrink(f);tblSetCell(pageId,blockId,rid,ck,d);renderCustomPages();}catch(e){alert(e.message||e);}
+}
+function tblEditorHtml(p,b){
+  var cols=b.cols||[],W=tblColW(cols),q=function(x){return String(x==null?'':x).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');},P="'"+p.id+"'",B="'"+b.id+"'";
+  var th=cols.map(function(c,i){return '<th style="width:'+W[i]+'%;padding:3px;text-align:left"><div style="display:flex;gap:2px;align-items:center"><input autocomplete="off" value="'+q(c.name)+'" onchange="tblSetCol('+P+','+B+',\''+c.k+'\',this.value)" style="width:100%;min-width:0;padding:3px 5px;border:1px solid #d0dcea;border-radius:5px;font-size:10px;font-weight:700;text-transform:uppercase;color:#555;background:#fff;outline:none">'+(cols.length>1?'<button type="button" onclick="tblDelCol('+P+','+B+',\''+c.k+'\')" title="Delete this column" style="background:none;border:none;cursor:pointer;color:#E24B4A;font-size:11px;padding:0 2px">✕</button>':'')+'</div></th>';}).join('')+'<th style="width:26px"></th>';
+  var rows=(b.rows||[]).map(function(r){
+    var tds=cols.map(function(c){
+      var v=(r.v||{})[c.k]||'';
+      if(c.t==='img')return '<td style="padding:3px;vertical-align:middle">'+(v?'<div style="display:flex;align-items:center;gap:4px"><img src="'+q(v)+'" style="max-width:52px;max-height:44px;object-fit:contain;border:1px solid #e5e5e5;border-radius:4px;background:#fff"><button type="button" onclick="tblClearImg('+P+','+B+',\''+r.id+'\',\''+c.k+'\')" title="Remove image" style="background:none;border:none;cursor:pointer;color:#E24B4A;font-size:11px;padding:0">✕</button></div>':'<label style="display:inline-block;padding:4px 8px;border:1px dashed #aaa;border-radius:6px;color:#666;font-size:10px;font-weight:600;cursor:pointer;background:#fff">Upload<input type="file" accept="image/*" style="display:none" onchange="tblImg('+P+','+B+',\''+r.id+'\',\''+c.k+'\',this)"></label>')+'</td>';
+      if(c.t==='qty')return '<td style="padding:3px;vertical-align:top"><input autocomplete="off" value="'+q(v)+'" oninput="tblSetCell('+P+','+B+',\''+r.id+'\',\''+c.k+'\',this.value)" style="width:100%;min-width:0;padding:5px;border:1px solid #d0dcea;border-radius:5px;font-size:12px;outline:none;background:#fff;text-align:center"></td>';
+      return '<td style="padding:3px;vertical-align:top"><div class="rte-editable" contenteditable="true" data-placeholder="Description..." onfocus="rteSetActive(this)" oninput="tblSetCell('+P+','+B+',\''+r.id+'\',\''+c.k+'\',this.innerHTML)" style="min-height:34px;font-size:12px">'+v+'</div></td>';
+    }).join('');
+    return '<tr>'+tds+'<td style="vertical-align:top;padding-top:6px"><button type="button" onclick="tblDelRow('+P+','+B+',\''+r.id+'\')" title="Delete this row" style="background:none;border:none;cursor:pointer;color:#E24B4A;font-size:13px">✕</button></td></tr>';
+  }).join('');
+  return '<div style="margin-bottom:12px;padding:8px;border:1px solid #dbe4f0;border-radius:8px;background:#fff" data-tbl-id="'+b.id+'">'
+    +'<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px"><span style="font-size:10px;font-weight:700;color:#1B5E9B">TABLE</span>'
+    +'<input autocomplete="off" value="'+q(b.heading)+'" onchange="updatePageBlock('+P+','+B+',\'heading\',this.value)" placeholder="Table heading (optional, e.g. Pathways)" style="flex:1;padding:5px 8px;border:1px solid #d0dcea;border-radius:6px;font-size:12px;font-weight:700;outline:none;background:#fff">'
+    +'<button onclick="removePageBlock('+P+','+B+')" title="Delete this table" style="background:none;border:none;cursor:pointer;color:#E24B4A;font-size:13px;padding:2px 6px">✕</button></div>'
+    +rteToolbarHtml()
+    +'<table style="width:100%;table-layout:fixed;border-collapse:collapse"><thead><tr>'+th+'</tr></thead><tbody>'+rows+'</tbody></table>'
+    +'<div style="margin-top:6px;display:flex;gap:6px"><button onclick="tblAddRow('+P+','+B+')" style="padding:4px 10px;background:#fff;border:1px dashed #aaa;border-radius:6px;color:#666;font-size:11px;font-weight:600;cursor:pointer">+ Add Row</button>'
+    +'<button onclick="tblAddCol('+P+','+B+')" style="padding:4px 10px;background:#fff;border:1px dashed #aaa;border-radius:6px;color:#666;font-size:11px;font-weight:600;cursor:pointer">+ Add Column</button></div>'
     +'</div>';
 }
 function renderCustomPages(){
@@ -5294,10 +5351,11 @@ function renderCustomPages(){
       +'<option value="after_terms"'+((!p.anchor||p.anchor==='after_terms'||p.anchor==='before_terms')?' selected':'')+'>After Scope/Terms (before the signature page)</option>'
       +'</select>'
       +'</div>'
-      +rteToolbarHtml()
+      +rteToolbarHtml(p.id)
       +'<div class="rte-editable" contenteditable="true" data-placeholder="Intro text for this page (optional — leave blank if this page is just a set of sections below)..." onfocus="rteSetActive(this)" oninput="updateCustomPage(\''+p.id+'\',\'text\',this.innerHTML)" style="min-height:90px;margin-bottom:10px">'+(p.text||'')+'</div>'
       +'<div style="margin-left:4px;border-left:2px solid #e5e5e5;padding-left:12px">'
       +blocks.map(function(b){
+        if(b.type==='table')return tblEditorHtml(p,b);
         return '<div style="margin-bottom:10px">'
           +'<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">'
           +'<input autocomplete="off" value="'+(b.heading||'').replace(/"/g,'&quot;')+'" onchange="updatePageBlock(\''+p.id+'\',\''+b.id+'\',\'heading\',this.value)" placeholder="Section heading..." style="flex:1;padding:5px 8px;border:1px solid #d0dcea;border-radius:6px;font-size:12px;font-weight:700;outline:none;background:#fff">'
@@ -5826,6 +5884,7 @@ async function nfPaginate(pa){
         var pgk=k.getAttribute&&k.getAttribute('data-pg');
         if(pgk==='rich'){rich(k).forEach(function(a){atoms.push(a);});}
         else if(pgk==='blk'){var sub=[];[].slice.call(k.children).forEach(function(c){if(c.getAttribute('data-pg')==='head')sub.push({el:c,keep:true});else if(c.getAttribute('data-pg')==='rich')rich(c).forEach(function(a){sub.push(a);});else sub.push({el:c});});setLast(sub,k.style.marginBottom||'0');sub.forEach(function(a){atoms.push(a);});}
+        else if(pgk==='tbl'){var ts=[].slice.call(k.children).map(function(c,ci){return {el:c,keep:ci===0};});setLast(ts,k.style.marginBottom||'0');ts.forEach(function(a){atoms.push(a);});}
         else if(k.classList&&k.classList.contains('print-scope')){
           var sub=[];[].slice.call(k.children).forEach(function(c){
             if(c.tagName==='UL'||c.tagName==='OL'){var lis=[].slice.call(c.children);lis.forEach(function(li,i){var u=c.cloneNode(false);u.appendChild(li);if(i>0)u.style.marginTop='0';if(i<lis.length-1)u.style.marginBottom='0';sub.push({el:wrap(u,'0')});});}
@@ -5898,12 +5957,27 @@ async function printEstimate(id){
       var tg=tag.toLowerCase();out+='<'+tg+at+'>'+walk(n)+'</'+tg+'>';});return out;}
     return walk(t.content);
   }
+  function renderTblHtml(b){
+    var cols=b.cols||[],rows=(b.rows||[]).filter(function(r){return cols.some(function(c){return ((r.v||{})[c.k]||'').toString().replace(/<[^>]*>/g,'').trim()||(c.t==='img'&&(r.v||{})[c.k]);});});
+    if(!cols.length||(!rows.length&&!b.heading))return '';
+    var W=tblColW(cols),cg='<colgroup>'+W.map(function(w){return '<col style="width:'+w+'%">';}).join('')+'</colgroup>',TB='width:100%;table-layout:fixed;border-collapse:collapse;margin:0';
+    var head='<div data-tkeep="1">'+(b.heading?'<div style="font-size:15px;font-weight:700;color:#1a1a1a;margin:2px 0 8px">'+tfEsc(b.heading)+'</div>':'')
+      +'<table style="'+TB+'">'+cg+'<thead><tr>'+cols.map(function(c){return '<th style="text-align:'+(c.t==='qty'?'center':'left')+';font-size:9px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:#666;padding:2px 6px 5px;border-bottom:1px solid #999">'+tfEsc(c.name||'')+'</th>';}).join('')+'</tr></thead></table></div>';
+    var body=rows.map(function(r){
+      return '<table style="'+TB+'">'+cg+'<tr>'+cols.map(function(c){var v=(r.v||{})[c.k]||'';
+        if(c.t==='img')return '<td style="padding:6px;vertical-align:middle;border-bottom:1px solid #e4e4e4">'+(/^data:image\/(jpeg|png|webp|gif);base64,[A-Za-z0-9+\/=]+$/.test(v)?'<img src="'+v+'" style="display:block;max-width:100%;max-height:60px;object-fit:contain">':'')+'</td>';
+        if(c.t==='qty')return '<td style="padding:6px;vertical-align:middle;text-align:center;font-size:11px;color:#333;border-bottom:1px solid #e4e4e4">'+tfEsc(v)+'</td>';
+        return '<td style="padding:6px;vertical-align:middle;font-size:11px;line-height:1.45;color:#333;border-bottom:1px solid #e4e4e4;overflow-wrap:anywhere">'+cpRich(v)+'</td>';}).join('')+'</tr></table>';
+    }).join('');
+    return '<div data-pg="tbl" style="margin-bottom:18px">'+head+body+'</div>';
+  }
   function renderCustomPageHtml(p){
     return '<div data-pgbox="1" style="page-break-before:always;position:relative;min-height:9.5in;box-sizing:border-box;print-color-adjust:exact;-webkit-print-color-adjust:exact">'
       +miniHeader
       +(p.title?'<div style="font-size:16px;font-weight:700;color:#1B5E9B;margin-bottom:18px">'+tfEsc(p.title)+'</div>':'')
       +(p.text?'<div data-pg="rich" style="font-size:13px;color:#333;line-height:1.8;margin-bottom:14px">'+cpRich(p.text)+'</div>':'')
       +((p.blocks||[]).map(function(b){
+        if(b.type==='table')return renderTblHtml(b);
         return (b.heading||b.text)?'<div data-pg="blk" style="margin-bottom:16px">'
           +(b.heading?'<div data-pg="head" style="font-size:13px;font-weight:700;color:#1B5E9B;margin-bottom:6px">'+tfEsc(b.heading)+'</div>':'')
           +(b.text?'<div data-pg="rich" style="font-size:13px;color:#333;line-height:1.8">'+cpRich(b.text)+'</div>':'')
@@ -5913,7 +5987,7 @@ async function printEstimate(id){
       +'</div>';
   }
   var allCustomPages=(prop.custom_pages?JSON.parse(prop.custom_pages):[]).filter(function(p){
-    var _e=function(x){return String(x||'').replace(/<[^>]*>/g,'').replace(/&nbsp;/g,' ').trim();};return (p.title||'').trim()||_e(p.text)||(p.blocks&&p.blocks.some(function(b){return (b.heading||'').trim()||_e(b.text);}));
+    var _e=function(x){return String(x||'').replace(/<[^>]*>/g,'').replace(/&nbsp;/g,' ').trim();};return (p.title||'').trim()||_e(p.text)||(p.blocks&&p.blocks.some(function(b){return (b.heading||'').trim()||_e(b.text)||(b.type==='table'&&(b.rows||[]).length);}));
   });
   var startPages=allCustomPages.filter(function(p){return p.anchor==='start';});
   secOrder.forEach(function(sid2){
@@ -8544,7 +8618,7 @@ async function bdAIContext(q){
   }catch(e){return '';}
 }
 
-var APP_VERSION='2.15.0',APP_BUILD_DATE='Oct 29, 2026';
+var APP_VERSION='2.16.0',APP_BUILD_DATE='Oct 29, 2026';
 (function(){function s(){var e=document.getElementById('sb-ver');if(e)e.textContent='Vantage v'+APP_VERSION+' · '+APP_BUILD_DATE;}s();document.addEventListener('DOMContentLoaded',s);})();
 
 </script>
@@ -10711,6 +10785,7 @@ VG.appMap=function(){
  if(mv.length)L.push('Moved pages: '+mv.join('; ')+'.');
  L.push('PROJECT CODES = TRADES: a project code GC26-XX-nnn has the trade in XX: 22 = Data Cabling (Comm: data, phone, wireless access points / WAPs, and anything else that needs Cat5, Cat5e, Cat6, Cat6A or fiber), 23 = AV (audio / visual, and networking equipment), 24 = Security (cameras, access control). The same project name and GC can have up to three projects, one per trade, each with its own bid, Build folder and proposal, because we may be awarded only one trade; a project with only one trade has only one of each. When you work on a bid, a Build folder or a proposal, scope it by its code: 22 = Comm only, 23 = AV only, 24 = Security only. Drawings and specs are often the same documents in each trade folder: read them completely for the trade you are working on, but reuse what was already read for another trade.');
  if(CP&&CP.group_name==='admin')L.push('MULTI-AI CROSS-CHECK (Settings > AI Proposal Engine > Cross-check, admins): when on, after the normal AI proposal ChatGPT and Gemini each read the SOW, spec and drawings on their own; Claude compares all proposals and saves an Accurate Proposal (a separate proposal in Estimating plus a PDF) and an AI Validation Report PDF in 0.0 HAND-OFF DOCS / Kickoff Meeting. Needs the ai-multi function and OPENAI_API_KEY / GEMINI_API_KEY secrets in Supabase.');
+ if(canAccess('vg_estimating'))L.push('ADDITIONAL PAGES TABLES: on a proposal Additional Page, the Add Table button (next to Clear on the page toolbar) adds a table with the columns Image, Qty, Description. Each row can have an uploaded product picture; rows and columns can be added and deleted. It prints in the proposal.');
  if(canAccess('vg_estimating'))L.push('BID OPPORTUNITIES and PROPOSALS live in Estimating (Estimating > Bid Opportunities, Estimating > Proposals). Bid Opportunities has a Trade filter from the project code (GC26-22 Data Cabling, GC26-23 AV, GC26-24 Security). Bids assigned to you (Vantage AI Advisor) are worked there; a proposal you create is saved in Estimating > Proposals with status Under Review, and its files go to the project in Build under 0.0 HAND-OFF DOCS > Kickoff Meeting. Never send the user to the old sidebar pages.');
  else L.push('Bid Opportunities and Proposals are separate pages in the sidebar (the Estimating module is hidden for now).');
  L.push('Other sidebar pages: Dashboard, Build (project files), AI Advisor, Quick Save, Activity Log, Management. Project 360 and Search everything (Ctrl+K) find a project by its code across all modules.');
