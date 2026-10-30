@@ -6397,7 +6397,8 @@ async function bdCallAI(system,messages,max){
   var PROXY='https://vaubqkmsjsgfqeqbqbvy.supabase.co/functions/v1/ai-proxy';
   var KEY=(typeof SB_KEY!=='undefined')?SB_KEY:'';
   var tok=KEY;try{var ss=await sb.auth.getSession();if(ss&&ss.data&&ss.data.session&&ss.data.session.access_token)tok=ss.data.session.access_token;}catch(e){}
-  var resp=await fetch(PROXY,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok,'apikey':KEY},body:JSON.stringify({model:'claude-sonnet-4-5',max_tokens:max||1200,system:system,messages:messages})});
+  var prov=(window.AIP&&AIP._prov)||'';if(prov)PROXY='https://vaubqkmsjsgfqeqbqbvy.supabase.co/functions/v1/ai-multi';
+  var resp=await fetch(PROXY,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok,'apikey':KEY},body:JSON.stringify(prov?{provider:prov,max_tokens:max||1200,system:system,messages:messages}:{model:'claude-sonnet-4-5',max_tokens:max||1200,system:system,messages:messages})});
   var data=null;try{data=await resp.json();}catch(e){data=null;}
   if(!data)throw new Error('AI proxy timeout / gateway error (HTTP '+resp.status+')');
   if(data.error)throw new Error(data.error.message||JSON.stringify(data.error));
@@ -8543,7 +8544,7 @@ async function bdAIContext(q){
   }catch(e){return '';}
 }
 
-var APP_VERSION='2.14.4',APP_BUILD_DATE='Oct 29, 2026';
+var APP_VERSION='2.15.0',APP_BUILD_DATE='Oct 29, 2026';
 (function(){function s(){var e=document.getElementById('sb-ver');if(e)e.textContent='Vantage v'+APP_VERSION+' · '+APP_BUILD_DATE;}s();document.addEventListener('DOMContentLoaded',s);})();
 
 </script>
@@ -9395,7 +9396,7 @@ function buildMarkupPdf(job,pages,summary){
  pages.forEach(function(p){var w=p.w*0.75,h=p.h*0.75;d.addPage([w,h],w>h?'l':'p');d.addImage(p.data,'JPEG',0,0,w,h,undefined,'FAST');});
  return d.output('blob');
 }
-AIP._p.buildProposalPdf=buildProposalPdf;
+AIP._p.buildProposalPdf=buildProposalPdf;AIP._p.generateProposal=generateProposal;AIP._p.writeSummaries=writeSummaries;AIP._p.totalsOf=totalsOf;AIP._p.loadLessons=loadLessons;AIP._p.buildMarkupPdf=buildMarkupPdf;
 
 /* ---------- the pipeline ---------- */
 AIP.runJob=async function(job){
@@ -9487,6 +9488,11 @@ AIP.runJob=async function(job){
   if(marks.length){var sumTxt=Object.keys(totals).map(function(k){return TYPES[k].label+': '+totals[k];}).join('\n')||'No devices found';var mk=buildMarkupPdf(job,marks,'Totals across all sheets\n'+sumTxt+'\n\nColours: blue = data, orange = AV, red = security. Yellow ring = seen in only one pass.');await put('AI_Markup_Drawings_'+sref+'.pdf',mk,'application/pdf');outputs.push('AI_Markup_Drawings_'+sref+'.pdf');}
   var conf=sheets.length?Math.round(sheets.reduce(function(a,s){return a+s.confidence;},0)/sheets.length):(gen.confidence||50);
   var result={sheets:sheets,totals:totals,flags:gen.flags,confidence:conf,files_read:ctx.docs.length,drawing_files:ctx.drawings.length,skipped:ctx.skipped,outputs:outputs.filter(function(n){return failedPuts.indexOf(n)<0;}),save_errors:failedPuts,saved_to:(training?tf.name:'0.0 HAND-OFF DOCS / Kickoff Meeting'),proposal_total:total,draft:{items:allItems.map(function(x){return [x.section_header,x.product_service,x.qty,x.rate];}),scope:propData.scope_of_work,exclusions:propData.exclusions,notes:propData.notes,total:total},item_count:allItems.length,style_examples:gen._styleN,requirements:{data:req.data,av:req.av,security:req.security,exclusions:req.exclusions,questions:req.questions},seconds:Math.round((Date.now()-t0)/1000)};
+  if(!training&&AIP.xcheck){ // second opinions from other AI platforms -> one Accurate Proposal + a report (extra files only; everything above is unchanged)
+   try{var xo=await AIP.xcheck(job,{bid:bid,proj:proj,ref:ref,pname:pname,addr:addr,ctx:ctx,req:req,sheets:sheets,totals:totals,sums:sums,gen:gen,lessons:lessons,put:put,sref:sref,propData:propData,gcRow:gcRow,taxRate:taxRate});
+    if(xo){(xo.outputs||[]).forEach(function(n){if(failedPuts.indexOf(n)<0){result.outputs.push(n);}});result.xcheck=xo.summary||null;}
+   }catch(e){console.warn('Cross-check failed',e);result.xcheck={error:String(e&&e.message||e).slice(0,300)};}
+  }
   await upd(job,{status:'done',stage:'Done',progress:100,proposal_id:propId,result:result,finished_at:new Date().toISOString(),error:null});
   try{if(!training)await logAct('AI created proposal','proposals',propId,'Vantage AI created "'+pname+'" (Under Review)');}catch(e){}
   bdToast(training?'Training result saved in folder: '+pname:'AI proposal ready for review: '+pname);
@@ -10704,6 +10710,7 @@ VG.appMap=function(){
  var mv=[];Object.keys(VG.MOVED).forEach(function(p){var o=VG.MOVED[p];if(canAccess(o.m)){var d=VG.def[o.m],t=d&&d.tabs.find(function(x){return x.id===o.t;});mv.push(names[p]+' is now the tab "'+(t?t.l:names[p])+'" in the '+VG.MODS[o.m].label+' module');}});
  if(mv.length)L.push('Moved pages: '+mv.join('; ')+'.');
  L.push('PROJECT CODES = TRADES: a project code GC26-XX-nnn has the trade in XX: 22 = Data Cabling (Comm: data, phone, wireless access points / WAPs, and anything else that needs Cat5, Cat5e, Cat6, Cat6A or fiber), 23 = AV (audio / visual, and networking equipment), 24 = Security (cameras, access control). The same project name and GC can have up to three projects, one per trade, each with its own bid, Build folder and proposal, because we may be awarded only one trade; a project with only one trade has only one of each. When you work on a bid, a Build folder or a proposal, scope it by its code: 22 = Comm only, 23 = AV only, 24 = Security only. Drawings and specs are often the same documents in each trade folder: read them completely for the trade you are working on, but reuse what was already read for another trade.');
+ if(CP&&CP.group_name==='admin')L.push('MULTI-AI CROSS-CHECK (Settings > AI Proposal Engine > Cross-check, admins): when on, after the normal AI proposal ChatGPT and Gemini each read the SOW, spec and drawings on their own; Claude compares all proposals and saves an Accurate Proposal (a separate proposal in Estimating plus a PDF) and an AI Validation Report PDF in 0.0 HAND-OFF DOCS / Kickoff Meeting. Needs the ai-multi function and OPENAI_API_KEY / GEMINI_API_KEY secrets in Supabase.');
  if(canAccess('vg_estimating'))L.push('BID OPPORTUNITIES and PROPOSALS live in Estimating (Estimating > Bid Opportunities, Estimating > Proposals). Bid Opportunities has a Trade filter from the project code (GC26-22 Data Cabling, GC26-23 AV, GC26-24 Security). Bids assigned to you (Vantage AI Advisor) are worked there; a proposal you create is saved in Estimating > Proposals with status Under Review, and its files go to the project in Build under 0.0 HAND-OFF DOCS > Kickoff Meeting. Never send the user to the old sidebar pages.');
  else L.push('Bid Opportunities and Proposals are separate pages in the sidebar (the Estimating module is hidden for now).');
  L.push('Other sidebar pages: Dashboard, Build (project files), AI Advisor, Quick Save, Activity Log, Management. Project 360 and Search everything (Ctrl+K) find a project by its code across all modules.');
@@ -11579,7 +11586,7 @@ P.extractRequirements=async function(job,ctx,bid,lessons){
 
 /* ---------- 4. drawings: read each sheet once, then score it for THIS trade ---------- */
 var CV='v2';
-function sk(pg){return pg&&pg.hash?('ai_sheet_'+String(pg.hash).slice(0,24)+'_'+pg.n):null;}
+function sk(pg){return !AIP._prov&&pg&&pg.hash?('ai_sheet_'+String(pg.hash).slice(0,24)+'_'+pg.n):null;}
 var MEM={};
 async function getHit(k,t){
  var e=MEM[k];
@@ -11656,11 +11663,13 @@ if(!window.AIP||!AIP._p||!AIP._h||!AIP.TYPES||!AIP.scanLegendPage||!AIP.tradeOf)
 var P=AIP._p,TYPES=AIP.TYPES,H=AIP._h,aiJson=H.aiJson;
 var IV='v1',MEM={};
 async function cget(k){
+ if(AIP._prov)return null;
  if(MEM[k])return MEM[k];
  try{var r=await sb.from('vg_settings').select('value').eq('key',k).maybeSingle();var v=r&&r.data&&r.data.value;if(v&&v.v===IV){MEM[k]=v;return v;}}catch(e){}
  return null;
 }
 async function cput(k,v){
+ if(AIP._prov)return;
  v.v=IV;MEM[k]=v;var s=JSON.stringify(v);if(s.length>900000)return;
  try{await sb.from('vg_settings').upsert({key:k,value:v,updated_by:(window.CU&&CU.id)||null,updated_at:new Date().toISOString()});}catch(e){}
 }
@@ -11855,11 +11864,13 @@ AIP.runJob=async function(job){
 if(!window.AIP||!AIP._p||!AIP._h||!AIP.TYPES||!AIP.tradeOf)return;
 var P=AIP._p,H=AIP._h,aiJson=H.aiJson,IV='v1',MEM={};
 async function cget(k){
+ if(AIP._prov)return null;
  if(MEM[k])return MEM[k];
  try{var r=await sb.from('vg_settings').select('value').eq('key',k).maybeSingle();var v=r&&r.data&&r.data.value;if(v&&v.v===IV){MEM[k]=v;return v;}}catch(e){}
  return null;
 }
 async function cput(k,v){
+ if(AIP._prov)return;
  v.v=IV;MEM[k]=v;var s=JSON.stringify(v);if(s.length>900000)return;
  try{await sb.from('vg_settings').upsert({key:k,value:v,updated_by:(window.CU&&CU.id)||null,updated_at:new Date().toISOString()});}catch(e){}
 }
@@ -12335,6 +12346,298 @@ AIP.openFindings=async function(){
   var secs=b.querySelectorAll('.aip-sec'),at=null;secs.forEach(function(s){if(!at&&/Teach the AI/.test(s.textContent))at=s;});
   if(at)at.insertAdjacentHTML('beforebegin',h);else b.insertAdjacentHTML('beforeend',h);
  }catch(e){console.warn('saved list',e);}
+ return r;
+};
+})();
+
+/* ===== AI Proposal Engine: multi-AI cross-check -> Accurate Proposal + validation report ===== */
+(function(){
+if(!window.AIP||!AIP._p||!AIP._h||!AIP.TYPES)return;
+var P=AIP._p,H=AIP._h,TYPES=AIP.TYPES,E=function(s){return bdE(s);};
+var NAMES={claude:'Claude',openai:'ChatGPT',gemini:'Gemini'},KEYS={claude:'claude',openai:'chatgpt',gemini:'gemini'};
+AIP.xc={on:false,openai:true,gemini:true,loaded:false};
+var BASE='https://vaubqkmsjsgfqeqbqbvy.supabase.co/functions/v1/ai-multi';
+
+/* ---------- settings (saved in vg_settings, key ai_xcheck) ---------- */
+AIP.xcLoad=async function(){
+ if(AIP.xc.loaded)return AIP.xc;
+ try{var r=await sb.from('vg_settings').select('value').eq('key','ai_xcheck').maybeSingle();var v=r&&r.data&&r.data.value;if(v)Object.assign(AIP.xc,{on:!!v.on,openai:v.openai!==false,gemini:v.gemini!==false});}catch(e){}
+ AIP.xc.loaded=true;return AIP.xc;
+};
+AIP.xcSave=async function(){
+ var x=AIP.xc;
+ try{await sb.from('vg_settings').upsert({key:'ai_xcheck',value:{on:!!x.on,openai:!!x.openai,gemini:!!x.gemini},updated_by:(window.CU&&CU.id)||null,updated_at:new Date().toISOString()});}catch(e){console.warn('xc save',e);}
+};
+async function token(){
+ var KEY=(typeof SB_KEY!=='undefined')?SB_KEY:'',tok=KEY;
+ try{var ss=await sb.auth.getSession();if(ss&&ss.data&&ss.data.session&&ss.data.session.access_token)tok=ss.data.session.access_token;}catch(e){}
+ return {tok:tok,key:KEY};
+}
+AIP.xcStatus=async function(){ // which platforms have their key set in Supabase
+ try{var t=await token();var r=await fetch(BASE,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+t.tok,'apikey':t.key},body:JSON.stringify({action:'status'})});
+  var j=await r.json();if(j&&j.providers)return j.providers;if(j&&j.error)return {error:j.error.message};}catch(e){return {error:String(e&&e.message||e)};}
+ return {error:'The ai-multi function is not deployed yet'};
+};
+
+/* ---------- small helpers ---------- */
+function toks(s){return String(s||'').toLowerCase().replace(/[^a-z0-9 ]+/g,' ').split(/\s+/).filter(function(w){return w.length>2&&!/^(and|the|for|with|per|each|install|installation|provide|furnish)$/.test(w);});}
+function sim(a,b){var A=toks(a),B=toks(b);if(!A.length||!B.length)return 0;var s={};A.forEach(function(w){s[w]=1;});var i=0,u=Object.keys(s).length;B.forEach(function(w){if(s[w]){i++;}else{u++;}});return i/u;}
+function itemsOf(g){var o=[];((g&&g.sections)||[]).forEach(function(s,si){(s.items||[]).forEach(function(it,ix){o.push({sec:s.header||'',si:si,ix:ix,product:String(it.product||''),qty:+it.qty||0,rate:+it.rate||0,it:it});});});return o;}
+function priceOf(g){var t=0;itemsOf(g).forEach(function(i){t+=i.qty*i.rate;});return Math.round(t*100)/100;}
+function money(n){return '$'+(Math.round((+n||0)*100)/100).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
+function findItem(g,name,sec){var best=null,bs=0;itemsOf(g).forEach(function(i){var s=sim(i.product,name)+(sec&&sim(i.sec,sec)>0.3?0.05:0);if(s>bs){bs=s;best=i;}});return bs>=0.45?best:null;}
+function closeness(a,b){a=+a||0;b=+b||0;if(a===b)return 1;var m=Math.max(a,b);return m?Math.max(0,1-Math.abs(a-b)/m):1;}
+// how close a platform's proposal is to the accurate one: every accurate line item is matched to the platform's closest line; a missing line scores 0
+AIP.xcScore=function(g,fin){
+ var f=itemsOf(fin).filter(function(i){return i.qty>0;});if(!f.length)return null;
+ var sum=0,exact=0;
+ f.forEach(function(i){var m=findItem(g,i.product,i.sec);if(m){var c=closeness(m.qty,i.qty);sum+=c;if(c===1)exact++;}});
+ return {pct:Math.round(100*sum/f.length),exact:exact,of:f.length};
+};
+
+/* ---------- one other platform does the whole job on its own ---------- */
+async function shadow(job,C,prov,pct0,pct1){
+ var res={prov:prov,name:NAMES[prov],ok:false,t0:Date.now()},saveSpec=AIP.spec;
+ function st(line,f){try{return P.step(job,'Cross-check: '+NAMES[prov],Math.round(pct0+(pct1-pct0)*f),line);}catch(e){}}
+ AIP._prov=prov;
+ try{
+  await st('Reading the SOW and specification',0.02);
+  var req=await P.extractRequirements(job,C.ctx,C.bid,C.lessons);
+  res.spec=AIP.spec?JSON.parse(JSON.stringify(AIP.spec)):null;
+  var reqTxt=['data','av','security'].map(function(c){return c.toUpperCase()+': '+(req[c]||[]).slice(0,12).map(function(x){return (x.qty?x.qty+' x ':'')+x.requirement;}).join('; ');}).join('\n');
+  await st('Finding the drawing sheets',0.2);
+  var pages=await P.pickPages(job,C.ctx),sheets=[],grid=AIP.st.grid||2;
+  for(var i=0;i<pages.length;i++){
+   await st('Sheet '+(i+1)+' of '+pages.length+': '+pages[i].file.name+' p'+pages[i].n,0.2+0.55*i/Math.max(1,pages.length));
+   try{var r=await P.analyzePage(job,pages[i],i,pages.length,C.lessons,reqTxt,grid);if(Object.keys(r.sheet.counts).length||r.sheet.discipline!=='architectural')sheets.push(r.sheet);}
+   catch(e){res.skipped=(res.skipped||[]).concat([pages[i].file.name+' p'+pages[i].n+' ('+(e.message||e)+')']);}
+  }
+  var totals=P.totalsOf(sheets);
+  await st('Writing the proposal',0.8);
+  var gen=await P.generateProposal(job,C.bid,C.proj,req,sheets,totals,C.lessons);
+  Object.assign(res,{ok:true,req:req,sheets:sheets,totals:totals,gen:gen});
+ }catch(e){res.error=String(e&&e.message||e).slice(0,300);console.warn('Cross-check',prov,e);}
+ finally{AIP._prov='';AIP.spec=saveSpec;}
+ res.mins=Math.round((Date.now()-res.t0)/6000)/10;return res;
+}
+
+/* ---------- compact view of one platform's work, for the referee ---------- */
+function digest(r,sheets,totals,req,gen,spec){
+ var items=itemsOf(gen).map(function(i){return i.sec+' | '+i.product+' | qty '+i.qty+' | rate '+i.rate+(i.it.basis?' | basis: '+String(i.it.basis).slice(0,80):'');});
+ return {requirements:{data:(req.data||[]).slice(0,25).map(function(x){return (x.qty?x.qty+' x ':'')+x.requirement;}),av:(req.av||[]).slice(0,25).map(function(x){return (x.qty?x.qty+' x ':'')+x.requirement;}),security:(req.security||[]).slice(0,25).map(function(x){return (x.qty?x.qty+' x ':'')+x.requirement;}),exclusions:(req.exclusions||[]).slice(0,15)},
+  drawing_totals:totals,cable_totals:AIP.cableTotals?AIP.cableTotals(sheets):{},
+  per_sheet:sheets.slice(0,40).map(function(s){return {sheet:s.sheet_number||s.file+' p'+s.page,counts:s.counts};}),
+  spec:spec?JSON.stringify(spec).slice(0,2500):'(no spec found)',line_items:items.slice(0,70),proposal_total:priceOf(gen),flags:(gen.flags||[]).slice(0,20)};
+}
+
+/* ---------- Claude compares everything and settles it ---------- */
+async function referee(C,runs){
+ var pl={claude:digest(null,C.sheets,C.totals,C.req,C.gen,AIP._xcClaudeSpec)};
+ runs.forEach(function(r){if(r.ok)pl[KEYS[r.prov]]=digest(null,r.sheets,r.totals,r.req,r.gen,r.spec);});
+ var names=Object.keys(pl).join(', ');
+ var prompt='You are Claude, the lead estimator and referee for NetFiber. '+(Object.keys(pl).length-1)+' other AI platform(s) independently read the same SOW, specification and drawings and each wrote its own proposal. Compare all of them (platforms: '+names+') against each other and against your own work, and decide the most accurate proposal possible.\n\n'
+ +'RULES: (1) The legend-matched drawing counts and the written spec / SOW decide quantities and materials, not a vote - if two platforms agree but the drawings or spec say otherwise, follow the drawings/spec. (2) Counts that came from exact vector symbol counting (mentioned in sheet flags) beat visual estimates. (3) Only NetFiber scope for this trade. (4) Never invent quantities. If you cannot tell who is right, keep Claude\'s value and add it to "flags" for a human. (5) Prices: do not change rates except for items that do not exist in Claude\'s proposal (use the rate another platform used only if it looks like a library/history rate, else 0).\n\n'
+ +'PLATFORMS (JSON):\n'+JSON.stringify(pl).slice(0,60000)
+ +'\n\nReturn ONLY JSON: {"summary":"3 to 5 sentences: what happened and how close the platforms were","confidence":0,"agreements":["short plain sentence each - things all/most platforms agreed on"],'
+ +'"disagreements":[{"topic":"e.g. Data outlet count on sheet T-101","values":{"claude":"","chatgpt":"","gemini":""},"resolution":"what the Accurate Proposal uses","why":"evidence: legend/drawing/spec section","winner":"claude|chatgpt|gemini|mixed|drawings|spec"}],'
+ +'"changes":[{"action":"set_qty|add_item|remove_item|edit_text","section":"section header","product":"line item name (as in Claude\'s proposal for set_qty/remove_item/edit_text)","qty":0,"rate":0,"description":"","reason":""}],'
+ +'"scope_add":["bullet lines to add to the scope of work, only if the spec/SOW requires them"],"exclusions_add":[],"notes_add":[],"flags":["items a human must still verify"],'
+ +'"platform_notes":{"claude":"one sentence on how reliable this platform was on this job","chatgpt":"","gemini":""}}';
+ var o=await H.aiJson(P.SYS_TRADE,prompt,7000);
+ return o||{};
+}
+async function newSummaryPage(C,fin){
+ var lines=itemsOf(fin).map(function(i){return i.sec+': '+i.qty+' x '+i.product;}).join('\n').slice(0,6000);
+ var p=await H.aiJson(P.SYS_TRADE,'Rewrite the one-page project summary for the FINAL proposal below. Use exactly these quantities. Keep the style of the old summary page. Return ONLY JSON: {"title":"","overview":"3-5 sentences","services":[{"label":"","text":""}],"exclusions":["..."]}\n\nOLD SUMMARY PAGE: '+JSON.stringify(fin.summary_page||{}).slice(0,3000)+'\n\nFINAL LINE ITEMS:\n'+lines,2500);
+ return (p&&(p.overview||(p.services||[]).length))?p:null;
+}
+
+/* ---------- build the Accurate Proposal from Claude's own proposal + the referee's decisions ---------- */
+function applyDecisions(base,ref,lib){
+ var g=JSON.parse(JSON.stringify(base)),log=[],touched=false;
+ (ref.changes||[]).forEach(function(c){
+  var act=String(c.action||'');
+  if(act==='set_qty'){var m=findItem(g,c.product,c.section);if(m&&+c.qty>=0&&+c.qty!==m.qty){log.push('Quantity of "'+m.product+'": '+m.qty+' -> '+(+c.qty)+(c.reason?' ('+c.reason+')':''));m.it.qty=+c.qty;m.it.basis=(m.it.basis?m.it.basis+'; ':'')+'set by cross-check';touched=true;}}
+  else if(act==='remove_item'){var r=findItem(g,c.product,c.section);if(r){g.sections[r.si].items.splice(r.ix,1);log.push('Removed "'+r.product+'"'+(c.reason?' ('+c.reason+')':''));touched=true;}}
+  else if(act==='edit_text'){var e=findItem(g,c.product,c.section);if(e&&c.description){e.it.description=c.description;log.push('Description of "'+e.product+'" updated'+(c.reason?' ('+c.reason+')':''));}}
+  else if(act==='add_item'&&c.product&&+c.qty>0){
+   if(findItem(g,c.product,c.section)&&sim(findItem(g,c.product,c.section).product,c.product)>=0.8)return;
+   var sec=(g.sections||[]).filter(function(s){return sim(s.header,c.section)>0.3;})[0];
+   if(!sec){sec={header:c.section||'ADDED ITEMS',items:[]};(g.sections=g.sections||[]).push(sec);}
+   var lm=(lib||[]).find(function(l){return String(l.name||'').trim().toLowerCase()===String(c.product).trim().toLowerCase();});
+   sec.items.push({product:c.product,description:c.description||'',qty:+c.qty,rate:lm?(+lm.rate||0):(+c.rate||0),cost:lm?(+lm.cost||0):0,taxable:true,price_source:lm?'library':((+c.rate)?'history':'none'),basis:'added by cross-check'});
+   log.push('Added "'+c.product+'" x '+(+c.qty)+(c.reason?' ('+c.reason+')':''));touched=true;}
+ });
+ function addLines(field,arr){arr=(arr||[]).filter(function(x){return String(x||'').trim();});if(!arr.length)return;var cur=String(g[field]||'');arr.forEach(function(x){var l='• '+String(x).replace(/^[•\-]\s*/,'');if(cur.indexOf(l)<0){cur+=(cur?'\n':'')+l;log.push('Added to '+field.replace(/_/g,' ')+': '+l.slice(2));}});g[field]=cur;}
+ addLines('scope_of_work',ref.scope_add);addLines('exclusions',ref.exclusions_add);addLines('notes',ref.notes_add);
+ g.flags=(g.flags||[]).concat((ref.flags||[]).map(function(f){return 'Cross-check: '+f;}));
+ return {gen:g,log:log,touched:touched};
+}
+
+/* ---------- the report PDF ---------- */
+AIP.xcReportPdf=function(d){
+ var J=window.jspdf.jsPDF,doc=new J({unit:'pt',format:'letter'}),W=612,M=44,y=0,page=1,ADD=(typeof ADDR!=='undefined'?ADDR:'');
+ function footer(){doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(120);doc.text('NetFiber Network Cabling Solutions LLC  |  '+ADD,W/2,764,{align:'center'});doc.text('Page '+page,W-M,764,{align:'right'});}
+ function head(){doc.setFont('helvetica','bold');doc.setFontSize(16);doc.setTextColor(27,94,155);doc.text('NetFiber Network Cabling Solutions',M,48);doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(90);doc.text(ADD,M,62);y=84;}
+ function np(){footer();doc.addPage();page++;head();}
+ function need(h){if(y+h>744)np();}
+ function para(t,fs,b,col){doc.setFont('helvetica',b?'bold':'normal');doc.setFontSize(fs||10);doc.setTextColor.apply(doc,col||[30,30,30]);doc.splitTextToSize(String(t==null?'':t),W-2*M).forEach(function(l){need(14);doc.text(l,M,y);y+=13;});}
+ function h2(t){need(30);y+=6;doc.setFont('helvetica','bold');doc.setFontSize(12);doc.setTextColor(27,94,155);doc.text(t,M,y);y+=6;doc.setDrawColor(27,94,155);doc.line(M,y,W-M,y);y+=14;}
+ function bullets(a){(a||[]).forEach(function(x){var ls=doc.splitTextToSize('• '+x,W-2*M-10);ls.forEach(function(l,i){need(13);doc.setFont('helvetica','normal');doc.setFontSize(10);doc.setTextColor(30);doc.text(l,M+(i?10:0),y);y+=13;});});}
+ function table(cols,rows,w){ // w = column widths (sum = W-2M)
+  doc.setFontSize(8.5);
+  function row(cells,bold,fill){var ls=cells.map(function(c,i){return doc.splitTextToSize(String(c==null?'':c),w[i]-6);}),n=Math.max.apply(null,ls.map(function(l){return l.length;})),h=n*11+6;need(h);
+   if(fill){doc.setFillColor.apply(doc,fill);doc.rect(M,y-9,W-2*M,h,'F');}
+   doc.setFont('helvetica',bold?'bold':'normal');doc.setTextColor(bold?255:30);var x=M;ls.forEach(function(l,i){l.forEach(function(t,k){doc.text(t,x+3,y+k*11);});x+=w[i];});y+=h;
+   doc.setDrawColor(220);doc.line(M,y-8,W-M,y-8);}
+  row(cols,true,[27,94,155]);rows.forEach(function(r,i){row(r,false,i%2?[245,247,250]:null);});y+=6;
+ }
+ head();
+ para('AI Validation Report',18,true,[27,94,155]);y+=2;
+ para(d.project+'  |  '+d.ref,11,true);para('Created '+new Date().toLocaleString()+'  |  Platforms: '+d.runs.map(function(r){return r.name;}).join(', '),9,false,[100,100,100]);
+ h2('Result at a glance');
+ para(d.summary||'');y+=4;
+ para('Accurate Proposal total: '+money(d.finalTotal)+'    |    Confidence: '+(d.confidence!=null?d.confidence+'%':'n/a'),11,true);
+ if(d.best)para('Most accurate platform on this job: '+d.best.name+' ('+d.best.pct+'% of the Accurate Proposal\'s line items matched).',11,true,[20,110,60]);
+ else para('Only one platform produced a proposal, so no platform can be ranked.',10,false,[150,90,0]);
+ h2('The platforms');
+ table(['Platform','Status','Line items','Proposal total','Match with Accurate','Time'],d.runs.map(function(r){return [r.name+(r.model?' ('+r.model+')':''),r.ok?'Finished':('Failed: '+(r.error||'')),r.items,r.ok?money(r.total):'-',r.score?(r.score.pct+'% ('+r.score.exact+'/'+r.score.of+' exact)'):'-',r.mins!=null?r.mins+' min':'-'];}),[120,150,55,80,75,32]);
+ h2('Drawing counts by platform');
+ var keys={};d.runs.forEach(function(r){Object.keys(r.totals||{}).forEach(function(k){keys[k]=1;});});
+ var ks=Object.keys(keys);
+ if(ks.length){var cw=Math.floor((W-2*M-150)/d.runs.length);table(['Device'].concat(d.runs.map(function(r){return r.name;})),ks.map(function(k){return [(TYPES[k]&&TYPES[k].label)||k].concat(d.runs.map(function(r){return r.ok&&r.totals&&r.totals[k]!=null?r.totals[k]:(r.ok?0:'-');}));}),[150].concat(d.runs.map(function(){return cw;})));}else para('No devices were counted.');
+ h2('Where they agreed');
+ if((d.agreements||[]).length)bullets(d.agreements);else para('Nothing recorded.');
+ h2('Where they disagreed and how it was settled');
+ if((d.disagreements||[]).length){
+  table(['Topic','What each platform said','Used in Accurate Proposal and why'],d.disagreements.map(function(x){var v=x.values||{};return [x.topic||'',Object.keys(v).filter(function(k){return v[k];}).map(function(k){return ({claude:'Claude',chatgpt:'ChatGPT',gemini:'Gemini'}[k]||k)+': '+v[k];}).join('\n'),(x.resolution||'')+(x.why?'\nWhy: '+x.why:'')+(x.winner?'\nDecided by: '+x.winner:'')];}),[110,190,212]);
+ }else para('The platforms did not disagree on anything material.');
+ h2('Changes made to Claude\'s own proposal');
+ if((d.changes||[]).length)bullets(d.changes);else para('None - Claude\'s proposal already matched what the cross-check supported.');
+ h2('Still needs a human check');
+ if((d.flags||[]).length)bullets(d.flags);else para('Nothing outstanding.');
+ if(d.platform_notes){h2('How reliable each platform was on this job');bullets(Object.keys(d.platform_notes).filter(function(k){return d.platform_notes[k];}).map(function(k){return ({claude:'Claude',chatgpt:'ChatGPT',gemini:'Gemini'}[k]||k)+': '+d.platform_notes[k];}));}
+ h2('How to read this');
+ para('Each platform read the same SOW, specification and drawings on its own and wrote its own proposal. Claude then compared them and kept the value the drawings and spec support. "Match with Accurate" is the share of the Accurate Proposal\'s line items that a platform\'s own proposal had with the same quantity (partial credit when close, nothing when the line was missing). It measures agreement with the final result, not a check against a known answer - the proposal still needs the estimator\'s review.',9,false,[90,90,90]);
+ footer();
+ return doc.output('blob');
+};
+
+/* ---------- the step that runs after a normal AI job ---------- */
+AIP.xcheck=async function(job,C){
+ await AIP.xcLoad();if(!AIP.xc.on)return null;
+ var want=['openai','gemini'].filter(function(p){return AIP.xc[p];});if(!want.length)return null;
+ await P.step(job,'Cross-check',82,'Asking the other AI platforms to do the same job on their own');
+ var stt=await AIP.xcStatus(),use=[],notes=[];
+ want.forEach(function(p){if(stt&&stt[p]&&stt[p].ready){use.push(p);}else notes.push(NAMES[p]+' skipped: '+((stt&&stt.error)?stt.error:'its API key is not set in Supabase'));});
+ if(!use.length){await P.step(job,'Cross-check',96,notes.join('; '));return {outputs:[],summary:{skipped:notes.join('; ')}};}
+ var claudeSpec=AIP.spec?JSON.parse(JSON.stringify(AIP.spec)):null;AIP._xcClaudeSpec=claudeSpec;
+ var runs=[],span=11/use.length;
+ for(var i=0;i<use.length;i++){
+  var r=await shadow(job,C,use[i],83+span*i,83+span*(i+1));
+  if(stt[use[i]]&&stt[use[i]].model)r.model=stt[use[i]].model;
+  runs.push(r);
+ }
+ AIP.spec=claudeSpec;
+ var okRuns=runs.filter(function(r){return r.ok;});
+ var lib=window._aipLib||[],out=[];
+ var d={project:C.pname,ref:C.ref,runs:[]};
+ var cl={prov:'claude',name:'Claude',model:'claude-sonnet-4-5',ok:true,items:itemsOf(C.gen).length,total:priceOf(C.gen),totals:C.totals,gen:C.gen};
+ var fin=C.gen,ref={};
+ if(okRuns.length){
+  await P.step(job,'Cross-check',95,'Claude is comparing all proposals and settling the differences');
+  try{ref=await referee(C,runs)||{};}catch(e){ref={summary:'Claude could not finish the comparison ('+String(e&&e.message||e).slice(0,160)+'). The Accurate Proposal below is Claude\'s own proposal.',flags:['The comparison step failed - review the platforms\' differences by hand']};}
+  var ap=applyDecisions(C.gen,ref,lib);fin=ap.gen;d.changes=ap.log;
+  // clean numbers + prices exactly like the normal proposal
+  var flags=(fin.flags||[]).slice();
+  itemsOf(fin).forEach(function(i){var it=i.it,m=lib.find(function(l){return String(l.name||'').trim().toLowerCase()===String(it.product||'').trim().toLowerCase();});if(m){it.rate=+m.rate||0;it.cost=+m.cost||0;it.price_source='library';}it.qty=+it.qty||0;it.rate=+it.rate||0;it.cost=+it.cost||0;});
+  fin.flags=flags;
+  if(ap.touched){try{var sp=await newSummaryPage(C,fin);if(sp)fin.summary_page=sp;}catch(e){}}
+ }else{
+  ref={summary:'None of the other platforms could finish ('+runs.map(function(r){return r.name+': '+(r.error||'unknown');}).join('; ')+'). No comparison was possible, so no Accurate Proposal was created.',flags:['Check the API keys and credits for ChatGPT / Gemini, then run the job again']};
+  d.changes=[];
+ }
+ // report data
+ var all=[cl].concat(runs.map(function(r){return {prov:r.prov,name:r.name,model:r.model,ok:r.ok,error:r.error,items:r.gen?itemsOf(r.gen).length:0,total:r.gen?priceOf(r.gen):0,totals:r.totals||{},gen:r.gen,mins:r.mins};}));
+ all.forEach(function(r){r.score=(okRuns.length&&r.ok)?AIP.xcScore(r.gen,fin):null;});
+ var ranked=all.filter(function(r){return r.score;}).sort(function(a,b){return b.score.pct-a.score.pct;});
+ // only a real winner if more than one platform could be scored
+ d.best=(ranked.length>1)?{name:ranked[0].name,pct:ranked[0].score.pct}:null;
+ if(d.best&&ranked[1]&&ranked[1].score.pct===ranked[0].score.pct)d.best.name=ranked.filter(function(r){return r.score.pct===ranked[0].score.pct;}).map(function(r){return r.name;}).join(' and ')+' (tied)';
+ d.runs=all.map(function(r){return {name:r.name,model:r.model,ok:r.ok,error:r.error,items:r.items,total:r.total,totals:r.totals,score:r.score,mins:r.mins};});
+ d.summary=(ref.summary||'')+(notes.length?' '+notes.join('; ')+'.':'');d.confidence=ref.confidence!=null?Math.round(+ref.confidence):null;
+ d.agreements=ref.agreements||[];d.disagreements=ref.disagreements||[];d.flags=(ref.flags||[]);d.platform_notes=ref.platform_notes||null;
+ d.finalTotal=okRuns.length?priceOf(fin):0;
+ // save: the Accurate Proposal (row + PDF) and the report. Nothing else.
+ var propId=null,sref=C.sref;
+ if(okRuns.length){
+  var rows=[],sub=0,taxable=0;
+  (fin.sections||[]).forEach(function(s,si){(s.items||[]).forEach(function(it,ix){var amt=Math.round(it.qty*it.rate*100)/100;sub+=amt;if(it.taxable!==false)taxable+=amt;rows.push({section_id:'ai_sec_'+si,section_header:s.header||'',sort_order:si*1000+ix,product_service:it.product,description:it.description||'',qty:it.qty,rate:it.rate,amount:amt,cost:it.cost||0,margin:0,taxable:it.taxable!==false});});});
+  sub=Math.round(sub*100)/100;var tr=C.taxRate||8.25,tax=Math.round(taxable*tr/100*100)/100,total=Math.round((sub+tax)*100)/100;
+  var pd=Object.assign({},C.propData,{project_name:C.pname+' - Accurate Proposal',scope_of_work:fin.scope_of_work||C.propData.scope_of_work,exclusions:fin.exclusions||C.propData.exclusions,notes:fin.notes||C.propData.notes,
+   custom_pages:JSON.stringify(function(){var s=null;try{s=AIP.summaryPage(fin);}catch(e){}return s?[s]:[];}()),subtotal:sub,tax_amount:tax,total:total,ai_job_id:job.id,bid_id:job.bid_id||null,updated_at:new Date().toISOString()});
+  try{
+   var ins=await sb.from('proposals').insert(pd).select().single();
+   if(ins.error&&/column|schema/i.test(ins.error.message||'')){delete pd.ai_generated;delete pd.ai_job_id;delete pd.bid_id;ins=await sb.from('proposals').insert(pd).select().single();}
+   if(ins.error)throw ins.error;propId=ins.data.id;
+   if(rows.length)await sb.from('proposal_items').insert(rows.map(function(x){return Object.assign({proposal_id:propId},x);}));
+   if(C.gcRow&&C.gcRow.company)await sb.from('proposal_gcs').insert(Object.assign({proposal_id:propId},C.gcRow));
+  }catch(e){console.warn('Accurate proposal row',e);d.flags.push('The Accurate Proposal could not be saved in Estimating ('+String(e&&e.message||e).slice(0,120)+') - the PDF was still saved');}
+  d.finalTotal=total;
+  var pdf=P.buildProposalPdf(Object.assign({},pd),rows,C.gcRow);
+  var nm='Accurate_Proposal_'+sref+'.pdf';if(await C.put(nm,pdf,'application/pdf'))out.push(nm);
+ }
+ var rp='AI_Validation_Report_'+sref+'.pdf';
+ try{if(await C.put(rp,AIP.xcReportPdf(d),'application/pdf'))out.push(rp);}catch(e){console.warn('report pdf',e);}
+ await P.step(job,'Cross-check',97,okRuns.length?'Accurate Proposal and validation report saved':'Validation report saved (no comparison possible)');
+ return {outputs:out,summary:{platforms:d.runs.map(function(r){return {name:r.name,ok:r.ok,error:r.error||null,total:r.total,score:r.score?r.score.pct:null};}),best:d.best?d.best.name:null,accurate_total:d.finalTotal,proposal_id:propId,changes:(d.changes||[]).length,disagreements:d.disagreements.length,confidence:d.confidence}};
+};
+
+/* ---------- the switch on the AI bar ---------- */
+var mb=AIP.mountBar;
+AIP.mountBar=function(){
+ var r=mb.apply(this,arguments);
+ try{
+  var bar=document.getElementById('aip-bar');if(bar&&!document.getElementById('aip-xc-btn')){
+   var b=document.createElement('button');b.className='aip-b';b.id='aip-xc-btn';b.textContent='Cross-check';b.title='Ask ChatGPT and Gemini to do the same job and let Claude build the most accurate proposal';b.onclick=function(){AIP.openXc();};
+   bar.appendChild(b);AIP.xcLoad().then(function(){b.textContent='Cross-check: '+(AIP.xc.on?'On':'Off');});
+  }
+ }catch(e){}
+ return r;
+};
+AIP.openXc=async function(){
+ await AIP.xcLoad();
+ var o=document.getElementById('aip-ov');if(!o){o=document.createElement('div');o.id='aip-ov';document.body.appendChild(o);}
+ o.className='open';o.onclick=function(e){if(e.target===o)AIP.close();};
+ o.innerHTML='<div class="aip-box"><div class="aip-h"><b>Multi-AI Cross-Check</b><button class="aip-x" onclick="AIP.close()">&times;</button></div><div class="aip-b2" id="aip-xc-body">Checking which platforms are ready...</div></div>';
+ var st=await AIP.xcStatus(),body=document.getElementById('aip-xc-body');if(!body)return;
+ function ready(p){return !!(st&&st[p]&&st[p].ready);}
+ function line(p,label){var rd=ready(p);return '<label style="display:flex;gap:8px;align-items:center;margin:6px 0"><input type="checkbox" id="xc-'+p+'" '+(AIP.xc[p]?'checked':'')+'> <b>'+label+'</b> <span class="aip-m" style="margin:0">'+(rd?'ready ('+E(st[p].model||'')+')':'<span style="color:#b45309">key not set in Supabase</span>')+'</span></label>';}
+ body.innerHTML='<div class="aip-m">After the normal AI proposal is done (exactly as today), ChatGPT and Gemini each read the SOW, spec and drawings on their own and write their own proposal. Claude compares all of them and saves one <b>Accurate Proposal</b> plus one <b>AI Validation Report</b> (PDF) in the Kickoff Meeting folder. No other extra files. It takes longer and uses each platform\'s credits.</div>'
+  +'<label style="display:flex;gap:8px;align-items:center;margin:12px 0"><input type="checkbox" id="xc-on" '+(AIP.xc.on?'checked':'')+'> <b>Run the cross-check on every AI proposal</b></label>'
+  +line('openai','ChatGPT (OpenAI)')+line('gemini','Gemini (Google)')
+  +(st&&st.error?'<div class="aip-m err">'+E(st.error)+' - deploy the <b>ai-multi</b> function and add OPENAI_API_KEY / GEMINI_API_KEY in Supabase &gt; Edge Functions &gt; Secrets.</div>':'')
+  +'<div style="margin-top:12px"><button class="aip-b" onclick="AIP.saveXc()">Save</button></div>';
+};
+AIP.saveXc=async function(){
+ AIP.xc.on=!!document.getElementById('xc-on').checked;AIP.xc.openai=!!document.getElementById('xc-openai').checked;AIP.xc.gemini=!!document.getElementById('xc-gemini').checked;
+ await AIP.xcSave();var b=document.getElementById('aip-xc-btn');if(b)b.textContent='Cross-check: '+(AIP.xc.on?'On':'Off');
+ try{bdToast('Cross-check '+(AIP.xc.on?'turned on':'turned off'));}catch(e){}AIP.close();
+};
+
+/* ---------- findings: show what the cross-check found ---------- */
+var of2=AIP.openFindings;
+AIP.openFindings=async function(){
+ var r=await of2.apply(this,arguments);
+ try{
+  var j=AIP._fj,x=j&&j.result&&j.result.xcheck,b=document.querySelector('#aip-ov .aip-b2');if(!x||!b||document.getElementById('aip-xcf'))return r;
+  var h='<div id="aip-xcf"><div class="aip-sec">Cross-check</div>';
+  if(x.error)h+='<div class="aip-m err">'+E(x.error)+'</div>';
+  else if(x.skipped)h+='<div class="aip-m">'+E(x.skipped)+'</div>';
+  else h+='<div class="aip-m">'+(x.platforms||[]).map(function(p){return '<b>'+E(p.name)+'</b>: '+(p.ok?(money(p.total)+(p.score!=null?', '+p.score+'% match':'')):'failed ('+E(p.error||'')+')');}).join('<br>')+'<br>'+(x.best?'Most accurate: <b>'+E(x.best)+'</b><br>':'')+'Accurate Proposal total: <b>'+money(x.accurate_total)+'</b> - '+x.disagreements+' disagreement(s) settled, '+x.changes+' change(s) to Claude\'s proposal.</div>';
+  h+='</div>';
+  var at=b.querySelector('#aip-saved');if(at)at.insertAdjacentHTML('beforebegin',h);else b.insertAdjacentHTML('beforeend',h);
+ }catch(e){console.warn('xc findings',e);}
  return r;
 };
 })();
