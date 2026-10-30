@@ -5195,6 +5195,7 @@ function updateCustomSection(id,field,val){
 // deletable and reorderable. Each page can hold an intro paragraph plus any number
 // of its own named sections, so one page can cover a multi-part write-up on its own.
 var _customPages=[];
+function secKey(id){return String(id==null?'':id).replace(/^(sec_)+/,'');} // section ids may carry one or more 'sec_' prefixes from older saves: compare without them
 function addCustomPage(){
   var id='pg_'+Date.now();
   _customPages.push({id:id,title:'',text:'',blocks:[],anchor:'after_terms'});
@@ -5604,10 +5605,11 @@ async function openEditProposal(id){
   var secMap={};
   items.forEach(function(i){
     var sid=i.section_id||'default';
-    if(!secMap[sid]) secMap[sid]={id:'sec_'+sid,header:i.section_header||'',items:[]};
+    if(!secMap[sid]) secMap[sid]={id:(/^sec_/.test(sid)?sid:'sec_'+sid),header:i.section_header||'',items:[]};
     secMap[sid].items.push({id:'li_'+i.id,dbId:i.id,product:i.product_service||'',desc:i.description||'',qty:i.qty||0,rate:i.rate||0,amount:i.amount||0,cost:i.cost||0,margin:i.margin||0,taxable:i.taxable!==false});
   });
   pedSections=Object.values(secMap);
+  _customPages.forEach(function(p){if(/^after:/.test(p.anchor||'')){var m=pedSections.find(function(s){return secKey(s.id)===secKey(p.anchor.slice(6));});p.anchor=m?'after:'+m.id:'after_terms';}});
   if(!pedSections.length) pedSections=[{id:'sec_'+Date.now(),header:'',items:[]}];
   renderAllSections();
   document.getElementById('proposal-editor-modal').classList.add('open');
@@ -5989,6 +5991,7 @@ async function printEstimate(id){
   var allCustomPages=(prop.custom_pages?JSON.parse(prop.custom_pages):[]).filter(function(p){
     var _e=function(x){return String(x||'').replace(/<[^>]*>/g,'').replace(/&nbsp;/g,' ').trim();};return (p.title||'').trim()||_e(p.text)||(p.blocks&&p.blocks.some(function(b){return (b.heading||'').trim()||_e(b.text)||(b.type==='table'&&(b.rows||[]).length);}));
   });
+  allCustomPages.forEach(function(p){if(/^after:/.test(p.anchor||'')){var hit=secOrder.find(function(k){return secKey(k)===secKey(p.anchor.slice(6));});p.anchor=hit?'after:'+hit:'after_terms';}}); // a page tied to a section that no longer exists is still printed (after the terms)
   var startPages=allCustomPages.filter(function(p){return p.anchor==='start';});
   secOrder.forEach(function(sid2){
     var sg=secGroups[sid2],secSub=0,secTaxable=0,secRows='';
@@ -8618,7 +8621,7 @@ async function bdAIContext(q){
   }catch(e){return '';}
 }
 
-var APP_VERSION='2.16.0',APP_BUILD_DATE='Oct 29, 2026';
+var APP_VERSION='2.16.1',APP_BUILD_DATE='Oct 29, 2026';
 (function(){function s(){var e=document.getElementById('sb-ver');if(e)e.textContent='Vantage v'+APP_VERSION+' · '+APP_BUILD_DATE;}s();document.addEventListener('DOMContentLoaded',s);})();
 
 </script>
