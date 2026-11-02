@@ -426,11 +426,18 @@ tr:hover td{background:#fafcff}
 .ped-toolbar{padding:12px 16px;border-bottom:0.5px solid #f2f4f8;display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:#f9fafb}
 .ped-section{padding:16px;border-bottom:0.5px solid #f2f4f8}
 .ped-section-title{font-size:11px;font-weight:800;color:#1B5E9B;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:12px}
-.rte-toolbar{display:flex;gap:4px;align-items:center;padding:4px;background:#f5f6f8;border:1px solid #e5e5e5;border-bottom:none;border-radius:6px 6px 0 0}
-.rte-toolbar button{background:#fff;border:1px solid #ddd;border-radius:5px;font-size:12px;cursor:pointer;padding:3px 0;color:#333}
-.rte-toolbar button:hover{background:#eef4fb;border-color:#1B5E9B}
+.rte-toolbar{display:flex;flex-wrap:wrap;gap:2px;align-items:center;padding:4px 6px;background:#f7f9fc;border:1px solid #e1e6ee;border-bottom:none;border-radius:8px 8px 0 0}
+.rte-toolbar .rtb{min-width:26px;height:26px;border:1px solid transparent;background:transparent;border-radius:6px;cursor:pointer;color:#333;display:inline-flex;align-items:center;justify-content:center;padding:0 5px;font-size:13px;position:relative;font-family:inherit}
+.rte-toolbar .rtb:hover{background:#e8eff8}
+.rte-toolbar .rtb.on{background:#d6e6f7;border-color:#9dbfe3;color:#1B5E9B}
+.rte-toolbar select{height:26px;font-size:11px;border:1px solid #dbe2ec;border-radius:6px;background:#fff;padding:0 3px;max-width:130px;color:#333}
+.rte-toolbar .rts{width:1px;height:18px;background:#d9dfe8;margin:0 3px}
+.rt-a{font-weight:700;font-size:13px;line-height:1;display:inline-flex;flex-direction:column;align-items:center}
+.rt-a i{display:block;width:14px;height:3px;margin-top:1px;border-radius:1px}
+.rte-toolbar input[type=color]{position:absolute;left:0;top:0;width:100%;height:100%;opacity:0;cursor:pointer;padding:0;border:0}
 .rte-editable{border:1px solid #e5e5e5;border-radius:0 0 6px 6px;padding:8px 10px;font-size:13px;line-height:1.7;outline:none;overflow-y:auto}
 .rte-editable:empty:before{content:attr(data-placeholder);color:#bbb}
+.rte-editable p{margin:0}.rte-editable a{color:#1B5E9B;text-decoration:underline}.rte-editable img{max-width:100%;height:auto}.rte-editable table{border-collapse:collapse;width:100%}.rte-editable ul,.rte-editable ol{padding-left:24px;margin:0}.rte-editable td,.rte-editable th{border:1px solid #bbb;padding:4px 6px}.rte-editable blockquote{margin:0 0 0 40px}
 .ped-grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .ped-grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
 .ifield{margin-bottom:0}
@@ -5244,29 +5251,184 @@ function updatePageBlock(pageId,blockId,field,val){
 // adjust font size and color like a basic word processor, without a full editor
 // library. Works by applying browser text-formatting commands to whichever
 // contenteditable box the user last clicked into.
-var _rteActiveField=null;
-function rteSetActive(el){_rteActiveField=el;}
-function rteExec(cmd,val){
-  if(_rteActiveField) _rteActiveField.focus();
-  document.execCommand(cmd,false,val||null);
-}
+var _rteActiveField=null,_rteRange=null;
+var RTE_FONTS=['Arial','Calibri','Cambria','Courier New','Georgia','Helvetica','Tahoma','Times New Roman','Trebuchet MS','Verdana'];
+var RTE_SIZES=[8,9,10,11,12,14,16,18,20,24,28,32,36,48,72];
+var RTE_IC={
+ undo:'<path d="M4 6h6a3 3 0 010 6H6"/><path d="M6.5 3.5L4 6l2.5 2.5"/>',
+ redo:'<path d="M12 6H6a3 3 0 000 6h4"/><path d="M9.5 3.5L12 6 9.5 8.5"/>',
+ left:'<path d="M2 3.5h12M2 6.5h8M2 9.5h12M2 12.5h8"/>',center:'<path d="M2 3.5h12M4 6.5h8M2 9.5h12M4 12.5h8"/>',right:'<path d="M2 3.5h12M6 6.5h8M2 9.5h12M6 12.5h8"/>',justify:'<path d="M2 3.5h12M2 6.5h12M2 9.5h12M2 12.5h12"/>',
+ ul:'<circle cx="3" cy="4" r=".9" fill="currentColor"/><circle cx="3" cy="8" r=".9" fill="currentColor"/><circle cx="3" cy="12" r=".9" fill="currentColor"/><path d="M6 4h8M6 8h8M6 12h8"/>',
+ ol:'<text x="1" y="5.5" font-size="5" fill="currentColor" stroke="none">1</text><text x="1" y="9.5" font-size="5" fill="currentColor" stroke="none">2</text><text x="1" y="13.5" font-size="5" fill="currentColor" stroke="none">3</text><path d="M6 4h8M6 8h8M6 12h8"/>',
+ outdent:'<path d="M2 3h12M7 6.5h7M7 9.5h7M2 13h12M5 6L2 8.5 5 11"/>',indent:'<path d="M2 3h12M7 6.5h7M7 9.5h7M2 13h12M2 6l3 2.5L2 11"/>',
+ link:'<path d="M6.5 9.5l3-3"/><path d="M7 5l1-1a2.5 2.5 0 013.5 3.5l-1 1"/><path d="M9 11l-1 1A2.5 2.5 0 014.5 8.5l1-1"/>',
+ image:'<rect x="2" y="3" width="12" height="10" rx="1.5"/><circle cx="6" cy="7" r="1"/><path d="M2.5 12l3.5-3.5 2.5 2.5 2-2 3 3"/>',
+ table:'<rect x="2" y="3" width="12" height="10" rx="1"/><path d="M2 7h12M2 10h12M6.5 3v10M10.5 3v10"/>',
+ clear:'<path d="M3 4h9M7.5 4l-2 8M10 10l4 4M14 10l-4 4"/>'
+};
+function rteIc(n){return '<svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">'+RTE_IC[n]+'</svg>';}
+function rtB(act,html,title,st){return '<button type="button" class="rtb" data-act="'+act+'"'+(st?' data-st="'+st+'"':'')+' title="'+title+'">'+html+'</button>';}
 function rteToolbarHtml(pageId){
-  return '<div class="rte-toolbar" onmousedown="event.preventDefault()">'
-    +'<select onmousedown="event.stopPropagation()" onchange="rteExec(\'fontSize\',this.value);this.selectedIndex=0" style="font-size:11px;padding:3px 4px;border:1px solid #ddd;border-radius:5px;background:#fff">'
-    +'<option value="">Size</option>'
-    +'<option value="2">Small</option>'
-    +'<option value="3">Normal</option>'
-    +'<option value="5">Large</option>'
-    +'<option value="7">X-Large</option>'
-    +'</select>'
-    +'<button type="button" onclick="rteExec(\'bold\')" style="font-weight:700;width:24px" title="Bold">B</button>'
-    +'<button type="button" onclick="rteExec(\'italic\')" style="font-style:italic;width:24px" title="Italic">I</button>'
-    +'<button type="button" onclick="rteExec(\'underline\')" style="text-decoration:underline;width:24px" title="Underline">U</button>'
-    +'<input type="color" onmousedown="event.stopPropagation()" onchange="rteExec(\'foreColor\',this.value)" title="Text color" style="width:26px;height:24px;padding:0;border:1px solid #ddd;border-radius:5px;cursor:pointer">'
-    +'<button type="button" onclick="rteExec(\'removeFormat\')" style="font-size:10px;padding:0 6px" title="Clear formatting">Clear</button>'
-    +(pageId?'<button type="button" onclick="addPageTable(\''+pageId+'\')" style="font-size:10px;padding:0 8px;font-weight:600;color:#1B5E9B" title="Add a table (Image, Qty, Description) to this page">Add Table</button>':'')
+  var sep='<span class="rts"></span>';
+  return '<div class="rte-toolbar" onmousedown="if(!/^(SELECT|INPUT|OPTION)$/.test(event.target.tagName))event.preventDefault()">'
+    +rtB('undo',rteIc('undo'),'Undo (Ctrl+Z)')+rtB('redo',rteIc('redo'),'Redo (Ctrl+Y)')+sep
+    +'<select data-sel="font" title="Font"><option value="">Font</option>'+RTE_FONTS.map(function(f){return '<option value="'+f+'" style="font-family:\''+f+'\'">'+f+'</option>';}).join('')+'</select>'
+    +'<select data-sel="size" title="Font size" style="width:56px"><option value="">Size</option>'+RTE_SIZES.map(function(n){return '<option value="'+n+'">'+n+'</option>';}).join('')+'</select>'+sep
+    +rtB('bold','<b>B</b>','Bold (Ctrl+B)','bold')+rtB('italic','<i style="font-family:serif">I</i>','Italic (Ctrl+I)','italic')+rtB('underline','<u>U</u>','Underline (Ctrl+U)','underline')+rtB('strikeThrough','<span style="text-decoration:line-through">S</span>','Strikethrough','strikeThrough')+sep
+    +'<label class="rtb" title="Text color"><span class="rt-a">A<i style="background:#d32f2f"></i></span><input type="color" data-col="foreColor" value="#d32f2f"></label>'
+    +'<label class="rtb" title="Highlight color"><span class="rt-a" style="font-weight:600">ab<i style="background:#ffeb3b"></i></span><input type="color" data-col="hiliteColor" value="#ffeb3b"></label>'+sep
+    +rtB('justifyLeft',rteIc('left'),'Align left','justifyLeft')+rtB('justifyCenter',rteIc('center'),'Center','justifyCenter')+rtB('justifyRight',rteIc('right'),'Align right','justifyRight')+rtB('justifyFull',rteIc('justify'),'Justify','justifyFull')+sep
+    +'<select data-sel="space" title="Line and paragraph spacing" style="width:84px"><option value="">&#8597; Spacing</option>'
+      +'<optgroup label="Line spacing"><option value="ls:1">1.0</option><option value="ls:1.15">1.15</option><option value="ls:1.5">1.5</option><option value="ls:">Default (1.8)</option><option value="ls:2">2.0</option><option value="ls:2.5">2.5</option><option value="ls:3">3.0</option></optgroup>'
+      +'<optgroup label="Paragraph spacing"><option value="pb:8pt">Add space before</option><option value="pb:0">Remove space before</option><option value="pa:8pt">Add space after</option><option value="pa:0">Remove space after</option></optgroup></select>'+sep
+    +rtB('insertUnorderedList',rteIc('ul'),'Bulleted list','insertUnorderedList')+rtB('insertOrderedList',rteIc('ol'),'Numbered list','insertOrderedList')+rtB('outdent',rteIc('outdent'),'Decrease indent')+rtB('indent',rteIc('indent'),'Increase indent')+sep
+    +rtB('link',rteIc('link'),'Insert link')+rtB('image',rteIc('image'),'Insert image')+rtB('table',rteIc('table'),'Insert table (rows x columns) into the text')+sep
+    +rtB('clear',rteIc('clear')+'<span style="font-size:10px;margin-left:3px">Clear</span>','Clear formatting')
+    +(pageId?sep+'<button type="button" class="rtb" onclick="addPageTable(\''+pageId+'\')" style="font-size:11px;font-weight:600;color:#1B5E9B" title="Add a table (Image, Qty, Description) to this page">Add Table</button>':'')
     +'</div>';
 }
+function rteSetActive(el){_rteActiveField=el;try{document.execCommand('defaultParagraphSeparator',false,'p');}catch(e){}}
+function rteRestore(){
+  if(!_rteActiveField||!document.body.contains(_rteActiveField))return false;
+  var fld=_rteActiveField;fld.focus();
+  try{
+    var s=window.getSelection(),live=s.rangeCount?s.getRangeAt(0):null,inside=live&&fld.contains(live.commonAncestorContainer);
+    if(inside&&(!s.isCollapsed||!_rteRange||_rteRange.collapsed))return true; // the selection is still there: keep it
+    if(_rteRange){s.removeAllRanges();s.addRange(_rteRange);}
+  }catch(e){}
+  return true;
+}
+function rteSave(){var s=window.getSelection();if(!s||!s.rangeCount)return;var r=s.getRangeAt(0),n=r.commonAncestorContainer;if(n&&n.nodeType===3)n=n.parentNode;var ed=n&&n.closest?n.closest('.rte-editable'):null;if(ed){_rteActiveField=ed;if(!r.collapsed||!_rteRange||_rteRange.collapsed)_rteRange=r.cloneRange();}}
+function rteChanged(){var el=_rteActiveField;if(el)el.dispatchEvent(new Event('input',{bubbles:true}));rteSync();}
+function rteExec(cmd,val){
+  if(!rteRestore())return;
+  try{document.execCommand('styleWithCSS',false,true);}catch(e){}
+  document.execCommand(cmd,false,val==null?null:val);
+  rteChanged();
+}
+var RTE_BL='p,div,li,h1,h2,h3,blockquote';
+function rteBlockOf(n,root){while(n&&n!==root){if(n.nodeType===1&&/^(DIV|P|LI|H1|H2|H3|BLOCKQUOTE)$/.test(n.tagName))return n;n=n.parentNode;}return null;}
+function rteBlocksSel(){
+  var root=_rteActiveField,s=window.getSelection();if(!root||!s.rangeCount)return [];
+  var r=s.getRangeAt(0);
+  if(!rteBlockOf(r.startContainer,root)||!rteBlockOf(r.endContainer,root)){document.execCommand('formatBlock',false,'p');if(s.rangeCount)r=s.getRangeAt(0);}
+  var out=[];root.querySelectorAll(RTE_BL).forEach(function(b){if(r.intersectsNode(b)&&!b.querySelector(RTE_BL))out.push(b);});
+  if(!out.length){var b=rteBlockOf(r.startContainer,root);if(b)out.push(b);}
+  return out;
+}
+function rteSize(pt){
+  if(!pt||!rteRestore())return;
+  try{document.execCommand('styleWithCSS',false,true);}catch(e){}
+  document.execCommand('fontSize',false,'7');
+  _rteActiveField.querySelectorAll('font[size="7"],span[style*="xxx-large"]').forEach(function(n){
+    if(n.tagName==='FONT'){var sp=document.createElement('span');sp.style.cssText=n.getAttribute('style')||'';while(n.firstChild)sp.appendChild(n.firstChild);n.parentNode.replaceChild(sp,n);n=sp;}
+    n.style.fontSize=pt+'pt';
+  });
+  rteChanged();
+}
+function rteSpacing(v){
+  if(!v||!rteRestore())return;
+  var i=v.indexOf(':'),k=v.slice(0,i),val=v.slice(i+1);
+  rteBlocksSel().forEach(function(b){
+    if(k==='ls')b.style.lineHeight=val;else if(k==='pb')b.style.marginTop=val;else if(k==='pa')b.style.marginBottom=val;
+    if(!b.getAttribute('style'))b.removeAttribute('style');
+  });
+  rteChanged();
+}
+function rteClear(){
+  if(!rteRestore())return;
+  try{document.execCommand('styleWithCSS',false,false);}catch(e){}
+  document.execCommand('removeFormat');document.execCommand('unlink');
+  rteBlocksSel().forEach(function(b){b.style.lineHeight='';b.style.marginTop='';b.style.marginBottom='';b.style.textAlign='';if(!b.getAttribute('style'))b.removeAttribute('style');});
+  rteChanged();
+}
+function rteUrl(u){u=String(u||'').trim();if(!u)return '';if(/^(https?:\/\/|mailto:|tel:)/i.test(u))return u;if(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(u))return 'mailto:'+u;if(/^[\w.-]+\.[a-z]{2,}([\/?#].*)?$/i.test(u))return 'https://'+u;return '';}
+async function rteLink(){
+  if(!rteRestore())return;
+  var saved=_rteRange?_rteRange.cloneRange():null,txt=saved?saved.toString():'',n=saved?saved.commonAncestorContainer:null;
+  if(n&&n.nodeType===3)n=n.parentNode;
+  var a=n&&n.closest?n.closest('a'):null;
+  var u=await bdAsk('Insert link','Web address (https://...) or email',a?a.getAttribute('href'):'https://');
+  if(u==null)return;
+  _rteRange=saved;if(!rteRestore())return;
+  if(!String(u).trim()){document.execCommand('unlink');rteChanged();return;}
+  var url=rteUrl(u);if(!url){alert('That does not look like a web address or email.');return;}
+  try{document.execCommand('styleWithCSS',false,false);}catch(e){}
+  if(!txt&&!a){var e=function(x){return String(x).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');};document.execCommand('insertHTML',false,'<a href="'+e(url)+'">'+e(url.replace(/^(mailto:|tel:)/,''))+'</a>&nbsp;');}
+  else document.execCommand('createLink',false,url);
+  rteChanged();
+}
+function rteImage(){
+  if(!rteRestore())return;
+  var f=document.getElementById('rte-img-in');
+  if(!f){f=document.createElement('input');f.type='file';f.accept='image/*';f.id='rte-img-in';f.style.display='none';f.onchange=async function(){
+    var file=f.files&&f.files[0];f.value='';if(!file)return;
+    try{var d=await tblShrink(file,900);if(!rteRestore())return;document.execCommand('insertImage',false,d);
+      _rteActiveField.querySelectorAll('img').forEach(function(im){if(im.getAttribute('src')===d&&!im.getAttribute('style'))im.setAttribute('style','width:320px;max-width:100%;height:auto');});
+      rteChanged();}catch(e){alert(e.message||e);}
+  };document.body.appendChild(f);}
+  f.click();
+}
+async function rteTable(){
+  if(!rteRestore())return;
+  var saved=_rteRange?_rteRange.cloneRange():null;
+  var v=await bdAsk('Insert table','Rows x columns (for example 3 x 4)','3 x 3');
+  if(v==null)return;
+  var m=String(v).match(/(\d+)\D+(\d+)/);if(!m){alert('Type it like 3 x 4 (rows x columns).');return;}
+  var R=Math.max(1,Math.min(30,+m[1])),C=Math.max(1,Math.min(8,+m[2]));
+  _rteRange=saved;if(!rteRestore())return;
+  var td='<td style="border:1px solid #999;padding:4px 6px"><br></td>',row='<tr>'+new Array(C+1).join(td)+'</tr>';
+  document.execCommand('insertHTML',false,'<table style="border-collapse:collapse;width:100%"><tbody>'+new Array(R+1).join(row)+'</tbody></table><p><br></p>');
+  rteChanged();
+}
+function rteAct(act){
+  if(act==='undo'||act==='redo'){if(rteRestore()){document.execCommand(act);rteChanged();}return;}
+  if(act==='link')return rteLink();
+  if(act==='image')return rteImage();
+  if(act==='table')return rteTable();
+  if(act==='clear')return rteClear();
+  rteExec(act);
+}
+function rteSync(){
+  var el=_rteActiveField;if(!el)return;
+  var tb=(el.previousElementSibling&&el.previousElementSibling.classList.contains('rte-toolbar'))?el.previousElementSibling:(el.closest('[data-tbl-id]')?el.closest('[data-tbl-id]').querySelector('.rte-toolbar'):null);
+  if(!tb)return;
+  tb.querySelectorAll('[data-st]').forEach(function(b){var on=false;try{on=document.queryCommandState(b.dataset.st);}catch(e){}b.classList.toggle('on',!!on);});
+  var fs=tb.querySelector('[data-sel="font"]'),ss=tb.querySelector('[data-sel="size"]');
+  try{
+    var s=window.getSelection(),n=s.rangeCount?s.getRangeAt(0).startContainer:null;if(n&&n.nodeType===3)n=n.parentNode;
+    if(n&&el.contains(n)){var cs=getComputedStyle(n);
+      var fam=(cs.fontFamily||'').split(',')[0].replace(/["']/g,'').trim().toLowerCase();
+      if(fs){fs.value='';[].slice.call(fs.options).forEach(function(o){if(o.value&&o.value.toLowerCase()===fam)fs.value=o.value;});}
+      var pt=Math.round(parseFloat(cs.fontSize)*0.75);if(ss){ss.value='';[].slice.call(ss.options).forEach(function(o){if(+o.value===pt)ss.value=o.value;});}}
+  }catch(e){}
+}
+if(!window._rteWired){
+  window._rteWired=1;
+  document.addEventListener('selectionchange',function(){
+    var s=window.getSelection();if(!s||!s.rangeCount)return;
+    var r=s.getRangeAt(0),n=r.commonAncestorContainer;if(n&&n.nodeType===3)n=n.parentNode;
+    var ed=n&&n.closest?n.closest('.rte-editable'):null;
+    if(ed){_rteActiveField=ed;_rteRange=r.cloneRange();rteSync();}
+  });
+  document.addEventListener('mousedown',function(e){if(e.target.closest&&e.target.closest('.rte-toolbar'))rteSave();},true);
+  document.addEventListener('click',function(e){var b=e.target.closest&&e.target.closest('.rte-toolbar [data-act]');if(b){e.preventDefault();rteAct(b.dataset.act);}});
+  document.addEventListener('dblclick',async function(e){ // double-click a picture in the text to set its width
+    var im=e.target;if(!im||im.tagName!=='IMG'||!im.closest||!im.closest('.rte-editable'))return;
+    var ed=im.closest('.rte-editable'),cur=parseInt(im.style.width,10)||im.width||320;
+    var v=await bdAsk('Picture width','Width in pixels (the page is about 670 wide)',String(cur));
+    if(v==null)return;var w=Math.max(40,Math.min(670,parseInt(v,10)||0));if(!w)return;
+    im.style.width=w+'px';im.style.maxWidth='100%';im.style.height='auto';ed.dispatchEvent(new Event('input',{bubbles:true}));
+  });
+  document.addEventListener('change',function(e){
+    var t=e.target;if(!t||!t.closest||!t.closest('.rte-toolbar'))return;
+    if(t.dataset.sel==='font'){if(t.value)rteExec('fontName',t.value);}
+    else if(t.dataset.sel==='size'){if(t.value)rteSize(+t.value);}
+    else if(t.dataset.sel==='space'){var v=t.value;t.value='';rteSpacing(v);}
+    else if(t.dataset.col){rteExec(t.dataset.col,t.value);var bar=t.parentNode.querySelector('i');if(bar)bar.style.background=t.value;}
+  });
+}
+
 // ---- Tables on Additional Pages (default columns Image / Qty / Description; images are shrunk and stored inside the page) ----
 function tblColW(cols){
   var fx=0,nt=0;cols.forEach(function(c){if(c.t==='img')fx+=14;else if(c.t==='qty')fx+=8;else nt++;});
@@ -5287,12 +5449,12 @@ function tblDelCol(pageId,blockId,ck){var b=tblOf(pageId,blockId);if(!b||b.cols.
 function tblSetCol(pageId,blockId,ck,val){var b=tblOf(pageId,blockId);if(!b)return;var c=b.cols.find(function(c){return c.k===ck;});if(c)c.name=val;}
 function tblSetCell(pageId,blockId,rid,ck,val){var b=tblOf(pageId,blockId);if(!b)return;var r=(b.rows||[]).find(function(r){return r.id===rid;});if(r){r.v=r.v||{};r.v[ck]=val;}}
 function tblClearImg(pageId,blockId,rid,ck){tblSetCell(pageId,blockId,rid,ck,'');renderCustomPages();}
-function tblShrink(file){ // product photos are shrunk to a small JPEG so the proposal stays light
+function tblShrink(file,maxPx){ // product photos are shrunk to a small JPEG so the proposal stays light
   return new Promise(function(res,rej){
     if(!file||!/^image\//.test(file.type)){rej(new Error('Please choose an image file'));return;}
     var rd=new FileReader();rd.onerror=function(){rej(new Error('Could not read the image'));};
     rd.onload=function(){var im=new Image();im.onerror=function(){rej(new Error('Could not open the image'));};
-      im.onload=function(){var M=220,k=Math.min(1,M/Math.max(im.width,im.height)),w=Math.max(1,Math.round(im.width*k)),h=Math.max(1,Math.round(im.height*k)),cv=document.createElement('canvas');cv.width=w;cv.height=h;var cx=cv.getContext('2d');cx.fillStyle='#fff';cx.fillRect(0,0,w,h);cx.drawImage(im,0,0,w,h);res(cv.toDataURL('image/jpeg',0.82));};
+      im.onload=function(){var M=maxPx||220,k=Math.min(1,M/Math.max(im.width,im.height)),w=Math.max(1,Math.round(im.width*k)),h=Math.max(1,Math.round(im.height*k)),cv=document.createElement('canvas');cv.width=w;cv.height=h;var cx=cv.getContext('2d');cx.fillStyle='#fff';cx.fillRect(0,0,w,h);cx.drawImage(im,0,0,w,h);res(cv.toDataURL('image/jpeg',0.82));};
       im.src=rd.result;};
     rd.readAsDataURL(file);
   });
@@ -5870,14 +6032,20 @@ async function nfPaginate(pa){
     [].slice.call(pa.querySelectorAll('[data-pgbox]')).forEach(function(box){
       var kids=[].slice.call(box.children);if(kids.length<3)return;
       var header=kids[0],footer=kids[kids.length-1],cont=kids.slice(1,-1),atoms=[];
-      var INL=function(n){return !(n.nodeType===1&&/^(DIV|P|UL|OL|H1|H2|H3|TABLE)$/.test(n.tagName));};
+      var INL=function(n){return !(n.nodeType===1&&/^(DIV|P|UL|OL|H1|H2|H3|TABLE|BLOCKQUOTE)$/.test(n.tagName));};
       function setLast(list,mb){if(list.length&&list[list.length-1].el.style)list[list.length-1].el.style.marginBottom=mb;}
       function rich(div){
         var out=[],grp=[],mb=div.style.marginBottom;
         function flush(){if(!grp.length)return;var d=div.cloneNode(false);d.removeAttribute('data-pg');d.style.marginBottom='0';grp.forEach(function(n){d.appendChild(n);});out.push({el:d});grp=[];}
         [].slice.call(div.childNodes).forEach(function(n){
           if(INL(n)){grp.push(n);if(n.nodeType===1&&n.tagName==='BR')flush();}
-          else{flush();out.push({el:n});}
+          else{flush();
+            if(n.nodeType===1&&(n.tagName==='UL'||n.tagName==='OL')){ // a long list may continue on the next page: one item per piece
+              var lis=[].slice.call(n.children),st0=parseInt(n.getAttribute('start'),10)||1;
+              lis.forEach(function(li,i){var u=n.cloneNode(false);u.appendChild(li);if(n.tagName==='OL')u.setAttribute('start',String(st0+i));out.push({el:u});});
+            }else if(n.nodeType===1&&n.tagName==='TABLE'&&n.querySelectorAll('tr').length>1){ // a long table continues on the next page: one row per piece
+              [].slice.call(n.querySelectorAll('tr')).forEach(function(tr,i){var tb=n.cloneNode(false),tbd=document.createElement('tbody');tbd.appendChild(tr);tb.appendChild(tbd);if(i>0)tb.style.marginTop='-1px';out.push({el:tb});});
+            }else out.push({el:n});}
         });
         flush();setLast(out,mb||'0');return out;
       }
@@ -5944,19 +6112,31 @@ async function printEstimate(id){
   var miniFooter='<div style="margin-top:20px;padding-top:8px;border-top:1px solid #ddd;text-align:center;font-size:9px;color:#888;line-height:1.5"><div style="font-weight:700;color:#555">NetFiber Network Cabling Solutions LLC</div><div>4840 North Shepherd Dr #4303, Houston, TX 77018 &nbsp;|&nbsp; (214) 542-7583 &nbsp;|&nbsp; www.netfibernetwork.com</div></div>';
   function cpRich(s){ // Additional Page text is rich text (bold, colors, sizes, line breaks): print it as formatting, never as visible tags
     s=String(s==null?'':s);
-    if(!/<\/?(b|i|u|br|div|p|span|font|ul|ol|li|strong|em|sup|sub|h[1-3])\b[^>]*>/i.test(s))return tfEsc(s).replace(/\r?\n/g,'<br>'); // older pages saved as plain text
+    if(!/<\/?(b|i|u|s|strike|del|br|div|p|span|font|ul|ol|li|strong|em|sup|sub|h[1-3]|a|img|table|tr|td|th|blockquote)\b[^>]*>/i.test(s))return tfEsc(s).replace(/\r?\n/g,'<br>'); // older pages saved as plain text
     var t=document.createElement('template');t.innerHTML=s;
-    var OK={B:1,STRONG:1,I:1,EM:1,U:1,DIV:1,P:1,SPAN:1,FONT:1,UL:1,OL:1,LI:1,SUP:1,SUB:1,H1:1,H2:1,H3:1};
-    function styleOk(st){var o=[];String(st||'').split(';').forEach(function(d){var i=d.indexOf(':');if(i<0)return;var k=d.slice(0,i).trim().toLowerCase(),v=d.slice(i+1).trim();if(/^(color|font-size|font-weight|font-style|text-decoration)$/.test(k)&&/^[#a-z0-9(),.% \-]+$/i.test(v))o.push(k+':'+v);});return o.join(';');}
+    var OK={B:1,STRONG:1,I:1,EM:1,U:1,S:1,STRIKE:1,DEL:1,DIV:1,P:1,SPAN:1,FONT:1,UL:1,OL:1,LI:1,SUP:1,SUB:1,H1:1,H2:1,H3:1,A:1,IMG:1,TABLE:1,THEAD:1,TBODY:1,TR:1,TD:1,TH:1,BLOCKQUOTE:1};
+    var PROPS=/^(color|background-color|font-size|font-family|font-weight|font-style|text-decoration|text-decoration-line|text-align|line-height|margin|margin-top|margin-bottom|margin-left|margin-right|padding|padding-left|text-indent|border|border-collapse|border-top|border-bottom|border-left|border-right|width|max-width|height|vertical-align|list-style-type)$/;
+    function styleOk(st){var o=[];String(st||'').split(';').forEach(function(d){var i=d.indexOf(':');if(i<0)return;var k=d.slice(0,i).trim().toLowerCase(),v=d.slice(i+1).trim();if(PROPS.test(k)&&/^[#a-z0-9(),.% \-'"]+$/i.test(v)&&!/url|expression|javascript|\\/i.test(v))o.push(k+':'+v);});return o.join(';');}
+    function qa(x){return String(x).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');}
     function walk(node){var out='';node.childNodes.forEach(function(n){
       if(n.nodeType===3){out+=tfEsc(n.nodeValue);return;}
       if(n.nodeType!==1)return;var tag=n.tagName;
       if(tag==='BR'){out+='<br>';return;}
       if(/^(SCRIPT|STYLE|IFRAME|OBJECT|EMBED|LINK|META)$/.test(tag))return;
       if(!OK[tag]){out+=walk(n);return;}
-      var at='';if(tag==='FONT'){var c=n.getAttribute('color'),sz=n.getAttribute('size');if(c&&/^[#a-z0-9]+$/i.test(c))at+=' color="'+c+'"';if(sz&&/^[1-7]$/.test(sz))at+=' size="'+sz+'"';}
-      var st=styleOk(n.getAttribute('style'));if(st)at+=' style="'+st+'"';
-      var tg=tag.toLowerCase();out+='<'+tg+at+'>'+walk(n)+'</'+tg+'>';});return out;}
+      var at='',tg=tag.toLowerCase();
+      if(tag==='IMG'){var src=n.getAttribute('src')||'';if(!/^data:image\/(jpeg|png|webp|gif);base64,[A-Za-z0-9+\/=]+$/.test(src))return;var ist=styleOk(n.getAttribute('style'));out+='<img src="'+src+'"'+(ist?' style="'+qa(ist)+'"':' style="max-width:100%;height:auto"')+'>';return;}
+      if(tag==='FONT'){var c=n.getAttribute('color'),sz=n.getAttribute('size'),fc=n.getAttribute('face');if(c&&/^[#a-z0-9]+$/i.test(c))at+=' color="'+c+'"';if(sz&&/^[1-7]$/.test(sz))at+=' size="'+sz+'"';if(fc&&/^[A-Za-z0-9 ,\-']+$/.test(fc))at+=' face="'+qa(fc)+'"';}
+      if(tag==='A'){var hr=(n.getAttribute('href')||'').trim();if(/^(https?:\/\/|mailto:|tel:)/i.test(hr))at+=' href="'+qa(hr)+'" target="_blank" rel="noopener"';}
+      if((tag==='TD'||tag==='TH')){var cs=n.getAttribute('colspan'),rs=n.getAttribute('rowspan');if(cs&&/^\d{1,2}$/.test(cs))at+=' colspan="'+cs+'"';if(rs&&/^\d{1,2}$/.test(rs))at+=' rowspan="'+rs+'"';}
+      var st=styleOk(n.getAttribute('style'));
+      if(tag==='P'&&!/margin/.test(st))st=(st?st+';':'')+'margin:0';
+      if(tag==='TABLE')st='border-collapse:collapse;width:100%;'+st;
+      if(tag==='TD'||tag==='TH')st='border:1px solid #999;padding:4px 6px;vertical-align:top;'+st;
+      if(tag==='UL'||tag==='OL')st='padding-left:24px;margin:0;'+st;
+      if(tag==='LI')st=st||'';
+      if(st)at+=' style="'+qa(st)+'"';
+      out+='<'+tg+at+'>'+walk(n)+'</'+tg+'>';});return out;}
     return walk(t.content);
   }
   function renderTblHtml(b){
@@ -8621,7 +8801,7 @@ async function bdAIContext(q){
   }catch(e){return '';}
 }
 
-var APP_VERSION='2.16.1',APP_BUILD_DATE='Oct 29, 2026';
+var APP_VERSION='2.17.0',APP_BUILD_DATE='Oct 29, 2026';
 (function(){function s(){var e=document.getElementById('sb-ver');if(e)e.textContent='Vantage v'+APP_VERSION+' · '+APP_BUILD_DATE;}s();document.addEventListener('DOMContentLoaded',s);})();
 
 </script>
@@ -10788,6 +10968,7 @@ VG.appMap=function(){
  if(mv.length)L.push('Moved pages: '+mv.join('; ')+'.');
  L.push('PROJECT CODES = TRADES: a project code GC26-XX-nnn has the trade in XX: 22 = Data Cabling (Comm: data, phone, wireless access points / WAPs, and anything else that needs Cat5, Cat5e, Cat6, Cat6A or fiber), 23 = AV (audio / visual, and networking equipment), 24 = Security (cameras, access control). The same project name and GC can have up to three projects, one per trade, each with its own bid, Build folder and proposal, because we may be awarded only one trade; a project with only one trade has only one of each. When you work on a bid, a Build folder or a proposal, scope it by its code: 22 = Comm only, 23 = AV only, 24 = Security only. Drawings and specs are often the same documents in each trade folder: read them completely for the trade you are working on, but reuse what was already read for another trade.');
  if(CP&&CP.group_name==='admin')L.push('MULTI-AI CROSS-CHECK (Settings > AI Proposal Engine > Cross-check, admins): when on, after the normal AI proposal ChatGPT and Gemini each read the SOW, spec and drawings on their own; Claude compares all proposals and saves an Accurate Proposal (a separate proposal in Estimating plus a PDF) and an AI Validation Report PDF in 0.0 HAND-OFF DOCS / Kickoff Meeting. Needs the ai-multi function and OPENAI_API_KEY / GEMINI_API_KEY secrets in Supabase.');
+ if(canAccess('vg_estimating'))L.push('ADDITIONAL PAGES TEXT EDITOR: every text box on a proposal Additional Page has a full toolbar - undo/redo, font family and size, bold/italic/underline/strikethrough, text and highlight colour, alignment, line spacing and space before/after paragraphs, bulleted/numbered lists, indent, clear formatting, and insert link, picture (double-click to resize) and table. It all prints in the proposal.');
  if(canAccess('vg_estimating'))L.push('ADDITIONAL PAGES TABLES: on a proposal Additional Page, the Add Table button (next to Clear on the page toolbar) adds a table with the columns Image, Qty, Description. Each row can have an uploaded product picture; rows and columns can be added and deleted. It prints in the proposal.');
  if(canAccess('vg_estimating'))L.push('BID OPPORTUNITIES and PROPOSALS live in Estimating (Estimating > Bid Opportunities, Estimating > Proposals). Bid Opportunities has a Trade filter from the project code (GC26-22 Data Cabling, GC26-23 AV, GC26-24 Security). Bids assigned to you (Vantage AI Advisor) are worked there; a proposal you create is saved in Estimating > Proposals with status Under Review, and its files go to the project in Build under 0.0 HAND-OFF DOCS > Kickoff Meeting. Never send the user to the old sidebar pages.');
  else L.push('Bid Opportunities and Proposals are separate pages in the sidebar (the Estimating module is hidden for now).');
