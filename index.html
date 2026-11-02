@@ -8835,7 +8835,7 @@ async function bdAIContext(q){
   }catch(e){return '';}
 }
 
-var APP_VERSION='2.17.1',APP_BUILD_DATE='Oct 29, 2026';
+var APP_VERSION='2.18.0',APP_BUILD_DATE='Oct 29, 2026';
 (function(){function s(){var e=document.getElementById('sb-ver');if(e)e.textContent='Vantage v'+APP_VERSION+' · '+APP_BUILD_DATE;}s();document.addEventListener('DOMContentLoaded',s);})();
 
 </script>
@@ -11026,6 +11026,7 @@ var _bd=window.bdAIContext;
 if(typeof _bd==='function'){window.bdAIContext=async function(q){var s='';try{s=await _bd(q);}catch(e){}try{s+=await VG.aiContext(q);}catch(e){}return s;};}
 else{window.bdAIContext=async function(q){try{return await VG.aiContext(q);}catch(e){return '';}};}
 })();
+(function(){var _p=window.bdAIContext;window.bdAIContext=async function(q){var s='';try{s=await _p(q);}catch(e){}return s+'\nNEW PROJECT FROM A BID: in Proposals (New Proposal), Build (New project), Purchases (New Project) and Project Management (New project) the user types an Estimate # or project name and picks a matching bid from Bid Opportunities; the form fills estimate no, project, GC, contact, address, scope and stays editable.';};})();
 
 /* ===== Vantage Departments (field tools, gallery, Modules visibility dropdown) ===== */
 (function(){
@@ -12933,6 +12934,145 @@ AIP.openFindings=async function(){
  }catch(e){console.warn('xc findings',e);}
  return r;
 };
+})();
+
+/* ===== Search-and-fill from Bid Opportunities: type an estimate # / project / GC in any "new project" form, pick the bid, the form fills itself ===== */
+(function(){
+if(window.BidPick)return;
+var BP=window.BidPick={cache:null,t:0,box:null,cur:null,idx:-1,items:[]};
+function E(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+BP.load=async function(force){
+ if(BP.cache&&!force&&Date.now()-BP.t<60000)return BP.cache;
+ try{
+  var r=await sb.from('bids').select('*').order('created_at',{ascending:false}).limit(3000);
+  BP.cache=(r&&r.data)||[];BP.t=Date.now();
+ }catch(e){BP.cache=BP.cache||[];}
+ return BP.cache;
+};
+BP.search=function(q,list){
+ q=String(q||'').trim().toLowerCase();
+ var toks=q.split(/\s+/).filter(Boolean),out=[];
+ (list||[]).forEach(function(b){
+  if(!b||(!b.ref&&!b.project))return;
+  var hay=[b.ref,b.project,b.gc,b.address,b.city,b.state,b.tdlr_no,b.poc].join(' ').toLowerCase();
+  if(toks.every(function(t){return hay.indexOf(t)>=0;})){
+   var ref=String(b.ref||'').toLowerCase(),score=0;
+   if(q&&ref.indexOf(q)===0)score=3;else if(toks.length&&ref.indexOf(toks[0])===0)score=2;else if(q&&String(b.project||'').toLowerCase().indexOf(q)===0)score=1;
+   out.push({b:b,s:score});
+  }
+ });
+ out.sort(function(a,c){return c.s-a.s;}); // stable: already newest first
+ return out.slice(0,8).map(function(x){return x.b;});
+};
+function ensureBox(){
+ if(BP.box)return BP.box;
+ var st=document.createElement('style');st.textContent='.bp-box{position:fixed;z-index:2147483000;background:#fff;border:1px solid #cfd8e6;border-radius:9px;box-shadow:0 10px 30px rgba(20,40,80,.22);max-height:320px;overflow:auto;font-family:inherit;display:none}.bp-h{padding:6px 10px;font-size:10px;font-weight:700;color:#8a94a6;text-transform:uppercase;letter-spacing:.4px;background:#f7f9fc;border-bottom:1px solid #eef1f6}.bp-i{padding:7px 10px;cursor:pointer;border-bottom:1px solid #f1f3f8}.bp-i:last-child{border-bottom:none}.bp-i.on,.bp-i:hover{background:#eaf2fc}.bp-r{font-size:12px;font-weight:700;color:#1B5E9B}.bp-p{font-size:12px;color:#222;font-weight:600}.bp-s{font-size:11px;color:#777}.bp-e{padding:10px;font-size:12px;color:#888}';
+ document.head.appendChild(st);
+ var d=document.createElement('div');d.className='bp-box';d.id='bp-box';
+ d.addEventListener('mousedown',function(e){e.preventDefault();});
+ d.addEventListener('click',function(e){var it=e.target.closest&&e.target.closest('.bp-i');if(it)BP.pick(+it.dataset.i);});
+ document.body.appendChild(d);BP.box=d;
+ document.addEventListener('mousedown',function(e){if(BP.cur&&e.target!==BP.cur.el&&!(BP.box.contains(e.target)))BP.hide();},true);
+ window.addEventListener('resize',function(){BP.hide();});
+ return d;
+}
+BP.hide=function(){if(BP.box)BP.box.style.display='none';BP.items=[];BP.idx=-1;};
+BP.show=async function(){
+ var c=BP.cur;if(!c)return;
+ if(c.opt.when&&!c.opt.when()){BP.hide();return;}
+ var box=ensureBox(),q=c.el.value,list=await BP.load();
+ if(BP.cur!==c)return;
+ var items=q.trim()?BP.search(q,list):list.slice(0,8);
+ BP.items=items;BP.idx=items.length?0:-1;
+ var r=c.el.getBoundingClientRect();
+ box.style.left=Math.max(8,r.left)+'px';box.style.top=(r.bottom+4)+'px';box.style.minWidth=Math.max(320,r.width)+'px';box.style.maxWidth='520px';
+ box.innerHTML=(q.trim()?'':'<div class="bp-h">Recent bids - or keep typing</div>')
+  +(items.length?items.map(function(b,i){return '<div class="bp-i'+(i===0?' on':'')+'" data-i="'+i+'"><div><span class="bp-r">'+E(b.ref||'')+'</span> <span class="bp-p">'+E(b.project||'')+'</span></div><div class="bp-s">'+E([b.gc,[b.city,b.state].filter(Boolean).join(', '),b.status].filter(Boolean).join(' · '))+'</div></div>';}).join(''):'<div class="bp-e">No matching bid in Bid Opportunities. You can still type the details yourself.</div>');
+ box.style.display='block';
+};
+BP.mark=function(){if(!BP.box)return;[].slice.call(BP.box.querySelectorAll('.bp-i')).forEach(function(n,i){n.classList.toggle('on',i===BP.idx);if(i===BP.idx&&n.scrollIntoView)n.scrollIntoView({block:'nearest'});});};
+BP.pick=function(i){
+ var b=BP.items[i],c=BP.cur;if(!b||!c)return;
+ BP.hide();
+ try{c.opt.onPick(b);}catch(e){console.warn('Bid fill',e);}
+ try{if(typeof bdToast==='function')bdToast('Filled from bid '+(b.ref||b.project)+' - you can still edit anything');}catch(e){}
+};
+BP.attach=function(el,opt){
+ if(!el||el._bp)return;el._bp=1;
+ el.setAttribute('autocomplete','off');
+ function go(){BP.cur={el:el,opt:opt};BP.show();}
+ el.addEventListener('focus',go);
+ el.addEventListener('input',go);
+ el.addEventListener('keydown',function(e){
+  if(!BP.box||BP.box.style.display==='none'||!BP.items.length)return;
+  if(e.key==='ArrowDown'){e.preventDefault();BP.idx=Math.min(BP.items.length-1,BP.idx+1);BP.mark();}
+  else if(e.key==='ArrowUp'){e.preventDefault();BP.idx=Math.max(0,BP.idx-1);BP.mark();}
+  else if(e.key==='Enter'){e.preventDefault();e.stopPropagation();BP.pick(BP.idx);}
+  else if(e.key==='Escape'){e.stopPropagation();BP.hide();}
+ });
+ el.addEventListener('blur',function(){setTimeout(function(){if(BP.cur&&BP.cur.el===el)BP.hide();},150);});
+};
+function setv(id,v){var el=document.getElementById(id);if(el&&v!=null&&String(v).trim()!=='')el.value=v;}
+function addr(b){return [b.address,b.city,b.state].filter(function(x){return x&&String(x).trim();}).join(', ');}
+function typeOf(b){var s=String(b.scope||'').toLowerCase(),k=[];if(/comm|data|cabl/.test(s))k.push('Data');if(/\bav\b|audio|visual/.test(s))k.push('AV');if(/secur|camera|access/.test(s))k.push('Security');return k.length>1?'Mixed':(k[0]||'');}
+
+/* ---- Proposals > New Proposal ---- */
+var onp=window.openNewProposal;
+if(typeof onp==='function')window.openNewProposal=async function(){
+ var r=await onp.apply(this,arguments);
+ try{
+  var opt={when:function(){try{return !currentProposalId;}catch(e){return true;}},onPick:function(b){
+   setv('ped-estno',b.ref);setv('ped-projname',b.project);setv('ped-sow',b.scope);setv('ped-city',b.city);setv('ped-state',b.state);setv('ped-projaddr',b.address);
+   if(b.gc||b.poc||b.email||b.phone){
+    var g=(pedGCs.find(function(x){return x.primary;})||pedGCs[0]);
+    if(!g){addGCRow({company:b.gc,contact_name:b.poc,email:b.email,phone:b.phone,is_primary:true});}
+    else{if(b.gc)g.company=b.gc;if(b.poc)g.contact=b.poc;if(b.email)g.email=b.email;if(b.phone)g.phone=b.phone;renderGCRows();}
+   }
+  }};
+  BP.attach(document.getElementById('ped-estno'),opt);BP.attach(document.getElementById('ped-projname'),opt);
+ }catch(e){console.warn('bid pick',e);}
+ return r;
+};
+
+/* ---- Purchases > New Project ---- */
+var opp=window.openPPModal;
+if(typeof opp==='function')window.openPPModal=function(){
+ var r=opp.apply(this,arguments);
+ try{
+  var opt={when:function(){try{return !editPPId;}catch(e){return true;}},onPick:function(b){setv('pp-ref',b.ref);setv('pp-name',b.project);setv('pp-gc',b.gc);}};
+  BP.attach(document.getElementById('pp-ref'),opt);BP.attach(document.getElementById('pp-name'),opt);
+ }catch(e){}
+ return r;
+};
+
+/* ---- Build > New project ---- */
+var obn=window.bdNewProject;
+if(typeof obn==='function')window.bdNewProject=async function(){
+ var r=await obn.apply(this,arguments);
+ try{
+  var opt={onPick:function(b){setv('bp-code',b.ref);setv('bp-name',b.project);setv('bp-client',b.gc);setv('bp-addr',addr(b));}};
+  BP.attach(document.getElementById('bp-code'),opt);BP.attach(document.getElementById('bp-name'),opt);BP.attach(document.getElementById('bp-client'),opt);
+ }catch(e){}
+ return r;
+};
+
+/* ---- Departments > Project Management > Projects (and any other new-project form built by VG) ---- */
+if(window.VG&&VG.edit){
+ var oe=VG.edit;
+ VG.edit=async function(t){
+  var r=await oe.apply(this,arguments);
+  try{
+   if(t==='vg_projects'&&VG._ed&&VG._ed.isNew){
+    var opt={onPick:function(b){
+     setv('vgf_code',b.ref);setv('vgf_name',b.project);setv('vgf_client',b.gc);setv('vgf_address',b.address);setv('vgf_city',b.city);setv('vgf_state',b.state);setv('vgf_bid_ref',b.ref);setv('vgf_notes',b.notes);
+     var ty=typeOf(b),sel=document.getElementById('vgf_type');if(sel&&ty)sel.value=ty;
+    }};
+    ['vgf_code','vgf_name','vgf_client','vgf_bid_ref'].forEach(function(id){BP.attach(document.getElementById(id),opt);});
+   }
+  }catch(e){console.warn('bid pick',e);}
+  return r;
+ };
+}
 })();
 
 </script>
