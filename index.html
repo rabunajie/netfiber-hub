@@ -7220,7 +7220,7 @@ async function bdEnsureFolder(parent,name){
 }
 async function bdUploadWithPaths(list,fid){
   if(!bdCanEdit()||!list.length)return;
-  var idx=0,n=0,fails=0;
+  var idx=0,n=0,fails=0,firstErr='',firstName='';
   async function worker(){
     while(idx<list.length){
       var it=list[idx++],tid=bdTrayAdd(it.rel);
@@ -7228,21 +7228,55 @@ async function bdUploadWithPaths(list,fid){
         var parts=it.rel.split('/').filter(Boolean),fname=parts.pop(),parent=fid||null;
         for(var i=0;i<parts.length;i++)parent=await bdEnsureFolder(parent,parts[i]);
         var ex=BD.files.find(function(f){return !f.is_deleted&&(f.folder_id||null)===(parent||null)&&f.name.toLowerCase()===fname.toLowerCase();});
-        var row=await bdPutFile({folderId:parent,name:fname,blob:it.file,mime:bdMimeFor(it.file),existing:ex||null,note:ex?'Uploaded new version':'Uploaded'});
+        var row=await bdPutFile({folderId:parent,name:fname,blob:it.file,mime:bdMimeFor(it.file),existing:ex||null,note:ex?'Uploaded new version':'Uploaded',onProgress:function(pc){var d=document.getElementById(tid);if(d){var st=d.querySelector('.bd-trs');if(st)st.innerHTML='<span style="color:#666">'+pc+'%</span>';}}});
         bdTrayDone(tid,true,'V'+row.version);n++;
-      }catch(e){fails++;bdTrayDone(tid,false,e.message||String(e));}
+      }catch(e){fails++;if(!firstErr){firstErr=e&&e.message||String(e);firstName=it.rel;}console.warn('Upload failed',it.rel,e);bdTrayDone(tid,false,bdUploadHint(e&&e.message||String(e)));}
     }
   }
   await Promise.all([worker(),worker(),worker()]);
   if(n)bdLog('Uploaded files',n+' file(s) to '+bdFolderPathName(fid));
-  if(fails)bdToast(fails+' file(s) failed to upload. Free plan limit is 50 MB per file.',true);
+  if(fails)bdToast(fails+' file(s) failed to upload ('+firstName+'): '+bdUploadHint(firstErr),true);
   await bdReload();
+}
+
+// Uploading to storage: big files go up in pieces (resumable), a gateway timeout (504) is retried, and the real error is kept for the message
+function bdSleep(ms){return new Promise(function(r){setTimeout(r,ms);});}
+async function bdTusUpload(path,blob,mime,onP){
+  await bdLoadScript('https://cdn.jsdelivr.net/npm/tus-js-client@4.1.0/dist/tus.min.js');
+  if(!window.tus)throw new Error('Resumable uploader not available');
+  var tok=SB_KEY;try{var ss=await sb.auth.getSession();if(ss&&ss.data&&ss.data.session&&ss.data.session.access_token)tok=ss.data.session.access_token;}catch(e){}
+  var ref=SB_URL.replace(/^https:\/\//,'').split('.')[0];
+  return new Promise(function(res,rej){
+    var u=new tus.Upload(blob,{endpoint:'https://'+ref+'.storage.supabase.co/storage/v1/upload/resumable',retryDelays:[0,3000,6000,12000,20000],
+      headers:{authorization:'Bearer '+tok,apikey:SB_KEY,'x-upsert':'true'},uploadDataDuringCreation:true,removeFingerprintOnSuccess:true,chunkSize:6*1024*1024,
+      metadata:{bucketName:BD_BUCKET,objectName:path,contentType:mime||'application/octet-stream',cacheControl:'3600'},
+      onError:function(e){rej(e);},onProgress:function(a,t){if(onP)try{onP(Math.round(100*a/t));}catch(x){}},onSuccess:function(){res();}});
+    u.start();
+  });
+}
+async function bdStorageUpload(path,blob,mime,onP){
+  mime=mime||'application/octet-stream';var last=null;
+  if(blob.size>5*1024*1024){try{await bdTusUpload(path,blob,mime,onP);return;}catch(e){last=e;console.warn('Resumable upload failed, trying the normal upload',e);}}
+  for(var i=0;i<4;i++){
+    var up=await sb.storage.from(BD_BUCKET).upload(path,blob,{contentType:mime,upsert:i>0||!!last});
+    if(!up.error)return;
+    last=up.error;var m=String(up.error.message||up.error)+' '+(up.error.statusCode||up.error.status||'');
+    if(/exceeded the maximum allowed size|413|too large/i.test(m))break; // retrying will not help
+    await bdSleep(2500*(i+1));
+  }
+  throw last;
+}
+function bdUploadHint(msg){
+  msg=String(msg||'');
+  if(/exceeded the maximum allowed size|413|too large|payload/i.test(msg))return 'The file is larger than the Storage limit. The Supabase Free plan caps every file at 50 MB even if the setting says 1 GB (Pro is needed for bigger files).';
+  if(/50[234]|timeout|timed out|gateway|failed to fetch|network|aborted/i.test(msg))return 'The upload timed out (slow or unstable connection). It was retried automatically; try again, and if it keeps happening check your internet or upload from another network.';
+  if(/row-level|policy|permission|not authorized|403/i.test(msg))return 'You do not have permission to upload here.';
+  return msg;
 }
 async function bdPutFile(o){
   var pid=BD.proj.id,ex=o.existing,id=ex?ex.id:bdId(),ver=ex?(ex.version||1)+1:1;
   var path=pid+'/'+id+'/v'+ver+'-'+bdSafe(o.name);
-  var up=await sb.storage.from(BD_BUCKET).upload(path,o.blob,{contentType:o.mime||'application/octet-stream',upsert:false});
-  if(up.error)throw up.error;
+  await bdStorageUpload(path,o.blob,o.mime,o.onProgress);
   var now=new Date().toISOString(),row;
   if(ex){
     var u={storage_path:path,size:o.blob.size,version:ver,mime:o.mime||ex.mime,updated_by:CU.id,updated_at:now,index_status:'pending',extracted_text:null,is_deleted:false,deleted_at:null};
@@ -8801,7 +8835,7 @@ async function bdAIContext(q){
   }catch(e){return '';}
 }
 
-var APP_VERSION='2.17.0',APP_BUILD_DATE='Oct 29, 2026';
+var APP_VERSION='2.17.1',APP_BUILD_DATE='Oct 29, 2026';
 (function(){function s(){var e=document.getElementById('sb-ver');if(e)e.textContent='Vantage v'+APP_VERSION+' · '+APP_BUILD_DATE;}s();document.addEventListener('DOMContentLoaded',s);})();
 
 </script>
