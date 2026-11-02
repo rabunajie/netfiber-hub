@@ -8835,7 +8835,7 @@ async function bdAIContext(q){
   }catch(e){return '';}
 }
 
-var APP_VERSION='2.18.0',APP_BUILD_DATE='Oct 29, 2026';
+var APP_VERSION='2.19.0',APP_BUILD_DATE='Oct 29, 2026';
 (function(){function s(){var e=document.getElementById('sb-ver');if(e)e.textContent='Vantage v'+APP_VERSION+' · '+APP_BUILD_DATE;}s();document.addEventListener('DOMContentLoaded',s);})();
 
 </script>
@@ -10244,7 +10244,7 @@ VG.cell=function(t,col,row,forExport){
  if(ty==='link'){var lr=(VG.linkRows[col.link]||[]).find(function(x){return x.id===v;});return E(lr?lr[col.show]:'');}
  if(ty==='file')return v?(forExport?v:'<a href="#" onclick="VG.openFile(\''+E(v)+'\');return false" style="color:#1B5E9B">Open</a>'):'';
  if(ty==='select'&&!forExport)return VG.badge(v);
- if(ty==='project'&&!forExport&&v){return '<a href="#" onclick="VG.openProject(\''+E(v)+'\');return false" style="color:#1B5E9B;font-weight:600">'+E(v)+'</a>';}
+ if(ty==='project'&&!forExport&&v){return '<a href="#" onclick="VG.openProject(\''+E(v)+'\');return false" style="color:#1B5E9B;font-weight:600">'+E(v)+'</a>'+(VG.pname(v)?' <span style="color:#6b7a90;font-size:11px">'+E(VG.pname(v))+'</span>':'');}
  if(ty==='longtext'&&!forExport)return E(String(v||'').slice(0,90));
  return forExport?(v==null?'':v):E(v);
 };
@@ -11027,6 +11027,7 @@ if(typeof _bd==='function'){window.bdAIContext=async function(q){var s='';try{s=
 else{window.bdAIContext=async function(q){try{return await VG.aiContext(q);}catch(e){return '';}};}
 })();
 (function(){var _p=window.bdAIContext;window.bdAIContext=async function(q){var s='';try{s=await _p(q);}catch(e){}return s+'\nNEW PROJECT FROM A BID: in Proposals (New Proposal), Build (New project), Purchases (New Project) and Project Management (New project) the user types an Estimate # or project name and picks a matching bid from Bid Opportunities; the form fills estimate no, project, GC, contact, address, scope and stays editable.';};})();
+(function(){var _p=window.bdAIContext;window.bdAIContext=async function(q){var s='';try{s=await _p(q);}catch(e){}return s+'\nPROJECT FIELDS: every Project field in all departments has a search over existing projects and bids; picking a bid creates the project in Project Management so one code links everything.';};})();
 
 /* ===== Vantage Departments (field tools, gallery, Modules visibility dropdown) ===== */
 (function(){
@@ -12966,7 +12967,7 @@ BP.search=function(q,list){
 };
 function ensureBox(){
  if(BP.box)return BP.box;
- var st=document.createElement('style');st.textContent='.bp-box{position:fixed;z-index:2147483000;background:#fff;border:1px solid #cfd8e6;border-radius:9px;box-shadow:0 10px 30px rgba(20,40,80,.22);max-height:320px;overflow:auto;font-family:inherit;display:none}.bp-h{padding:6px 10px;font-size:10px;font-weight:700;color:#8a94a6;text-transform:uppercase;letter-spacing:.4px;background:#f7f9fc;border-bottom:1px solid #eef1f6}.bp-i{padding:7px 10px;cursor:pointer;border-bottom:1px solid #f1f3f8}.bp-i:last-child{border-bottom:none}.bp-i.on,.bp-i:hover{background:#eaf2fc}.bp-r{font-size:12px;font-weight:700;color:#1B5E9B}.bp-p{font-size:12px;color:#222;font-weight:600}.bp-s{font-size:11px;color:#777}.bp-e{padding:10px;font-size:12px;color:#888}';
+ var st=document.createElement('style');st.textContent='.bp-box{position:fixed;z-index:2147483000;background:#fff;border:1px solid #cfd8e6;border-radius:9px;box-shadow:0 10px 30px rgba(20,40,80,.22);max-height:320px;overflow:auto;font-family:inherit;display:none}.bp-h{padding:6px 10px;font-size:10px;font-weight:700;color:#8a94a6;text-transform:uppercase;letter-spacing:.4px;background:#f7f9fc;border-bottom:1px solid #eef1f6}.bp-i{padding:7px 10px;cursor:pointer;border-bottom:1px solid #f1f3f8}.bp-i:last-child{border-bottom:none}.bp-i.on,.bp-i:hover{background:#eaf2fc}.bp-r{font-size:12px;font-weight:700;color:#1B5E9B}.bp-p{font-size:12px;color:#222;font-weight:600}.bp-s{font-size:11px;color:#777}.bp-t{font-size:9px;font-weight:700;color:#fff;background:#6b8bb3;border-radius:8px;padding:1px 6px;vertical-align:1px}.bp-e{padding:10px;font-size:12px;color:#888}';
  document.head.appendChild(st);
  var d=document.createElement('div');d.className='bp-box';d.id='bp-box';
  d.addEventListener('mousedown',function(e){e.preventDefault();});
@@ -12980,7 +12981,7 @@ BP.hide=function(){if(BP.box)BP.box.style.display='none';BP.items=[];BP.idx=-1;}
 BP.show=async function(){
  var c=BP.cur;if(!c)return;
  if(c.opt.when&&!c.opt.when()){BP.hide();return;}
- var box=ensureBox(),q=c.el.value,list=await BP.load();
+ var box=ensureBox(),q=c.el.value,list=c.opt.list?await c.opt.list():await BP.load();
  if(BP.cur!==c)return;
  var items=q.trim()?BP.search(q,list):list.slice(0,8);
  BP.items=items;BP.idx=items.length?0:-1;
@@ -13073,6 +13074,61 @@ if(window.VG&&VG.edit){
   return r;
  };
 }
+
+/* ---- Every project field in Operations, PM, Engineering, Technician, Warehouse, Accounting, Sales, Service ---- */
+BP.projList=async function(){
+ var bids=await BP.load();
+ try{await VG.loadRefs();}catch(e){}
+ var P=VG.refs.projects||[],out=[],seen={};
+ P.forEach(function(p){seen[String(p.code).toUpperCase()]=1;if(p.bid_ref)seen[String(p.bid_ref).toUpperCase()]=1;
+  out.push({ref:p.code,project:p.name,gc:p.client,address:p.address,city:p.city,state:p.state,status:p.status,_tag:'Project',_vp:p});});
+ bids.forEach(function(b){if(!b.ref||seen[String(b.ref).toUpperCase()])return;
+  out.push({ref:b.ref,project:b.project,gc:b.gc,address:b.address,city:b.city,state:b.state,status:b.status,scope:b.scope,notes:b.notes,_tag:'Bid',_bid:b});});
+ return out;
+};
+BP.ensureProject=async function(it){
+ if(it._vp)return it._vp;
+ var code=String(it.ref).trim().toUpperCase(),b=it._bid||{};
+ var ex=(VG.refs.projects||[]).find(function(p){return p.code===code;});if(ex)return ex;
+ var st=/won|award/i.test(b.status||'')?'Awarded':'Bidding';
+ var o={code:code,name:b.project||code,client:b.gc||null,type:typeOf(b)||null,status:st,address:b.address||null,city:b.city||null,state:b.state||null,bid_ref:b.ref,notes:b.notes||null,created_by:CU.id,updated_by:CU.id};
+ var r=await sb.from('vg_projects').insert(o).select().single();
+ if(r.error){var q=await sb.from('vg_projects').select('*').eq('code',code).maybeSingle();if(q.data)return q.data;throw r.error;}
+ VG.refs.projects.push(r.data);VG.bust('vg_projects');
+ try{if(typeof bdToast==='function')bdToast('Project '+code+' added to Project Management from the bid');}catch(e){}
+ return r.data;
+};
+var FILL={client:function(p){return p.client;},customer:function(p){return p.client;},site:function(p){return [p.address,p.city,p.state].filter(Boolean).join(', ');},site_address:function(p){return [p.address,p.city,p.state].filter(Boolean).join(', ');},job_site:function(p){return [p.address,p.city,p.state].filter(Boolean).join(', ');},location:function(p){return [p.address,p.city].filter(Boolean).join(', ');},city:function(p){return p.city;},state:function(p){return p.state;}};
+if(window.VG&&VG.edit){
+ var oe2=VG.edit;
+ VG.edit=async function(t){
+  var r=await oe2.apply(this,arguments);
+  try{
+   var S=VG.spec.tables[t];
+   if(!S||t==='vg_projects'||!(VG._ed&&VG._ed.t===t))return r;
+   S.cols.forEach(function(c){
+    if(c.t!=='project')return;
+    var sel=document.getElementById('vgf_'+c.k);if(!sel||sel._bpw)return;sel._bpw=1;
+    var inp=document.createElement('input');inp.className='vg-in';inp.type='text';inp.placeholder='Search project # or name (projects and bids)...';inp.style.cssText='margin-bottom:4px;width:100%';
+    sel.parentNode.insertBefore(inp,sel);
+    var info=document.createElement('div');info.className='bp-info';info.style.cssText='font-size:11px;color:#1B5E9B;margin-top:3px';sel.parentNode.appendChild(info);
+    function upd(){var p=(VG.refs.projects||[]).find(function(x){return x.code===sel.value;});info.textContent=p?('Linked: '+p.code+' - '+p.name+(p.client?' · '+p.client:'')):'';}
+    sel.addEventListener('change',upd);upd();
+    BP.attach(inp,{list:BP.projList,onPick:async function(it){
+     try{
+      var p=await BP.ensureProject(it);
+      if(![].some.call(sel.options,function(o){return o.value===p.code;})){var op=document.createElement('option');op.value=p.code;op.textContent=p.code+' - '+p.name;sel.appendChild(op);}
+      sel.value=p.code;inp.value='';upd();
+      S.cols.forEach(function(k){var f=FILL[k.k];if(!f||k.t==='project')return;var el=document.getElementById('vgf_'+k.k);var v=f(p);if(el&&v&&!String(el.value||'').trim())el.value=v;});
+     }catch(e){console.warn('project pick',e);if(typeof bdToast==='function')bdToast('Could not link project: '+((e&&e.message)||e),true);}
+    }});
+   });
+  }catch(e){console.warn('project field',e);}
+  return r;
+ };
+}
+/* project name shown next to the code in every list */
+if(window.VG&&VG.cell){/* handled in vg2 */}
 })();
 
 </script>
