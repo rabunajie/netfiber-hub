@@ -7212,6 +7212,7 @@ function bdTray(){var t=document.getElementById('bd-tray');if(!t){t=document.cre
 function bdTrayAdd(name){var t=bdTray();var id='tr'+Math.random().toString(36).slice(2,8);var d=document.createElement('div');d.id=id;d.className='bd-tr';d.innerHTML='<span class="bd-trn">'+bdE(name)+'</span><span class="bd-trs"><span class="spinner" style="width:12px;height:12px"></span></span>';t.appendChild(d);return id;}
 function bdTrayDone(id,ok,msg){var d=document.getElementById(id);if(!d)return;d.querySelector('.bd-trs').innerHTML=ok?'<span style="color:#1D9E75">✓ '+bdE(msg||'')+'</span>':'<span style="color:#C62828" title="'+bdE(msg||'')+'">✕ failed</span>';setTimeout(function(){d.remove();var t=document.getElementById('bd-tray');if(t&&!t.children.length)t.remove();},ok?2500:7000);}
 async function bdEnsureFolder(parent,name){
+  if(window.AIP&&AIP._lock&&BD.proj&&BD.proj.id!==AIP._lock.id){BD.proj=AIP._lock;await bdFetchAll();}
   var ex=BD.folders.find(function(f){return !f.is_deleted&&(f.parent_id||null)===(parent||null)&&f.name.toLowerCase()===name.toLowerCase();});
   if(ex)return ex.id;
   var row={id:bdId(),project_id:BD.proj.id,parent_id:parent||null,name:name,created_by:CU.id};
@@ -7274,6 +7275,7 @@ function bdUploadHint(msg){
   return msg;
 }
 async function bdPutFile(o){
+  if(window.AIP&&AIP._lock&&BD.proj&&BD.proj.id!==AIP._lock.id){BD.proj=AIP._lock;await bdFetchAll();}
   var pid=BD.proj.id,ex=o.existing,id=ex?ex.id:bdId(),ver=ex?(ex.version||1)+1:1;
   var path=pid+'/'+id+'/v'+ver+'-'+bdSafe(o.name);
   await bdStorageUpload(path,o.blob,o.mime,o.onProgress);
@@ -8835,7 +8837,7 @@ async function bdAIContext(q){
   }catch(e){return '';}
 }
 
-var APP_VERSION='2.19.0',APP_BUILD_DATE='Oct 29, 2026';
+var APP_VERSION='2.19.1',APP_BUILD_DATE='Oct 29, 2026';
 (function(){function s(){var e=document.getElementById('sb-ver');if(e)e.textContent='Vantage v'+APP_VERSION+' · '+APP_BUILD_DATE;}s();document.addEventListener('DOMContentLoaded',s);})();
 
 </script>
@@ -9349,14 +9351,29 @@ AIP.tick=async function(force){
  }catch(e){console.warn('AI engine tick',e);}
  finally{AIP.busy=false;AIP.cur=null;AIP.refreshBar();}
 };
+AIP.pnum=function(x){var m=String(x||'').match(/gc\s*-?\s*(\d{2})\s*-?\s*(\d{2})\s*-?\s*(\d{1,5})/i);return m?(m[1]+'-'+m[2]+'-'+parseInt(m[3],10)):'';};
 AIP.findProject=function(bid,projs){
+ /* strict match by Project #: never "closest" or "first" - a wrong folder is worse than no folder */
  var norm=function(s){return String(s||'').toLowerCase().replace(/[^a-z0-9]/g,'');};
  var ref=norm(bid.ref);if(!ref)return null;
- var hit=projs.filter(function(p){return norm(p.code)===ref||norm(p.name).indexOf(ref)>=0||(norm(p.code)&&ref.indexOf(norm(p.code))>=0&&norm(p.code).length>=6);});
- var tb=AIP.tradeOf?AIP.tradeOf(bid.ref):null;
- if(tb)hit=hit.filter(function(p){var tp=AIP.tradeOf(p.code)||AIP.tradeOf(p.name);return !tp||tp.code===tb.code;});
- var ex=hit.filter(function(p){return norm(p.code)===ref;});
- return ex[0]||hit[0]||null;
+ var live=(projs||[]).filter(function(p){return p.status!=='Archived';});
+ var pick=function(a){if(a.length===1)return a[0];if(a.length>1){var ex=a.filter(function(p){return norm(p.code)===ref;});if(ex.length===1)return ex[0];}return null;};
+ var t1=live.filter(function(p){return norm(p.code)&&norm(p.code)===ref;});
+ if(t1.length)return pick(t1);
+ var bn=AIP.pnum(bid.ref);
+ if(bn){
+  var t2=live.filter(function(p){return AIP.pnum(p.code)===bn;});if(t2.length)return pick(t2);
+  var t3=live.filter(function(p){return !AIP.pnum(p.code)&&AIP.pnum(p.name)===bn;});if(t3.length)return pick(t3);
+  return null;
+ }
+ if(ref.length>=5){var t4=live.filter(function(p){return norm(p.name).indexOf(ref)>=0;});if(t4.length)return pick(t4);}
+ return null;
+};
+AIP.sameProject=function(bid,proj){
+ if(!bid||!proj)return true;var norm=function(s){return String(s||'').toLowerCase().replace(/[^a-z0-9]/g,'');};
+ if(norm(proj.code)&&norm(proj.code)===norm(bid.ref))return true;
+ var bn=AIP.pnum(bid.ref);if(bn)return AIP.pnum(proj.code)===bn||(!AIP.pnum(proj.code)&&AIP.pnum(proj.name)===bn);
+ return norm(proj.name).indexOf(norm(bid.ref))>=0;
 };
 AIP.rerun=async function(id){
  if(AIP.st.mode==='off'){alert('Engine is Off. Choose Training or Full Automation first.');return;}
@@ -9698,7 +9715,12 @@ AIP.runJob=async function(job){
   var bid=null;if(job.bid_id){var br=await sb.from('bids').select('*').eq('id',job.bid_id).maybeSingle();bid=br.data;}
   var pr=await sb.from('build_projects').select('*').eq('id',job.build_project_id).maybeSingle();var proj=pr.data;
   if(!proj)throw new Error('Build project not found');
-  BD.proj=proj;BD.role='editor';await bdFetchAll();
+  if(bid&&job.mode!=='training'&&!AIP.sameProject(bid,proj)){
+   var allp=await sb.from('build_projects').select('*').neq('status','Archived');var rp=AIP.findProject(bid,allp.data||[]);
+   if(!rp)throw new Error('The saved Build project ('+(proj.code||proj.name)+') does not match Project # '+bid.ref+', and no Build project with that code was found. Nothing was saved. Fix the Build project code and press Re-run.');
+   proj=rp;job.build_project_id=rp.id;await sb.from('ai_proposal_jobs').update({build_project_id:rp.id}).eq('id',job.id);
+  }
+  BD.proj=proj;BD.role='editor';await bdFetchAll();AIP._lock=proj;
   var training=job.mode==='training',tf=null;
   if(training){
    if(!job.folder_id)throw new Error('Old-style training job (whole project). Delete it and press Run Training again.');
@@ -9752,6 +9774,7 @@ AIP.runJob=async function(job){
   }
   // files into 0.0 HAND-OFF DOCS / Kickoff Meeting
   await step(job,'Saving to Build',90,'Saving SOW summaries, proposal PDF and marked-up drawings to 0.0 HAND-OFF DOCS / Kickoff Meeting');
+  AIP._lock=proj;if(BD.proj.id!==proj.id){BD.proj=proj;await bdFetchAll();}
   var f0=training?null:await bdEnsureFolder(null,'0.0 HAND-OFF DOCS'),fk=training?tf.id:await bdEnsureFolder(f0,'Kickoff Meeting'),sref=bdSafe(ref).replace(/^_+|_+$/g,'');
   var failedPuts=[];
   async function put(name,blob,mime){
@@ -9792,6 +9815,7 @@ AIP.runJob=async function(job){
   console.warn('AI job failed',e);
   await upd(job,{status:'error',error:String(e&&e.message||e).slice(0,500),finished_at:new Date().toISOString()});
  }finally{
+  AIP._lock=null;
   var sameProj=snap.proj&&snap.proj.id===job.build_project_id;
   BD.proj=snap.proj;BD.folders=snap.folders;BD.files=snap.files;BD.members=snap.members;BD.role=snap.role;
   // the person is looking at this very project in Build: show the files the AI just saved
@@ -11028,6 +11052,7 @@ else{window.bdAIContext=async function(q){try{return await VG.aiContext(q);}catc
 })();
 (function(){var _p=window.bdAIContext;window.bdAIContext=async function(q){var s='';try{s=await _p(q);}catch(e){}return s+'\nNEW PROJECT FROM A BID: in Proposals (New Proposal), Build (New project), Purchases (New Project) and Project Management (New project) the user types an Estimate # or project name and picks a matching bid from Bid Opportunities; the form fills estimate no, project, GC, contact, address, scope and stays editable.';};})();
 (function(){var _p=window.bdAIContext;window.bdAIContext=async function(q){var s='';try{s=await _p(q);}catch(e){}return s+'\nPROJECT FIELDS: every Project field in all departments has a search over existing projects and bids; picking a bid creates the project in Project Management so one code links everything.';};})();
+(function(){var _p=window.bdAIContext;window.bdAIContext=async function(q){var s='';try{s=await _p(q);}catch(e){}return s+'\nAI FOLDER MATCH: the AI saves into the Build project whose code equals the bid Project # exactly (0.0 HAND-OFF DOCS / Kickoff Meeting); if none matches it stops with an error instead of guessing.';};})();
 
 /* ===== Vantage Departments (field tools, gallery, Modules visibility dropdown) ===== */
 (function(){
