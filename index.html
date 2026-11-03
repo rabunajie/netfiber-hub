@@ -8837,7 +8837,7 @@ async function bdAIContext(q){
   }catch(e){return '';}
 }
 
-var APP_VERSION='2.19.2',APP_BUILD_DATE='Oct 29, 2026';
+var APP_VERSION='2.19.3',APP_BUILD_DATE='Oct 29, 2026';
 (function(){function s(){var e=document.getElementById('sb-ver');if(e)e.textContent='Vantage v'+APP_VERSION+' · '+APP_BUILD_DATE;}s();document.addEventListener('DOMContentLoaded',s);})();
 
 </script>
@@ -9238,7 +9238,25 @@ function jparse(txt){
  s=s.slice(a,b+1);
  try{return JSON.parse(s);}catch(e){try{return JSON.parse(s.replace(/,\s*([}\]])/g,'$1'));}catch(e2){
   var fixed=jrepair(String(txt||'').replace(/```json|```/gi,'').trim());if(fixed!==null)return fixed;
+  var qf=jquotefix(s);if(qf!==null)return qf;
+  var qf2=jquotefix(String(txt||'').replace(/```json|```/gi,'').trim());if(qf2!==null)return qf2;
   throw new Error('AI JSON invalid (the AI answer was cut off or malformed)');}}
+}
+function jquotefix(s){ // quotes copied from documents often contain a raw double quote (inches, names): escape quotes that are not real string ends
+ try{
+  var out='',inS=false,esc=false;
+  for(var i=0;i<s.length;i++){var c=s[i];
+   if(!inS){if(c==='"')inS=true;out+=c;continue;}
+   if(esc){esc=false;out+=c;continue;}
+   if(c==='\\'){esc=true;out+=c;continue;}
+   if(c==='\n'){out+='\\n';continue;}if(c==='\r'||c==='\t'){out+=' ';continue;}
+   if(c==='"'){var m=s.slice(i+1).match(/^\s*(.)/);var nx=m?m[1]:'';
+    if(nx===','||nx==='}'||nx===']'||nx===':'||nx===''){inS=false;out+=c;}else out+='\\"';
+    continue;}
+   out+=c;}
+  var t=out.replace(/,\s*([}\]])/g,'$1');
+  try{return JSON.parse(t);}catch(e){return jrepair(t);}
+ }catch(e){return null;}
 }
 function jrepair(s){ // the AI answer was cut off (too long): keep everything that is complete and close the brackets
  var a=s.search(/[\[{]/);if(a<0)return null;s=s.slice(a);
@@ -9264,7 +9282,10 @@ async function ai(sys,content,max){
 async function aiJson(sys,content,max){
  var t=await ai(sys,content,max);
  try{return jparse(t);}catch(e){
-  var t2=await ai(sys+' Reply with ONLY valid JSON, nothing else. Keep it compact (short strings, no long quotes) so it is not cut off.',content,Math.min(8000,Math.round((max||3000)*1.4)));return jparse(t2);
+  var t2=await ai(sys+' Reply with ONLY valid JSON, nothing else. Keep it compact (short strings, no long quotes) so it is not cut off.',content,Math.min(8000,Math.round((max||3000)*1.4)));
+  try{return jparse(t2);}catch(e2){
+   var t3=await ai(sys+' IMPORTANT: reply with ONLY one valid JSON object. Quote at most 12 words per item. Never put a double quote character inside a string (use a single quote instead). Do not add any text before or after the JSON.',content,8000);return jparse(t3);
+  }
  }
 }
 AIP._h={jparse:jparse,ai:ai,aiJson:aiJson,typeKey:typeKey,sleep:sleep};
@@ -9462,8 +9483,18 @@ async function extractRequirements(job,ctx,bid,lessons){
  if(!chunks.length)return merged;
  var bidTxt=bid?('BID RECORD: project '+bid.project+'; GC '+bid.gc+'; due '+bid.due_date+'; SOW chosen by the estimator (authoritative for which scopes NetFiber is bidding: Comm = data/communications cabling, AV, Security): "'+(bid.scope||'not set')+'"; notes: '+(bid.notes||'')):'';
  for(var i=0;i<chunks.length;i++){
-  var base='Read these project documents (part '+(i+1)+' of '+chunks.length+'). Find EVERYTHING that asks for, specifies or assigns work in: (1) DATA/structured cabling & wireless (this work may be called LOW VOLTAGE, low-voltage, telecommunications, communications, technology, Division 27 or structured cabling, and low-voltage work is often listed inside the Electrical division, the E/T sheets or the general notes - the specification can even be inside the drawing file; also note any WRITTEN count of data outlets/drops, and remember a VOICE/DATA outlet = 2 cables), (2) AUDIO-VIDEO, (3) SECURITY / access control / cameras. For each, say what the client requires, quantities if stated, location, and whether NetFiber (low-voltage/technology subcontractor) is responsible or Others (electrical, GC, owner-furnished, vendor). Quote the exact words. Include forms, addenda and reference documents. '+bidTxt+(lessons?'\nLessons learned from past corrections:\n'+lessons:'')+'\nReturn ONLY JSON: '+REQ_SCHEMA+'\n\nDOCUMENTS:\n'+chunks[i];
-  var p1=await aiJson(AIP._p.SYS_TRADE,base,6000);
+  var mkBase=function(ct){return 'Read these project documents (part '+(i+1)+' of '+chunks.length+'). Find EVERYTHING that asks for, specifies or assigns work in: (1) DATA/structured cabling & wireless (this work may be called LOW VOLTAGE, low-voltage, telecommunications, communications, technology, Division 27 or structured cabling, and low-voltage work is often listed inside the Electrical division, the E/T sheets or the general notes - the specification can even be inside the drawing file; also note any WRITTEN count of data outlets/drops, and remember a VOICE/DATA outlet = 2 cables), (2) AUDIO-VIDEO, (3) SECURITY / access control / cameras. For each, say what the client requires, quantities if stated, location, and whether NetFiber (low-voltage/technology subcontractor) is responsible or Others (electrical, GC, owner-furnished, vendor). Quote the exact words. Include forms, addenda and reference documents. '+bidTxt+(lessons?'\nLessons learned from past corrections:\n'+lessons:'')+'\nReturn ONLY JSON: '+REQ_SCHEMA+'\n\nDOCUMENTS:\n'+ct;};var base=mkBase(chunks[i]);
+  var pass1=async function(ct,depth){
+   try{return await aiJson(AIP._p.SYS_TRADE,mkBase(ct),6000);}
+   catch(err){
+    if(depth<3&&ct.length>6000){ // the AI answer for this much text came back unreadable: read it in two smaller halves
+     var h=ct.indexOf('\n',Math.floor(ct.length/2));if(h<0)h=Math.floor(ct.length/2);
+     var a1=await pass1(ct.slice(0,h),depth+1),a2=await pass1(ct.slice(h),depth+1),m={data:[],av:[],security:[],exclusions:[],questions:[],bid_info:{}};
+     [a1,a2].forEach(function(x){['data','av','security','exclusions','questions'].forEach(function(kk){(x[kk]||[]).forEach(function(y){m[kk].push(y);});});Object.assign(m.bid_info,x.bid_info||{});});
+     return m;}
+    throw err;}
+  };
+  var p1=await pass1(chunks[i],0);
   await step(job,'Reading SOW documents',20+Math.round(12*(i+0.5)/chunks.length),'SOW pass 1 done for part '+(i+1)+'/'+chunks.length);
   var p2;try{p2=await aiJson(AIP._p.SYS_TRADE,'Second, independent check. Below are documents and a first-pass extraction. Find items the first pass MISSED or got WRONG (wrong quantity, wrong responsibility, wrong location). Return the COMPLETE corrected extraction (everything from pass 1 that is right, plus fixes and additions) in the same JSON shape: '+REQ_SCHEMA+'\n\nFIRST PASS:\n'+JSON.stringify(p1).slice(0,30000)+'\n\nDOCUMENTS:\n'+chunks[i],7000);}catch(e){p2=p1;await step(job,'Reading SOW documents',20+Math.round(12*(i+0.8)/chunks.length),'Second check of part '+(i+1)+' could not be read - using the first pass');}
   ['data','av','security','exclusions','questions'].forEach(function(k){(p2[k]||p1[k]||[]).forEach(function(x){merged[k].push(x);});});
@@ -11068,6 +11099,7 @@ else{window.bdAIContext=async function(q){try{return await VG.aiContext(q);}catc
 (function(){var _p=window.bdAIContext;window.bdAIContext=async function(q){var s='';try{s=await _p(q);}catch(e){}return s+'\nPROJECT FIELDS: every Project field in all departments has a search over existing projects and bids; picking a bid creates the project in Project Management so one code links everything.';};})();
 (function(){var _p=window.bdAIContext;window.bdAIContext=async function(q){var s='';try{s=await _p(q);}catch(e){}return s+'\nAI FOLDER MATCH: the AI saves into the Build project whose code equals the bid Project # exactly (0.0 HAND-OFF DOCS / Kickoff Meeting); if none matches it stops with an error instead of guessing.';};})();
 (function(){var _p=window.bdAIContext;window.bdAIContext=async function(q){var s='';try{s=await _p(q);}catch(e){}return s+'\nAI WAITING: a bid starts only when it is Under Review, assigned to Vantage AI, has a due date within the window, a Build project with the same Project #, and documents uploaded at least 20 minutes ago. The AI bar lists what each waiting bid is missing.';};})();
+(function(){var _p=window.bdAIContext;window.bdAIContext=async function(q){var s='';try{s=await _p(q);}catch(e){}return s+'\nAI JSON ERRORS: if the AI reports AI JSON invalid, Re-run the job; the reader repairs bad quotes, retries three times and splits large document parts.';};})();
 
 /* ===== Vantage Departments (field tools, gallery, Modules visibility dropdown) ===== */
 (function(){
