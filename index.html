@@ -8837,7 +8837,7 @@ async function bdAIContext(q){
   }catch(e){return '';}
 }
 
-var APP_VERSION='2.19.1',APP_BUILD_DATE='Oct 29, 2026';
+var APP_VERSION='2.19.2',APP_BUILD_DATE='Oct 29, 2026';
 (function(){function s(){var e=document.getElementById('sb-ver');if(e)e.textContent='Vantage v'+APP_VERSION+' · '+APP_BUILD_DATE;}s();document.addEventListener('DOMContentLoaded',s);})();
 
 </script>
@@ -9322,17 +9322,30 @@ AIP.tick=async function(force){
    var pf=await sb.from('profiles').select('id,full_name');var aiIds=(pf.data||[]).filter(function(p){return /vantage\s*ai/i.test(p.full_name||'');}).map(function(p){return p.id;});
    var br=await sb.from('bids').select('*').eq('status','Under Review');var bids=(br.data||[]).filter(function(b){return aiIds.indexOf(b.assigned_to)>=0;});
    var today=new Date();today.setHours(0,0,0,0);var lim=new Date(today.getTime()+(AIP.st.days_ahead||14)*86400000);
+   AIP.waits=[];
    for(var b=0;b<bids.length;b++){var bid=bids[b];
-    if(!bid.due_date||!bid.ref)continue;if(/^testing[\s_\-]?\d/i.test(String(bid.ref||'').trim())||/^testing[\s_\-]?\d/i.test(String(bid.project||'').trim()))continue;var dd=new Date(bid.due_date+'T00:00:00');
-    if(dd<today||dd>lim)continue;
-    if(have[bid.id+'||full']||Object.keys(have).some(function(k){return k.indexOf(bid.id+'|')===0;}))continue;
+    var wlab=bid.ref||bid.project||'bid';
+    if(!bid.ref){AIP.waits.push('A bid has no Project # yet');continue;}
+    if(!bid.due_date){AIP.waits.push(wlab+': no due date');continue;}
+    if(/^testing[\s_\-]?\d/i.test(String(bid.ref||'').trim())||/^testing[\s_\-]?\d/i.test(String(bid.project||'').trim()))continue;var dd=new Date(bid.due_date+'T00:00:00');
+    if(dd<today){AIP.waits.push(wlab+': due date has passed');continue;}
+    if(dd>lim){AIP.waits.push(wlab+': due more than '+(AIP.st.days_ahead||14)+' days away');continue;}
+    var mine=AIP.jobs.filter(function(j){return j.bid_id===bid.id&&j.mode==='full';});
+    var live=mine.filter(function(j){return j.status!=='error'||j.build_project_id;});
+    if(live.length)continue;
     var proj=AIP.findProject(bid,projs);
-    if(!proj){await AIP.queueJob({bid_id:bid.id,bid_ref:bid.ref,project_name:bid.project,mode:'full',status:'error',error:'No Build project found with code "'+bid.ref+'". Create it (or upload the documents) and press Re-run.'});continue;}
+    var stale=mine.filter(function(j){return j.status==='error'&&!j.build_project_id;})[0];
+    if(!proj){
+     AIP.waits.push(wlab+': no Build project with Project # '+bid.ref);
+     if(!stale)await AIP.queueJob({bid_id:bid.id,bid_ref:bid.ref,project_name:bid.project,mode:'full',status:'error',error:'No Build project found with code "'+bid.ref+'". Create it (or upload the documents) and press Re-run.'});
+     continue;}
     // wait while documents are still being uploaded
     var fr=await sb.from('build_files').select('updated_at').eq('project_id',proj.id).eq('is_deleted',false).order('updated_at',{ascending:false}).limit(1);
-    if(!fr.data||!fr.data.length)continue;
-    if(Date.now()-new Date(fr.data[0].updated_at).getTime()<20*60000)continue;
-    await AIP.queueJob({bid_id:bid.id,bid_ref:bid.ref,build_project_id:proj.id,project_name:bid.project,mode:'full'});
+    if(!fr.data||!fr.data.length){AIP.waits.push(wlab+': Build project found, waiting for the documents to be uploaded');continue;}
+    var ageMin=(Date.now()-new Date(fr.data[0].updated_at).getTime())/60000;
+    if(ageMin<20){AIP.waits.push(wlab+': documents uploaded, starting in '+Math.ceil(20-ageMin)+' min');continue;}
+    if(stale){await sb.from('ai_proposal_jobs').update({status:'queued',error:null,stage:null,progress:0,result:null,build_project_id:proj.id,project_name:bid.project}).eq('id',stale.id);}
+    else await AIP.queueJob({bid_id:bid.id,bid_ref:bid.ref,build_project_id:proj.id,project_name:bid.project,mode:'full'});
    }
   }
   try{await AIP.learnAll();}catch(e){console.warn('learnAll',e);}
@@ -9854,6 +9867,7 @@ AIP.refreshBar=function(){
  if(AIP.cur)txt='Working on '+E(AIP.cur.project_name||AIP.cur.bid_ref||'')+' - '+E(AIP.cur.stage||'')+' ('+(AIP.cur.progress||0)+'%)';
  else if(AIP.busy)txt='Checking for work...';
  else txt={off:'Off - no proposals will be created.',training:'Training - practising on the project folders inside Testing_1. No real proposals are created.',full:'Full automation - bids due within '+(AIP.st.days_ahead||14)+' days get a proposal. Runs while Vantage is open.'}[m];
+ if(m==='full'&&!AIP.cur&&AIP.waits&&AIP.waits.length)txt+='<div style="font-size:11px;color:#8a6d00;margin-top:2px">Waiting: '+AIP.waits.slice(0,4).map(E).join(' | ')+'</div>';
  if(s)s.innerHTML=txt;
 };
 var _r=window.renderAIAdvisor;
@@ -11053,6 +11067,7 @@ else{window.bdAIContext=async function(q){try{return await VG.aiContext(q);}catc
 (function(){var _p=window.bdAIContext;window.bdAIContext=async function(q){var s='';try{s=await _p(q);}catch(e){}return s+'\nNEW PROJECT FROM A BID: in Proposals (New Proposal), Build (New project), Purchases (New Project) and Project Management (New project) the user types an Estimate # or project name and picks a matching bid from Bid Opportunities; the form fills estimate no, project, GC, contact, address, scope and stays editable.';};})();
 (function(){var _p=window.bdAIContext;window.bdAIContext=async function(q){var s='';try{s=await _p(q);}catch(e){}return s+'\nPROJECT FIELDS: every Project field in all departments has a search over existing projects and bids; picking a bid creates the project in Project Management so one code links everything.';};})();
 (function(){var _p=window.bdAIContext;window.bdAIContext=async function(q){var s='';try{s=await _p(q);}catch(e){}return s+'\nAI FOLDER MATCH: the AI saves into the Build project whose code equals the bid Project # exactly (0.0 HAND-OFF DOCS / Kickoff Meeting); if none matches it stops with an error instead of guessing.';};})();
+(function(){var _p=window.bdAIContext;window.bdAIContext=async function(q){var s='';try{s=await _p(q);}catch(e){}return s+'\nAI WAITING: a bid starts only when it is Under Review, assigned to Vantage AI, has a due date within the window, a Build project with the same Project #, and documents uploaded at least 20 minutes ago. The AI bar lists what each waiting bid is missing.';};})();
 
 /* ===== Vantage Departments (field tools, gallery, Modules visibility dropdown) ===== */
 (function(){
