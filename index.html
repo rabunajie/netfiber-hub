@@ -6642,7 +6642,17 @@ var BD_FOLDER_SVG='<svg viewBox="0 0 24 24" width="1em" height="1em" fill="none"
 function bdLoadScript(url){
   window._bdS=window._bdS||{};
   if(window._bdS[url])return window._bdS[url];
-  window._bdS[url]=new Promise(function(ok,no){var s=document.createElement('script');s.src=url;if(BD_SRI[url]){s.integrity=BD_SRI[url];s.crossOrigin='anonymous';}s.onload=ok;s.onerror=function(){delete window._bdS[url];no(new Error('Could not load '+url));};document.head.appendChild(s);});
+  var cdn='https://cdn.jsdelivr.net/npm/',tries=[{u:url,sri:1},{u:url+(url.indexOf('?')<0?'?':'&')+'cb='+Date.now(),sri:1}];
+  if(url.indexOf(cdn)===0){var rest=url.slice(cdn.length);tries.push({u:'https://fastly.jsdelivr.net/npm/'+rest,sri:1},{u:'https://unpkg.com/'+rest,sri:0});}
+  function one(t){return new Promise(function(ok,no){var s=document.createElement('script');s.src=t.u;if(t.sri&&BD_SRI[url]){s.integrity=BD_SRI[url];s.crossOrigin='anonymous';}s.onload=ok;s.onerror=function(){s.remove();no(new Error('Could not load '+t.u));};document.head.appendChild(s);});}
+  window._bdS[url]=(async function(){
+    var last;
+    for(var i=0;i<tries.length;i++){
+      try{await one(tries[i]);return;}catch(e){last=e;await new Promise(function(r){setTimeout(r,400*(i+1));});}
+    }
+    delete window._bdS[url];
+    throw new Error('Could not load '+url+' (the browser or network blocked it after 4 tries). Refresh the page with Ctrl+Shift+R and try again.');
+  })();
   return window._bdS[url];
 }
 function bdToast(msg,bad){
@@ -8837,7 +8847,7 @@ async function bdAIContext(q){
   }catch(e){return '';}
 }
 
-var APP_VERSION='2.19.3',APP_BUILD_DATE='Oct 29, 2026';
+var APP_VERSION='2.19.4',APP_BUILD_DATE='Oct 29, 2026';
 (function(){function s(){var e=document.getElementById('sb-ver');if(e)e.textContent='Vantage v'+APP_VERSION+' · '+APP_BUILD_DATE;}s();document.addEventListener('DOMContentLoaded',s);})();
 
 </script>
