@@ -5465,7 +5465,7 @@ async function tblImg(pageId,blockId,rid,ck,inp){
 }
 function tblEditorHtml(p,b){
   var cols=b.cols||[],W=tblColW(cols),q=function(x){return String(x==null?'':x).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');},P="'"+p.id+"'",B="'"+b.id+"'";
-  var th=cols.map(function(c,i){return '<th style="width:'+W[i]+'%;padding:3px;text-align:left"><div style="display:flex;gap:2px;align-items:center"><input autocomplete="off" value="'+q(c.name)+'" onchange="tblSetCol('+P+','+B+',\''+c.k+'\',this.value)" style="width:100%;min-width:0;padding:3px 5px;border:1px solid #d0dcea;border-radius:5px;font-size:10px;font-weight:700;text-transform:uppercase;color:#555;background:#fff;outline:none">'+(cols.length>1?'<button type="button" onclick="tblDelCol('+P+','+B+',\''+c.k+'\')" title="Delete this column" style="background:none;border:none;cursor:pointer;color:#E24B4A;font-size:11px;padding:0 2px">✕</button>':'')+'</div></th>';}).join('')+'<th style="width:26px"></th>';
+  var th=cols.map(function(c,i){return '<th style="width:'+W[i]+'%;padding:3px;text-align:left"><div style="display:flex;gap:2px;align-items:center"><input autocomplete="off" value="'+q(c.name)+'" onchange="tblSetCol('+P+','+B+',\''+c.k+'\',this.value)" style="width:100%;min-width:0;padding:3px 5px;border:1px solid #d0dcea;border-radius:5px;font-size:10px;font-weight:700;text-transform:uppercase;color:#555;background:#fff;outline:none">'+(cols.length>1?'<button type="button" onclick="tblDelCol('+P+','+B+',\''+c.k+'\')" title="Delete this column" style="background:none;border:none;cursor:pointer;color:#E24B4A;font-size:11px;padding:0 2px">✕</button>':'')+'</div></th>';}).join('')+'<th style="width:64px"></th>';
   var rows=(b.rows||[]).map(function(r){
     var tds=cols.map(function(c){
       var v=(r.v||{})[c.k]||'';
@@ -5473,7 +5473,7 @@ function tblEditorHtml(p,b){
       if(c.t==='qty')return '<td style="padding:3px;vertical-align:top"><input autocomplete="off" value="'+q(v)+'" oninput="tblSetCell('+P+','+B+',\''+r.id+'\',\''+c.k+'\',this.value)" style="width:100%;min-width:0;padding:5px;border:1px solid #d0dcea;border-radius:5px;font-size:12px;outline:none;background:#fff;text-align:center"></td>';
       return '<td style="padding:3px;vertical-align:top"><div class="rte-editable" contenteditable="true" data-placeholder="Description..." onfocus="rteSetActive(this)" oninput="tblSetCell('+P+','+B+',\''+r.id+'\',\''+c.k+'\',this.innerHTML)" style="min-height:34px;font-size:12px">'+v+'</div></td>';
     }).join('');
-    return '<tr>'+tds+'<td style="vertical-align:top;padding-top:6px"><button type="button" onclick="tblDelRow('+P+','+B+',\''+r.id+'\')" title="Delete this row" style="background:none;border:none;cursor:pointer;color:#E24B4A;font-size:13px">✕</button></td></tr>';
+    return '<tr>'+tds+'<td style="vertical-align:top;padding-top:6px;white-space:nowrap"><button type="button" onclick="tlibOpen('+P+','+B+',\''+r.id+'\')" title="Pick this row from the Item Library" style="background:none;border:none;cursor:pointer;font-size:13px;padding:0 2px">\uD83D\uDCDA</button><button type="button" onclick="tlibSaveRow('+P+','+B+',\''+r.id+'\')" title="Save this row to the shared Item Library" style="background:none;border:none;cursor:pointer;font-size:13px;padding:0 2px">\uD83D\uDCBE</button><button type="button" onclick="tblDelRow('+P+','+B+',\''+r.id+'\')" title="Delete this row" style="background:none;border:none;cursor:pointer;color:#E24B4A;font-size:13px">✕</button></td></tr>';
   }).join('');
   return '<div style="margin-bottom:12px;padding:8px;border:1px solid #dbe4f0;border-radius:8px;background:#fff" data-tbl-id="'+b.id+'">'
     +'<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px"><span style="font-size:10px;font-weight:700;color:#1B5E9B">TABLE</span>'
@@ -5481,7 +5481,7 @@ function tblEditorHtml(p,b){
     +'<button onclick="removePageBlock('+P+','+B+')" title="Delete this table" style="background:none;border:none;cursor:pointer;color:#E24B4A;font-size:13px;padding:2px 6px">✕</button></div>'
     +rteToolbarHtml()
     +'<table style="width:100%;table-layout:fixed;border-collapse:collapse"><thead><tr>'+th+'</tr></thead><tbody>'+rows+'</tbody></table>'
-    +'<div style="margin-top:6px;display:flex;gap:6px"><button onclick="tblAddRow('+P+','+B+')" style="padding:4px 10px;background:#fff;border:1px dashed #aaa;border-radius:6px;color:#666;font-size:11px;font-weight:600;cursor:pointer">+ Add Row</button>'
+    +'<div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><button onclick="tlibOpen('+P+','+B+')" style="padding:4px 10px;background:#EEF4FB;border:1px solid #1B5E9B;border-radius:6px;color:#1B5E9B;font-size:11px;font-weight:700;cursor:pointer">\uD83D\uDCDA Add from Item Library</button><button onclick="tblAddRow('+P+','+B+')" style="padding:4px 10px;background:#fff;border:1px dashed #aaa;border-radius:6px;color:#666;font-size:11px;font-weight:600;cursor:pointer">+ Add Row</button>'
     +'<button onclick="tblAddCol('+P+','+B+')" style="padding:4px 10px;background:#fff;border:1px dashed #aaa;border-radius:6px;color:#666;font-size:11px;font-weight:600;cursor:pointer">+ Add Column</button></div>'
     +'</div>';
 }
@@ -8847,7 +8847,7 @@ async function bdAIContext(q){
   }catch(e){return '';}
 }
 
-var APP_VERSION='2.20.0',APP_BUILD_DATE='Oct 29, 2026';
+var APP_VERSION='2.21.0',APP_BUILD_DATE='Oct 29, 2026';
 (function(){function s(){var e=document.getElementById('sb-ver');if(e)e.textContent='Vantage v'+APP_VERSION+' · '+APP_BUILD_DATE;}s();document.addEventListener('DOMContentLoaded',s);})();
 
 </script>
@@ -9665,7 +9665,7 @@ async function styleSamples(bid){
  return {text:txt,n:pick.length};
 }
 async function libraryText(){
- try{var r=await sb.from('item_library').select('*').order('name');window._aipLib=r.data||[];}catch(e){window._aipLib=[];}
+ try{var r=await sb.from('item_library').select('*').order('name');window._aipLib=(r.data||[]).filter(function(x){return (+x.rate||0)>0;});}catch(e){window._aipLib=[];}
  return window._aipLib.slice(0,200).map(function(x){return x.name+' | '+(x.description||'').slice(0,120)+' | rate '+x.rate+' | cost '+x.cost;}).join('\n');
 }
 function totalsOf(sheets){var t={};sheets.forEach(function(s){Object.keys(s.counts).forEach(function(k){t[k]=(t[k]||0)+s.counts[k];});});return t;}
@@ -11141,6 +11141,7 @@ else{window.bdAIContext=async function(q){try{return await VG.aiContext(q);}catc
 (function(){var _p=window.bdAIContext;window.bdAIContext=async function(q){var s='';try{s=await _p(q);}catch(e){}return s+'\nAI WAITING: a bid starts only when it is Under Review, assigned to Vantage AI, has a due date within the window, a Build project with the same Project #, and documents uploaded at least 20 minutes ago. The AI bar lists what each waiting bid is missing.';};})();
 (function(){var _p=window.bdAIContext;window.bdAIContext=async function(q){var s='';try{s=await _p(q);}catch(e){}return s+'\nAI JSON ERRORS: if the AI reports AI JSON invalid, Re-run the job; the reader repairs bad quotes, retries three times and splits large document parts.';};})();
 (function(){var _p=window.bdAIContext;window.bdAIContext=async function(q){var s='';try{s=await _p(q);}catch(e){}return s+'\nAI LEARNING: Learn from review saves lessons; Re-run on a finished job keeps the review of the old draft, reads every sheet fresh and applies the review and lessons. A new lesson also makes saved sheet readings be read again. Cross-check platforms do not use the learned symbol library; the report proves their independence with AI call counts and sheet comparison.';};})();
+(function(){var _p=window.bdAIContext;window.bdAIContext=async function(q){var s='';try{s=await _p(q);}catch(e){}return s+'\nTABLE ITEM LIBRARY: items saved from proposal tables (name, description, default qty, picture) are stored in the shared item_library with rate 0; the pictures are in vg_settings as libimg_<item id>. The AI ignores library items with no rate for pricing.';};})();
 
 /* ===== Vantage Departments (field tools, gallery, Modules visibility dropdown) ===== */
 (function(){
@@ -13263,6 +13264,193 @@ if(window.VG&&VG.edit){
 }
 /* project name shown next to the code in every list */
 if(window.VG&&VG.cell){/* handled in vg2 */}
+})();
+
+/* ===== Shared Item Library for Additional Page tables: pick an item (picture + description + qty), save a table row as a new library item ===== */
+(function(){
+if(window.TLIB)return;
+var T=window.TLIB={};
+function E(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function toast(m,bad){try{if(typeof bdToast==='function')bdToast(m,bad);else if(typeof showToast==='function')showToast(m);}catch(e){}}
+function plain(h){var d=document.createElement('div');d.innerHTML=String(h||'').replace(/<br\s*\/?>/gi,'\n').replace(/<\/(div|p|li)>/gi,'\n');return (d.textContent||'').replace(/\u00a0/g,' ').replace(/\n{3,}/g,'\n\n').trim();}
+function toHtml(t){return E(t).replace(/\n/g,'<br>');}
+var IK=function(id){return 'libimg_'+id;};
+/* ---- pictures live in vg_settings (one small row per item, shared by everyone) ---- */
+T.imgs={};
+T.loadImgs=async function(ids){
+ var need=ids.filter(function(i){return !(i in T.imgs);});
+ if(need.length){
+  try{var r=await sb.from('vg_settings').select('key,value').in('key',need.map(IK));
+   (r.data||[]).forEach(function(x){T.imgs[String(x.key).slice(7)]=(x.value&&x.value.d)||'';});}catch(e){}
+  need.forEach(function(i){if(!(i in T.imgs))T.imgs[i]='';});
+ }
+ return T.imgs;
+};
+T.putImg=async function(id,data){
+ if(!id)return;
+ try{
+  if(data){var r=await sb.from('vg_settings').upsert({key:IK(id),value:{d:data},updated_by:(window.CU&&CU.id)||null,updated_at:new Date().toISOString()});if(r&&r.error)throw r.error;T.imgs[id]=data;}
+  else{await sb.from('vg_settings').delete().eq('key',IK(id));T.imgs[id]='';}
+ }catch(e){console.warn('library picture',e);toast('The item was saved but its picture could not be saved: '+((e&&e.message)||e),true);}
+};
+/* ---- save / update one library item ---- */
+T.saveItem=async function(o){ // {id?,name,description,qty,img}
+ if(typeof guardWrite==='function'&&!guardWrite('You cannot edit the library in view-only mode.'))return null;
+ var name=String(o.name||'').trim();if(!name){toast('Item name is required',true);return null;}
+ await loadLibraryItems();
+ var ex=o.id?_itemLibCache.find(function(i){return i.id===o.id;}):_itemLibCache.find(function(i){return String(i.name||'').trim().toLowerCase()===name.toLowerCase();});
+ var id=ex?ex.id:null,res;
+ if(ex){var u={name:name,description:o.description||'',qty:o.qty!=null?o.qty:(ex.qty||1)};res=await sb.from('item_library').update(u).eq('id',ex.id);if(res.error){toast('Could not save: '+res.error.message,true);return null;}}
+ else{res=await sb.from('item_library').insert({name:name,description:o.description||'',rate:0,qty:o.qty!=null?o.qty:1,cost:0,vendor:''}).select().single();if(res.error){toast('Could not save: '+res.error.message,true);return null;}id=res.data&&res.data.id;}
+ if(o.img!==undefined)await T.putImg(id,o.img||'');
+ await loadLibraryItems();
+ return {id:id,updated:!!ex};
+};
+/* ---- fill a table row from an item ---- */
+function cols(b){var c=b.cols||[];return {img:c.find(function(x){return x.t==='img';}),qty:c.find(function(x){return x.t==='qty';}),txt:c.find(function(x){return x.t==='text';})};}
+T.fillRow=function(b,r,it,img){
+ var c=cols(b);r.v=r.v||{};
+ if(c.img)r.v[c.img.k]=img||'';
+ if(c.qty)r.v[c.qty.k]=String(it.qty!=null?it.qty:1);
+ if(c.txt)r.v[c.txt.k]=toHtml(it.description||it.name||'');
+ r.lib=it.id;
+};
+/* ---- the picker ---- */
+var ST=null;
+function ov(){var o=document.getElementById('tlib-ov');if(!o){o=document.createElement('div');o.id='tlib-ov';o.style.cssText='position:fixed;inset:0;z-index:2147482000;background:rgba(15,25,45,.55);display:flex;align-items:flex-start;justify-content:center;padding:30px 12px;overflow:auto';o.addEventListener('mousedown',function(e){if(e.target===o)T.close();});document.body.appendChild(o);}o.style.display='flex';return o;}
+T.close=function(){var o=document.getElementById('tlib-ov');if(o)o.style.display='none';ST=null;};
+T.open=async function(pageId,blockId,rid){
+ ST={p:pageId,b:blockId,r:rid||null,sel:{},q:'',mode:'list'};
+ var o=ov();o.innerHTML='<div style="background:#fff;border-radius:14px;width:100%;max-width:720px;overflow:hidden"><div style="padding:30px;text-align:center;color:#999">Loading the library...</div></div>';
+ await loadLibraryItems();T.render();
+};
+T.render=async function(){
+ if(!ST)return;var o=ov();
+ if(ST.mode==='form'){return T.renderForm();}
+ var q=ST.q.toLowerCase(),items=_itemLibCache.filter(function(i){return !q||((i.name||'')+' '+(i.description||'')).toLowerCase().indexOf(q)>=0;}).slice(0,40);
+ await T.loadImgs(items.map(function(i){return i.id;}));
+ if(!ST)return;
+ var n=Object.keys(ST.sel).length,one=!!ST.r;
+ var h='<div style="background:#fff;border-radius:14px;width:100%;max-width:720px;overflow:hidden">'
+  +'<div style="background:#1B5E9B;padding:13px 18px;display:flex;align-items:center;justify-content:space-between"><div style="color:#fff;font-size:15px;font-weight:700">Item Library'+(one?' - pick the item for this row':'')+'</div><button class="btn-sm" onclick="TLIB.close()" style="background:rgba(255,255,255,.2);border-color:rgba(255,255,255,.3);color:#fff">Close</button></div>'
+  +'<div style="padding:12px 16px;background:#f9fafb;border-bottom:1px solid #eee;display:flex;gap:8px"><input id="tlib-q" autocomplete="off" placeholder="Search items by name or description..." value="'+E(ST.q)+'" style="flex:1;padding:7px 12px;border:1px solid #e0e0e0;border-radius:8px;font-size:13px;outline:none"><button class="btn btn-blue" onclick="TLIB.form(\'\')" style="font-size:12px;padding:7px 14px">+ New item</button></div>'
+  +'<div style="max-height:430px;overflow-y:auto">';
+ if(!items.length)h+='<div style="padding:26px;text-align:center;color:#aaa;font-size:13px">'+(q?'No item matches. Press "+ New item" to create it (with its picture and description).':'The library is empty. Press "+ New item" to add the first one.')+'</div>';
+ items.forEach(function(it){
+  var im=T.imgs[it.id],chk=!!ST.sel[it.id];
+  h+='<div style="display:flex;align-items:center;gap:10px;padding:9px 16px;border-bottom:1px solid #f1f3f8;background:'+(chk?'#EEF4FB':'#fff')+'">'
+   +(one?'':'<input type="checkbox" '+(chk?'checked':'')+' onchange="TLIB.tog(\''+it.id+'\',this.checked)" style="width:16px;height:16px;cursor:pointer;flex-shrink:0">')
+   +'<div style="width:52px;height:46px;flex-shrink:0;display:flex;align-items:center;justify-content:center;border:1px solid #e5e5e5;border-radius:5px;background:#fafafa">'+(im?'<img src="'+E(im)+'" style="max-width:50px;max-height:44px;object-fit:contain">':'<span style="font-size:9px;color:#bbb">no picture</span>')+'</div>'
+   +'<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:#111">'+E(it.name||'Unnamed')+'</div><div style="font-size:11px;color:#777;margin-top:2px;max-height:30px;overflow:hidden">'+E(it.description||'')+'</div></div>'
+   +'<div style="font-size:11px;color:#888;white-space:nowrap">Qty '+E(it.qty!=null?it.qty:1)+'</div>'
+   +(one?'<button class="btn btn-blue" onclick="TLIB.use(\''+it.id+'\')" style="font-size:11px;padding:4px 10px">Use</button>':'')
+   +'<button class="btn-sm" onclick="TLIB.form(\''+it.id+'\')" title="Edit this item" style="font-size:11px">\u270f\ufe0f</button>'
+   +'</div>';
+ });
+ h+='</div>'+(one?'':'<div style="padding:11px 16px;border-top:1px solid #eee;background:#f9fafb;display:flex;align-items:center;justify-content:space-between"><span style="font-size:12px;color:#555;font-weight:600">'+n+' selected</span><button class="btn btn-blue" '+(n?'':'disabled')+' onclick="TLIB.addSel()" style="font-size:13px;padding:8px 16px">Add selected to the table</button></div>')+'</div>';
+ o.innerHTML=h;
+ var qi=document.getElementById('tlib-q');if(qi){qi.addEventListener('input',function(){ST.q=qi.value;clearTimeout(T._t);T._t=setTimeout(function(){var pos=qi.value.length;T.render().then(function(){var x=document.getElementById('tlib-q');if(x){x.focus();x.setSelectionRange(pos,pos);}});},180);});}
+};
+T.tog=function(id,on){if(!ST)return;if(on)ST.sel[id]=1;else delete ST.sel[id];T.render();};
+T.use=async function(id){
+ if(!ST)return;var it=_itemLibCache.find(function(i){return i.id===id;});var b=tblOf(ST.p,ST.b);if(!it||!b)return;
+ await T.loadImgs([id]);var r=(b.rows||[]).find(function(x){return x.id===ST.r;});if(!r)return;
+ T.fillRow(b,r,it,T.imgs[id]);T.close();renderCustomPages();toast(it.name+' added to the row');
+};
+T.addSel=async function(){
+ if(!ST)return;var b=tblOf(ST.p,ST.b);if(!b)return;var ids=Object.keys(ST.sel);if(!ids.length)return;
+ await T.loadImgs(ids);b.rows=b.rows||[];
+ // an empty starting row is replaced by the first picked item
+ var first=b.rows.length===1&&Object.keys(b.rows[0].v||{}).every(function(k){return !String(b.rows[0].v[k]||'').replace(/<[^>]*>/g,'').trim();});
+ ids.forEach(function(id,i){var it=_itemLibCache.find(function(x){return x.id===id;});if(!it)return;var r=(first&&i===0)?b.rows[0]:{id:'r'+Date.now()+Math.floor(Math.random()*100000)+i,v:{}};if(!(first&&i===0))b.rows.push(r);T.fillRow(b,r,it,T.imgs[id]);});
+ T.close();renderCustomPages();toast(ids.length+' item(s) added from the library');
+};
+/* ---- new / edit item form (inside the picker) ---- */
+T.form=async function(id){
+ if(!ST)return;ST.mode='form';ST.edit=id||'';ST.fimg=undefined;
+ var it=id?_itemLibCache.find(function(i){return i.id===id;}):null;
+ if(it)await T.loadImgs([id]);ST.curimg=it?T.imgs[id]:'';ST.fname=it?it.name:(ST.q||'');ST.fdesc=it?(it.description||''):'';ST.fqty=it&&it.qty!=null?it.qty:1;
+ T.renderForm();
+};
+T.renderForm=function(){
+ if(!ST)return;var o=ov(),im=ST.fimg!==undefined?ST.fimg:ST.curimg;
+ o.innerHTML='<div style="background:#fff;border-radius:14px;width:100%;max-width:560px;overflow:hidden"><div style="background:#1B5E9B;padding:13px 18px;display:flex;align-items:center;justify-content:space-between"><div style="color:#fff;font-size:15px;font-weight:700">'+(ST.edit?'Edit library item':'New library item')+'</div><button class="btn-sm" onclick="TLIB.back()" style="background:rgba(255,255,255,.2);border-color:rgba(255,255,255,.3);color:#fff">Back</button></div>'
+  +'<div style="padding:18px;display:grid;gap:10px">'
+  +'<div><label style="font-size:11px;font-weight:700;color:#555">Item name</label><input id="tlf-name" autocomplete="off" value="'+E(ST.fname)+'" placeholder="e.g. Ubiquiti UniFi Access Hub" style="width:100%;padding:7px 10px;border:1px solid #d0dcea;border-radius:7px;font-size:13px;box-sizing:border-box"></div>'
+  +'<div><label style="font-size:11px;font-weight:700;color:#555">Description (printed on the proposal)</label><textarea id="tlf-desc" rows="4" style="width:100%;padding:7px 10px;border:1px solid #d0dcea;border-radius:7px;font-size:13px;box-sizing:border-box;font-family:inherit">'+E(ST.fdesc)+'</textarea></div>'
+  +'<div style="display:flex;gap:14px;align-items:flex-start"><div><label style="font-size:11px;font-weight:700;color:#555">Default qty</label><input id="tlf-qty" type="number" min="0" step="1" value="'+E(ST.fqty)+'" style="width:90px;padding:7px 10px;border:1px solid #d0dcea;border-radius:7px;font-size:13px;display:block"></div>'
+  +'<div><label style="font-size:11px;font-weight:700;color:#555">Picture</label><div style="display:flex;align-items:center;gap:8px;margin-top:2px"><div style="width:64px;height:56px;border:1px solid #e5e5e5;border-radius:6px;display:flex;align-items:center;justify-content:center;background:#fafafa">'+(im?'<img src="'+E(im)+'" style="max-width:62px;max-height:54px;object-fit:contain">':'<span style="font-size:9px;color:#bbb">none</span>')+'</div><label style="padding:5px 10px;border:1px dashed #aaa;border-radius:6px;color:#666;font-size:11px;font-weight:600;cursor:pointer;background:#fff">'+(im?'Change':'Upload')+'<input id="tlf-file" type="file" accept="image/*" style="display:none"></label>'+(im?'<button type="button" onclick="TLIB.noimg()" style="background:none;border:none;color:#E24B4A;cursor:pointer;font-size:12px">Remove</button>':'')+'</div></div></div>'
+  +'<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px;padding-top:12px;border-top:1px solid #eee"><button class="btn btn-sm" onclick="TLIB.back()">Cancel</button><button class="btn btn-blue" id="tlf-save" onclick="TLIB.saveForm()">Save to library</button></div>'
+  +'</div></div>';
+ var f=document.getElementById('tlf-file');
+ if(f)f.addEventListener('change',async function(){var x=f.files&&f.files[0];if(!x)return;keep();try{ST.fimg=await tblShrink(x,220);}catch(e){alert(e.message||e);}T.renderForm();});
+};
+function keep(){var a=document.getElementById('tlf-name'),b=document.getElementById('tlf-desc'),c=document.getElementById('tlf-qty');if(a)ST.fname=a.value;if(b)ST.fdesc=b.value;if(c)ST.fqty=c.value;}
+T.noimg=function(){keep();ST.fimg='';T.renderForm();};
+T.back=function(){if(!ST)return;ST.mode='list';ST.q='';T.render();};
+T.saveForm=async function(){
+ keep();var name=ST.fname.trim();if(!name){alert('Item name is required.');return;}
+ var btn=document.getElementById('tlf-save');if(btn){btn.disabled=true;btn.textContent='Saving...';}
+ var r=await T.saveItem({id:ST.edit||undefined,name:name,description:ST.fdesc.trim(),qty:parseFloat(ST.fqty),img:ST.fimg});
+ if(!r){if(btn){btn.disabled=false;btn.textContent='Save to library';}return;}
+ toast(r.updated?'Library item updated':'Saved to the library');
+ // when picking for a single row, use the item straight away
+ if(ST.r&&!ST.edit){var rid=r.id;ST.mode='list';await T.use(rid);return;}
+ ST.mode='list';ST.q='';T.render();
+};
+/* ---- save one table row to the library ---- */
+T.saveRow=async function(pageId,blockId,rid){
+ var b=tblOf(pageId,blockId);if(!b)return;var r=(b.rows||[]).find(function(x){return x.id===rid;});if(!r)return;
+ var c=cols(b),desc=plain(c.txt?r.v[c.txt.k]:''),img=c.img?(r.v[c.img.k]||''):'',qty=c.qty?parseFloat(r.v[c.qty.k]):NaN;
+ if(!desc&&!img){alert('Fill in the description (and picture) of this row first.');return;}
+ var def=desc.split('\n')[0].slice(0,80);
+ var name=await bdAsk('Save to the Item Library','Item name (everyone will find it by this name)',r.lib?((_itemLibCache.find(function(i){return i.id===r.lib;})||{}).name||def):def);
+ if(!name)return;
+ var res=await T.saveItem({name:name,description:desc,qty:isNaN(qty)?1:qty,img:img||undefined});
+ if(res){r.lib=res.id;toast(res.updated?'Library item "'+name+'" updated':'"'+name+'" saved to the Item Library - everyone can pick it now');}
+};
+/* ---- Item Library window (line items): picture field + thumbnails, and the edit form now shows the description ---- */
+var ilImg;
+var orn=window.renderLibraryItems;
+window.renderLibraryItems=function(){
+ orn.apply(this,arguments);
+ try{
+  var wrap=document.getElementById('ilib-list');if(!wrap)return;
+  var rows=[].slice.call(wrap.querySelectorAll('input[type=checkbox][onchange]')),ids=rows.map(function(c){var m=String(c.getAttribute('onchange')).match(/'([^']+)'/);return m?m[1]:'';});
+  T.loadImgs(ids.filter(Boolean)).then(function(){rows.forEach(function(c,i){var im=T.imgs[ids[i]];if(!im||c.parentNode.querySelector('.tlib-th'))return;var s=document.createElement('img');s.className='tlib-th';s.src=im;s.style.cssText='width:40px;height:36px;object-fit:contain;border:1px solid #e5e5e5;border-radius:4px;background:#fff;flex-shrink:0';c.insertAdjacentElement('afterend',s);});});
+ }catch(e){}
+};
+function ensureField(){
+ if(document.getElementById('iform-img-wrap'))return;
+ var g=document.querySelector('#item-form-modal .fgrid');if(!g)return;
+ var d=document.createElement('div');d.className='ifield';d.id='iform-img-wrap';d.style.gridColumn='1/-1';
+ d.innerHTML='<label>Picture (used in proposal tables)</label><div style="display:flex;align-items:center;gap:8px"><div id="iform-img-pv" style="width:64px;height:56px;border:1px solid #e5e5e5;border-radius:6px;display:flex;align-items:center;justify-content:center;background:#fafafa;font-size:9px;color:#bbb">none</div><label style="padding:5px 10px;border:1px dashed #aaa;border-radius:6px;color:#666;font-size:11px;font-weight:600;cursor:pointer;background:#fff">Upload<input id="iform-img-file" type="file" accept="image/*" style="display:none"></label><button type="button" id="iform-img-rm" style="background:none;border:none;color:#E24B4A;cursor:pointer;font-size:12px;display:none">Remove</button></div>';
+ g.appendChild(d);
+ document.getElementById('iform-img-file').addEventListener('change',async function(){var f=this.files&&this.files[0];if(!f)return;try{ilImg=await tblShrink(f,220);showIl();}catch(e){alert(e.message||e);}this.value='';});
+ document.getElementById('iform-img-rm').addEventListener('click',function(){ilImg='';showIl();});
+}
+function showIl(){var pv=document.getElementById('iform-img-pv'),rm=document.getElementById('iform-img-rm');if(!pv)return;pv.innerHTML=ilImg?'<img src="'+E(ilImg)+'" style="max-width:62px;max-height:54px;object-fit:contain">':'none';if(rm)rm.style.display=ilImg?'':'none';}
+var onf=window.openNewItemForm;
+window.openNewItemForm=function(){onf.apply(this,arguments);ensureField();ilImg=undefined;showIl();};
+window.editLibraryItem=async function(id){
+ var it=_itemLibCache.find(function(i){return i.id===id;});if(!it)return;
+ document.getElementById('iform-title').textContent='Edit Item';document.getElementById('iform-id').value=it.id;document.getElementById('iform-name').value=it.name||'';
+ document.getElementById('iform-desc').value=it.description||'';document.getElementById('iform-rate').value=it.rate||0;document.getElementById('iform-qty').value=it.qty||1;document.getElementById('iform-cost').value=it.cost||0;document.getElementById('iform-vendor').value=it.vendor||'';
+ ensureField();ilImg=undefined;showIl();document.getElementById('item-form-modal').classList.add('open');
+ await T.loadImgs([id]);if(ilImg===undefined){ilImg=T.imgs[id]||'';showIl();}
+};
+window.saveLibraryItem=async function(){
+ if(typeof guardWrite==='function'&&!guardWrite('You cannot edit the library in view-only mode.'))return;
+ var id=document.getElementById('iform-id').value;
+ var obj={name:document.getElementById('iform-name').value.trim(),description:document.getElementById('iform-desc').value.trim(),rate:parseFloat(document.getElementById('iform-rate').value)||0,qty:parseFloat(document.getElementById('iform-qty').value)||1,cost:parseFloat(document.getElementById('iform-cost').value)||0,vendor:document.getElementById('iform-vendor').value.trim()};
+ if(!obj.name){alert('Item name is required.');return;}
+ var res;
+ if(id){res=await sb.from('item_library').update(obj).eq('id',id);}else{res=await sb.from('item_library').insert(obj).select().single();if(res&&res.data)id=res.data.id;}
+ if(res.error){alert('Error saving item: '+res.error.message);return;}
+ if(ilImg!==undefined)await T.putImg(id,ilImg);
+ closeModal('item-form-modal');await loadLibraryItems();renderLibraryItems();
+};
+window.tlibOpen=T.open;window.tlibSaveRow=T.saveRow;
 })();
 
 </script>
