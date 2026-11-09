@@ -435,6 +435,7 @@ tr:hover td{background:#fafcff}
 .rt-a{font-weight:700;font-size:13px;line-height:1;display:inline-flex;flex-direction:column;align-items:center}
 .rt-a i{display:block;width:14px;height:3px;margin-top:1px;border-radius:1px}
 .rte-toolbar input[type=color]{position:absolute;left:0;top:0;width:100%;height:100%;opacity:0;cursor:pointer;padding:0;border:0}
+.tbl-ttl-in::placeholder{color:#c9dcf2;font-weight:500}
 .rte-editable{border:1px solid #e5e5e5;border-radius:0 0 6px 6px;padding:8px 10px;font-size:13px;line-height:1.7;outline:none;overflow-y:auto}
 .rte-editable:empty:before{content:attr(data-placeholder);color:#bbb}
 .rte-editable p{margin:0}.rte-editable a{color:#1B5E9B;text-decoration:underline}.rte-editable img{max-width:100%;height:auto}.rte-editable table{border-collapse:collapse;width:100%}.rte-editable ul,.rte-editable ol{padding-left:24px;margin:0}.rte-editable td,.rte-editable th{border:1px solid #bbb;padding:4px 6px}.rte-editable blockquote{margin:0 0 0 40px}
@@ -5476,8 +5477,8 @@ function tblEditorHtml(p,b){
     return '<tr>'+tds+'<td style="vertical-align:top;padding-top:6px;white-space:nowrap"><button type="button" onclick="tlibOpen('+P+','+B+',\''+r.id+'\')" title="Pick this row from the Item Library" style="background:none;border:none;cursor:pointer;font-size:13px;padding:0 2px">\uD83D\uDCDA</button><button type="button" onclick="tlibSaveRow('+P+','+B+',\''+r.id+'\')" title="Save this row to the shared Item Library" style="background:none;border:none;cursor:pointer;font-size:13px;padding:0 2px">\uD83D\uDCBE</button><button type="button" onclick="tblDelRow('+P+','+B+',\''+r.id+'\')" title="Delete this row" style="background:none;border:none;cursor:pointer;color:#E24B4A;font-size:13px">✕</button></td></tr>';
   }).join('');
   return '<div style="margin-bottom:12px;padding:8px;border:1px solid #dbe4f0;border-radius:8px;background:#fff" data-tbl-id="'+b.id+'">'
-    +'<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px"><span style="font-size:10px;font-weight:700;color:#1B5E9B">TABLE</span>'
-    +'<input autocomplete="off" value="'+q(b.heading)+'" onchange="updatePageBlock('+P+','+B+',\'heading\',this.value)" placeholder="Table heading (optional, e.g. Pathways)" style="flex:1;padding:5px 8px;border:1px solid #d0dcea;border-radius:6px;font-size:12px;font-weight:700;outline:none;background:#fff">'
+    +'<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px"><span style="font-size:10px;font-weight:700;color:#1B5E9B;white-space:nowrap">TABLE TITLE</span>'
+    +'<input autocomplete="off" value="'+q(b.heading)+'" onchange="updatePageBlock('+P+','+B+',\'heading\',this.value)" placeholder="Table title - shown as a blue bar above the table (e.g. Table 1: Horizontal Cabling)" class="tbl-ttl-in" style="flex:1;padding:7px 10px;border:1px solid #1B5E9B;border-radius:5px;font-size:13px;font-weight:700;outline:none;background:#1B5E9B;color:#fff">'
     +'<button onclick="removePageBlock('+P+','+B+')" title="Delete this table" style="background:none;border:none;cursor:pointer;color:#E24B4A;font-size:13px;padding:2px 6px">✕</button></div>'
     +rteToolbarHtml()
     +'<table style="width:100%;table-layout:fixed;border-collapse:collapse"><thead><tr>'+th+'</tr></thead><tbody>'+rows+'</tbody></table>'
@@ -6143,7 +6144,7 @@ async function printEstimate(id){
     var cols=b.cols||[],rows=(b.rows||[]).filter(function(r){return cols.some(function(c){return ((r.v||{})[c.k]||'').toString().replace(/<[^>]*>/g,'').trim()||(c.t==='img'&&(r.v||{})[c.k]);});});
     if(!cols.length||(!rows.length&&!b.heading))return '';
     var W=tblColW(cols),cg='<colgroup>'+W.map(function(w){return '<col style="width:'+w+'%">';}).join('')+'</colgroup>',TB='width:100%;table-layout:fixed;border-collapse:collapse;margin:0';
-    var head='<div data-tkeep="1">'+(b.heading?'<div style="font-size:15px;font-weight:700;color:#1a1a1a;margin:2px 0 8px">'+tfEsc(b.heading)+'</div>':'')
+    var head='<div data-tkeep="1">'+(b.heading?'<div data-ttl="1" style="background:#1B5E9B;color:#fff;font-size:13px;font-weight:700;letter-spacing:.3px;padding:7px 12px;margin:2px 0 6px;border-radius:3px;line-height:1.3;print-color-adjust:exact;-webkit-print-color-adjust:exact">'+tfEsc(b.heading)+'</div>':'')
       +'<table style="'+TB+'">'+cg+'<thead><tr>'+cols.map(function(c){return '<th style="text-align:'+(c.t==='qty'?'center':'left')+';font-size:9px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:#666;padding:2px 6px 5px;border-bottom:1px solid #999">'+tfEsc(c.name||'')+'</th>';}).join('')+'</tr></thead></table></div>';
     var body=rows.map(function(r){
       return '<table style="'+TB+'">'+cg+'<tr>'+cols.map(function(c){var v=(r.v||{})[c.k]||'';
@@ -8847,7 +8848,7 @@ async function bdAIContext(q){
   }catch(e){return '';}
 }
 
-var APP_VERSION='2.21.0',APP_BUILD_DATE='Oct 29, 2026';
+var APP_VERSION='2.22.0',APP_BUILD_DATE='Oct 29, 2026';
 (function(){function s(){var e=document.getElementById('sb-ver');if(e)e.textContent='Vantage v'+APP_VERSION+' · '+APP_BUILD_DATE;}s();document.addEventListener('DOMContentLoaded',s);})();
 
 </script>
@@ -11142,6 +11143,7 @@ else{window.bdAIContext=async function(q){try{return await VG.aiContext(q);}catc
 (function(){var _p=window.bdAIContext;window.bdAIContext=async function(q){var s='';try{s=await _p(q);}catch(e){}return s+'\nAI JSON ERRORS: if the AI reports AI JSON invalid, Re-run the job; the reader repairs bad quotes, retries three times and splits large document parts.';};})();
 (function(){var _p=window.bdAIContext;window.bdAIContext=async function(q){var s='';try{s=await _p(q);}catch(e){}return s+'\nAI LEARNING: Learn from review saves lessons; Re-run on a finished job keeps the review of the old draft, reads every sheet fresh and applies the review and lessons. A new lesson also makes saved sheet readings be read again. Cross-check platforms do not use the learned symbol library; the report proves their independence with AI call counts and sheet comparison.';};})();
 (function(){var _p=window.bdAIContext;window.bdAIContext=async function(q){var s='';try{s=await _p(q);}catch(e){}return s+'\nTABLE ITEM LIBRARY: items saved from proposal tables (name, description, default qty, picture) are stored in the shared item_library with rate 0; the pictures are in vg_settings as libimg_<item id>. The AI ignores library items with no rate for pricing.';};})();
+(function(){var _p=window.bdAIContext;window.bdAIContext=async function(q){var s='';try{s=await _p(q);}catch(e){}return s+'\nTABLE TITLES: each table on an Additional Page can have a title (heading) that prints as a blue bar with white text above the table.';};})();
 
 /* ===== Vantage Departments (field tools, gallery, Modules visibility dropdown) ===== */
 (function(){
