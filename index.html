@@ -6664,7 +6664,7 @@ async function bdCallAI(system,messages,max){
   var PROXY='https://vaubqkmsjsgfqeqbqbvy.supabase.co/functions/v1/ai-proxy';
   var KEY=(typeof SB_KEY!=='undefined')?SB_KEY:'';
   var tok=KEY;try{var ss=await sb.auth.getSession();if(ss&&ss.data&&ss.data.session&&ss.data.session.access_token)tok=ss.data.session.access_token;}catch(e){}
-  var prov=(window.AIP&&AIP._prov)||'';if(prov)PROXY='https://vaubqkmsjsgfqeqbqbvy.supabase.co/functions/v1/ai-multi';
+  var prov=(window.AIP&&AIP._prov)||'';window.AIP&&(AIP._calls=AIP._calls||{},AIP._calls[prov||'claude']=(AIP._calls[prov||'claude']||0)+1);if(prov)PROXY='https://vaubqkmsjsgfqeqbqbvy.supabase.co/functions/v1/ai-multi';
   var resp=await fetch(PROXY,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok,'apikey':KEY},body:JSON.stringify(prov?{provider:prov,max_tokens:max||1200,system:system,messages:messages}:{model:'claude-sonnet-4-5',max_tokens:max||1200,system:system,messages:messages})});
   var data=null;try{data=await resp.json();}catch(e){data=null;}
   if(!data)throw new Error('AI proxy timeout / gateway error (HTTP '+resp.status+')');
@@ -8847,7 +8847,7 @@ async function bdAIContext(q){
   }catch(e){return '';}
 }
 
-var APP_VERSION='2.19.4',APP_BUILD_DATE='Oct 29, 2026';
+var APP_VERSION='2.20.0',APP_BUILD_DATE='Oct 29, 2026';
 (function(){function s(){var e=document.getElementById('sb-ver');if(e)e.textContent='Vantage v'+APP_VERSION+' · '+APP_BUILD_DATE;}s();document.addEventListener('DOMContentLoaded',s);})();
 
 </script>
@@ -9424,8 +9424,20 @@ AIP.rerun=async function(id){
  var r=await sb.from('ai_proposal_jobs').select('*').eq('id',id).single();var j=r.data;if(!j)return;
  var patch={status:'queued',error:null,stage:null,progress:0,result:null};
  if(!j.build_project_id&&j.bid_id){var pr=await sb.from('build_projects').select('*');var bd=await sb.from('bids').select('*').eq('id',j.bid_id).single();var p=bd.data?AIP.findProject(bd.data,pr.data||[]):null;if(p)patch.build_project_id=p.id;else{alert('Still no Build project with code "'+j.bid_ref+'".');return;}}
+ /* a re-run of a finished job is a NEW attempt: keep the review of the old draft (it used to be wiped) and make the engine read everything fresh */
+ if(j.status==='done'&&j.result){
+  try{
+   var res=j.result,L=res.learned||{},old=res.prev_review||null,lines=[];
+   var cor=j.corrections||{};
+   Object.keys(cor).forEach(function(k){var q=k.split('|'),sh=(res.sheets||[])[+q[0]];if(!sh||!sh.counts)return;var ai=sh.counts[q[1]];if(ai!==cor[k])lines.push('Sheet '+(sh.sheet_number||sh.file)+' ('+(sh.title||'')+'): '+((AIP.TYPES&&AIP.TYPES[q[1]]&&AIP.TYPES[q[1]].label)||q[1])+' - your previous count was '+ai+', the correct count is '+cor[k]);});
+   var ls=await sb.from('ai_proposal_lessons').select('lesson').eq('job_id',j.id).eq('active',true);
+   var prev={summary:L.summary||'',wrong:(L.wrong||[]).slice(0,8),right:(L.right||[]).slice(0,6),corrections:lines.slice(0,40),lessons:(ls.data||[]).map(function(x){return x.lesson;}).slice(0,10),prev_totals:res.totals||null,earlier:old};
+   patch.result={rerun:true,prev_review:prev};
+  }catch(e){patch.result={rerun:true};}
+ }
  await sb.from('ai_proposal_jobs').update(patch).eq('id',id);AIP.tick(true);
 };
+
 AIP.start=function(){
  if(AIP.started)return;AIP.started=true;
  AIP.loadSettings().then(function(){AIP.refreshBar();setTimeout(function(){AIP.tick();},4000);});
@@ -9784,6 +9796,23 @@ AIP.runJob=async function(job){
   }
   var ref=training?tf.name:((bid&&bid.ref)||proj.code||proj.name);
   var lessons=await loadLessons();
+  var pvr=job.result&&job.result.prev_review,rerunInfo=null;
+  if(pvr){
+   var pv=function(o){var t='';if(!o)return t;
+    if(o.summary)t+='Review summary: '+o.summary+'\n';
+    (o.wrong||[]).forEach(function(x){t+='- WRONG in your previous draft: '+(typeof x==='string'?x:JSON.stringify(x))+'\n';});
+    (o.corrections||[]).forEach(function(x){t+='- CORRECTION: '+x+'\n';});
+    (o.lessons||[]).forEach(function(x){t+='- LESSON: '+x+'\n';});
+    if(o.prev_totals)t+='Your previous drawing counts were '+JSON.stringify(o.prev_totals)+'. Do not repeat them if the review says they were wrong.\n';
+    (o.right||[]).forEach(function(x){t+='- RIGHT (keep): '+(typeof x==='string'?x:JSON.stringify(x))+'\n';});
+    return t;};
+   var rv=pv(pvr)+(pvr.earlier?'\nEarlier review of this same project:\n'+pv(pvr.earlier):'');
+   if(rv.trim()){
+    lessons=(lessons?lessons+'\n\n':'')+'THIS IS A RE-RUN for THIS project. You already drafted it once and the estimator reviewed it. Fix every point below; the result must not simply repeat the old draft.\n'+rv.slice(0,5000);
+    rerunInfo={review_points:(pvr.wrong||[]).length+(pvr.corrections||[]).length+(pvr.lessons||[]).length,fresh:true};
+   }
+  }
+  if(rerunInfo)await step(job,'Re-run with your review',5,'Applying '+rerunInfo.review_points+' review point(s) and '+(lessons.split('\n').length)+' lesson line(s); every drawing sheet is read again (saved sheet results are NOT reused)');
   await step(job,'Reading files',6,'Project "'+proj.name+'" - reading every file (7.0 REFERENCE, FORMS & TEMPLATES first)');
   var ctx=await P.readFiles(job,proj);
   if(!ctx.docs.length&&!ctx.drawings.length)throw new Error('No readable files found in the Build project yet.');
@@ -9855,7 +9884,8 @@ AIP.runJob=async function(job){
   await put('AI_Proposal_'+sref+'.pdf',pdf,'application/pdf');outputs.push('AI_Proposal_'+sref+'.pdf');
   if(marks.length){var sumTxt=Object.keys(totals).map(function(k){return TYPES[k].label+': '+totals[k];}).join('\n')||'No devices found';var mk=buildMarkupPdf(job,marks,'Totals across all sheets\n'+sumTxt+'\n\nColours: blue = data, orange = AV, red = security. Yellow ring = seen in only one pass.');await put('AI_Markup_Drawings_'+sref+'.pdf',mk,'application/pdf');outputs.push('AI_Markup_Drawings_'+sref+'.pdf');}
   var conf=sheets.length?Math.round(sheets.reduce(function(a,s){return a+s.confidence;},0)/sheets.length):(gen.confidence||50);
-  var result={sheets:sheets,totals:totals,flags:gen.flags,confidence:conf,files_read:ctx.docs.length,drawing_files:ctx.drawings.length,skipped:ctx.skipped,outputs:outputs.filter(function(n){return failedPuts.indexOf(n)<0;}),save_errors:failedPuts,saved_to:(training?tf.name:'0.0 HAND-OFF DOCS / Kickoff Meeting'),proposal_total:total,draft:{items:allItems.map(function(x){return [x.section_header,x.product_service,x.qty,x.rate];}),scope:propData.scope_of_work,exclusions:propData.exclusions,notes:propData.notes,total:total},item_count:allItems.length,style_examples:gen._styleN,requirements:{data:req.data,av:req.av,security:req.security,exclusions:req.exclusions,questions:req.questions},seconds:Math.round((Date.now()-t0)/1000)};
+  var _ri=rerunInfo;
+  var result={rerun_info:_ri,prev_review:(pvr||null),sheets:sheets,totals:totals,flags:gen.flags,confidence:conf,files_read:ctx.docs.length,drawing_files:ctx.drawings.length,skipped:ctx.skipped,outputs:outputs.filter(function(n){return failedPuts.indexOf(n)<0;}),save_errors:failedPuts,saved_to:(training?tf.name:'0.0 HAND-OFF DOCS / Kickoff Meeting'),proposal_total:total,draft:{items:allItems.map(function(x){return [x.section_header,x.product_service,x.qty,x.rate];}),scope:propData.scope_of_work,exclusions:propData.exclusions,notes:propData.notes,total:total},item_count:allItems.length,style_examples:gen._styleN,requirements:{data:req.data,av:req.av,security:req.security,exclusions:req.exclusions,questions:req.questions},seconds:Math.round((Date.now()-t0)/1000)};
   if(!training&&AIP.xcheck){ // second opinions from other AI platforms -> one Accurate Proposal + a report (extra files only; everything above is unchanged)
    try{var xo=await AIP.xcheck(job,{bid:bid,proj:proj,ref:ref,pname:pname,addr:addr,ctx:ctx,req:req,sheets:sheets,totals:totals,sums:sums,gen:gen,lessons:lessons,put:put,sref:sref,propData:propData,gcRow:gcRow,taxRate:taxRate});
     if(xo){(xo.outputs||[]).forEach(function(n){if(failedPuts.indexOf(n)<0){result.outputs.push(n);}});result.xcheck=xo.summary||null;}
@@ -11110,6 +11140,7 @@ else{window.bdAIContext=async function(q){try{return await VG.aiContext(q);}catc
 (function(){var _p=window.bdAIContext;window.bdAIContext=async function(q){var s='';try{s=await _p(q);}catch(e){}return s+'\nAI FOLDER MATCH: the AI saves into the Build project whose code equals the bid Project # exactly (0.0 HAND-OFF DOCS / Kickoff Meeting); if none matches it stops with an error instead of guessing.';};})();
 (function(){var _p=window.bdAIContext;window.bdAIContext=async function(q){var s='';try{s=await _p(q);}catch(e){}return s+'\nAI WAITING: a bid starts only when it is Under Review, assigned to Vantage AI, has a due date within the window, a Build project with the same Project #, and documents uploaded at least 20 minutes ago. The AI bar lists what each waiting bid is missing.';};})();
 (function(){var _p=window.bdAIContext;window.bdAIContext=async function(q){var s='';try{s=await _p(q);}catch(e){}return s+'\nAI JSON ERRORS: if the AI reports AI JSON invalid, Re-run the job; the reader repairs bad quotes, retries three times and splits large document parts.';};})();
+(function(){var _p=window.bdAIContext;window.bdAIContext=async function(q){var s='';try{s=await _p(q);}catch(e){}return s+'\nAI LEARNING: Learn from review saves lessons; Re-run on a finished job keeps the review of the old draft, reads every sheet fresh and applies the review and lessons. A new lesson also makes saved sheet readings be read again. Cross-check platforms do not use the learned symbol library; the report proves their independence with AI call counts and sheet comparison.';};})();
 
 /* ===== Vantage Departments (field tools, gallery, Modules visibility dropdown) ===== */
 (function(){
@@ -11683,7 +11714,7 @@ async function exact(job,pg,lessons,req,nolg){
  });
  cls=cls.filter(function(c){return c.count>0||c.leg.length>0;});
  var libHits=0;
- cls.forEach(function(c){var e=LIB.list.find(function(l){return libMatch(l,c.rep,W);});if(e){c.type=e.type;c.mount=e.mount||'';c.conf=0.95;c.src='library';c.ports=e.ports||1;libHits++;}});
+ cls.forEach(function(c){var e=AIP._prov?null:LIB.list.find(function(l){return libMatch(l,c.rep,W);});if(e){c.type=e.type;c.mount=e.mount||'';c.conf=0.95;c.src='library';c.ports=e.ports||1;libHits++;}});
  // project legend (read from the legend / general-information sheets): match every symbol class to the legend instead of guessing
  var LG=(!nolg&&AIP.legendOn&&AIP.legendOn())?AIP.legendEntries():null,lgHit=0,lgMiss=[];
  if(LG){cls.forEach(function(c){
@@ -11962,17 +11993,20 @@ P.extractRequirements=async function(job,ctx,bid,lessons){
 };
 
 /* ---------- 4. drawings: read each sheet once, then score it for THIS trade ---------- */
-var CV='v2';
+var CV='v3';
+function lh(x){x=String(x||'');var h=5381;for(var i=0;i<x.length;i++)h=((h<<5)+h+x.charCodeAt(i))|0;return 'L'+(h>>>0).toString(36)+x.length;}
 function sk(pg){return !AIP._prov&&pg&&pg.hash?('ai_sheet_'+String(pg.hash).slice(0,24)+'_'+pg.n):null;}
 var MEM={};
-async function getHit(k,t){
+async function getHit(k,t,L){
+ if(AIP._fresh)return null; // a re-run after feedback reads every sheet again
  var e=MEM[k];
  if(!e){try{var r=await sb.from('vg_settings').select('value').eq('key',k).maybeSingle();e=r&&r.data&&r.data.value;}catch(x){e=null;}if(e)MEM[k]=e;}
  if(!e||e.v!==CV||!e.sheet)return null;
+ if(e.lh!==L)return null; // the lessons changed since this sheet was read: read it again with the new lessons
  return e;
 }
-async function putHit(k,r,t){
- var e={v:CV,trade:t?t.code:'',at:new Date().toISOString(),sheet:r.sheet,devs:(r.devices||[]).map(function(d){return {type:d.type,x:+(+d.x).toFixed(4),y:+(+d.y).toFixed(4),room:d.room||'',label:d.label||'',note:d.note||'',mount:d.mount||'',ports:d.ports||1,src:d.src||'',m:d.m||''};})};
+async function putHit(k,r,t,L){
+ var e={v:CV,lh:L,trade:t?t.code:'',at:new Date().toISOString(),sheet:r.sheet,devs:(r.devices||[]).map(function(d){return {type:d.type,x:+(+d.x).toFixed(4),y:+(+d.y).toFixed(4),room:d.room||'',label:d.label||'',note:d.note||'',mount:d.mount||'',ports:d.ports||1,src:d.src||'',m:d.m||''};})};
  var s=JSON.stringify(e);if(s.length>900000)return;
  MEM[k]=e;
  try{await sb.from('vg_settings').upsert({key:k,value:e,updated_by:(window.CU&&CU.id)||null,updated_at:e.at});}catch(x){}
@@ -11996,9 +12030,9 @@ function neutral(req,t){ // the reading of a sheet is shared by all trades, so t
  return req.split('\n').map(function(l){var m=l.match(/^(DATA|AV|SECURITY):/);if(!m)return l;var k={DATA:'data',AV:'av',SECURITY:'security'}[m[1]];return k===t.key?l:m[1]+': (another trade - still report every such device you see on the sheet)';}).join('\n');
 }
 P.analyzePage=async function(job,pg,idx,total,lessons,req,grid){
- var t=AIP.curTrade,k=sk(pg),hit=null,r;
+ var t=AIP.curTrade,k=sk(pg),hit=null,r,L=lh(lessons);
  arguments[5]=neutral(req,t);
- if(k){try{hit=await getHit(k,t);}catch(e){hit=null;}}
+ if(k){try{hit=await getHit(k,t,L);}catch(e){hit=null;}}
  if(hit){
   r={sheet:JSON.parse(JSON.stringify(hit.sheet)),devices:hit.devs.map(function(d){return Object.assign({},d);}),canvas:null};
   try{if(r.devices.some(function(d){return !t||t.types.indexOf(d.type)>=0;}))r.canvas=await P.renderPage(pg);}catch(e){r.canvas=null;}
@@ -12008,7 +12042,7 @@ P.analyzePage=async function(job,pg,idx,total,lessons,req,grid){
   r.sheet.flags.unshift('Sheet reused from an earlier job (same drawing file, same page); reviewed again for the '+(t?t.name:'all')+' trade');
  }else{
   r=await ap.apply(null,arguments);R.pagesRead++;
-  if(k&&r&&r.sheet){try{await putHit(k,r,t);}catch(e){}}
+  if(k&&r&&r.sheet){try{await putHit(k,r,t,L);}catch(e){}}
  }
  return scope(r,t);
 };
@@ -12019,6 +12053,7 @@ AIP.runJob=async function(job){
  var ref=job.bid_ref;
  if(!ref&&job.bid_id){try{var b=await sb.from('bids').select('ref').eq('id',job.bid_id).maybeSingle();ref=b.data&&b.data.ref;}catch(e){}}
  var t=AIP.tradeOf(ref)||AIP.tradeOf(job.project_name);
+ AIP._fresh=!!(job.result&&job.result.rerun);
  AIP.curTrade=t;['text','dupDrawing','dupDocs','pagesReused','pagesRead'].forEach(function(k){R[k]=0;});
  if(t){try{await P.step(job,'Starting',2,'Trade '+t.code+' - '+t.name+': this proposal is scoped to '+t.scopeText);}catch(e){}}
  try{return await rj.apply(this,arguments);}
@@ -12029,7 +12064,7 @@ AIP.runJob=async function(job){
     job.result=res;await sb.from('ai_proposal_jobs').update({result:res}).eq('id',job.id);
    }
   }catch(e){}
-  AIP.curTrade=null;
+  AIP.curTrade=null;AIP._fresh=false;
  }
 };
 })();
@@ -12776,7 +12811,7 @@ AIP.xcScore=function(g,fin){
 async function shadow(job,C,prov,pct0,pct1){
  var res={prov:prov,name:NAMES[prov],ok:false,t0:Date.now()},saveSpec=AIP.spec;
  function st(line,f){try{return P.step(job,'Cross-check: '+NAMES[prov],Math.round(pct0+(pct1-pct0)*f),line);}catch(e){}}
- AIP._prov=prov;
+ AIP._prov=prov;var c0=(AIP._calls&&AIP._calls[prov])||0;
  try{
   await st('Reading the SOW and specification',0.02);
   var req=await P.extractRequirements(job,C.ctx,C.bid,C.lessons);
@@ -12794,8 +12829,21 @@ async function shadow(job,C,prov,pct0,pct1){
   var gen=await P.generateProposal(job,C.bid,C.proj,req,sheets,totals,C.lessons);
   Object.assign(res,{ok:true,req:req,sheets:sheets,totals:totals,gen:gen});
  }catch(e){res.error=String(e&&e.message||e).slice(0,300);console.warn('Cross-check',prov,e);}
- finally{AIP._prov='';AIP.spec=saveSpec;}
+ finally{res.calls=((AIP._calls&&AIP._calls[prov])||0)-c0;AIP._prov='';AIP.spec=saveSpec;}
  res.mins=Math.round((Date.now()-res.t0)/6000)/10;return res;
+}
+
+
+/* ---------- proof the platforms worked on their own: AI calls made + sheet-by-sheet comparison with Claude ---------- */
+function sheetKey(s){return (s.file||'')+'#'+(s.page||0);}
+function compareSheets(cs,ps){
+ var m={};(cs||[]).forEach(function(s){m[sheetKey(s)]=s;});
+ var same=0,diff=0,list=[];
+ (ps||[]).forEach(function(p){var c=m[sheetKey(p)];if(!c)return;
+  var ks={};Object.keys(c.counts||{}).forEach(function(k){ks[k]=1;});Object.keys(p.counts||{}).forEach(function(k){ks[k]=1;});
+  var d=Object.keys(ks).filter(function(k){return (c.counts[k]||0)!==(p.counts[k]||0);});
+  if(d.length){diff++;d.forEach(function(k){if(list.length<14)list.push((p.sheet_number||p.file+' p'+p.page)+': '+((TYPES[k]&&TYPES[k].label)||k)+' - Claude '+(c.counts[k]||0)+', other '+(p.counts[k]||0));});}else same++;});
+ return {same:same,diff:diff,list:list};
 }
 
 /* ---------- compact view of one platform's work, for the referee ---------- */
@@ -12883,6 +12931,10 @@ AIP.xcReportPdf=function(d){
  var keys={};d.runs.forEach(function(r){Object.keys(r.totals||{}).forEach(function(k){keys[k]=1;});});
  var ks=Object.keys(keys);
  if(ks.length){var cw=Math.floor((W-2*M-150)/d.runs.length);table(['Device'].concat(d.runs.map(function(r){return r.name;})),ks.map(function(k){return [(TYPES[k]&&TYPES[k].label)||k].concat(d.runs.map(function(r){return r.ok&&r.totals&&r.totals[k]!=null?r.totals[k]:(r.ok?0:'-');}));}),[150].concat(d.runs.map(function(){return cw;})));}else para('No devices were counted.');
+ h2('Proof each platform worked on its own');
+ table(['Platform','AI calls made','Sheets read','Sheets identical to Claude','Sheets that differ'],d.runs.map(function(r){return [r.name,r.calls!=null?r.calls:'-',r.cmp?(r.cmp.same+r.cmp.diff):(r.name==='Claude'?'-':'0'),r.cmp?r.cmp.same:'-',r.cmp?r.cmp.diff:'-'];}),[120,90,90,120,92]);
+ d.runs.forEach(function(r){if(r.cmp&&r.cmp.list.length){para(r.name+' counted differently from Claude on:',9,true);bullets(r.cmp.list);}});
+ if(d.runs.filter(function(r){return r.cmp;}).every(function(r){return r.cmp.diff===0;})&&d.runs.length>1)para('All platforms counted every sheet the same. That is agreement between independent readings (each platform made its own AI calls above), so the Accurate Proposal matches Claude\'s proposal.',9,false,[20,110,60]);
  h2('Where they agreed');
  if((d.agreements||[]).length)bullets(d.agreements);else para('Nothing recorded.');
  h2('Where they disagreed and how it was settled');
@@ -12941,7 +12993,7 @@ AIP.xcheck=async function(job,C){
  // only a real winner if more than one platform could be scored
  d.best=(ranked.length>1)?{name:ranked[0].name,pct:ranked[0].score.pct}:null;
  if(d.best&&ranked[1]&&ranked[1].score.pct===ranked[0].score.pct)d.best.name=ranked.filter(function(r){return r.score.pct===ranked[0].score.pct;}).map(function(r){return r.name;}).join(' and ')+' (tied)';
- d.runs=all.map(function(r){return {name:r.name,model:r.model,ok:r.ok,error:r.error,items:r.items,total:r.total,totals:r.totals,score:r.score,mins:r.mins};});
+ d.runs=all.map(function(r){var rr=runs.filter(function(x){return x.name===r.name;})[0],cmp=rr&&rr.ok?compareSheets(C.sheets,rr.sheets):null;return {name:r.name,model:r.model,ok:r.ok,error:r.error,items:r.items,total:r.total,totals:r.totals,score:r.score,mins:r.mins,calls:rr?rr.calls:((AIP._calls&&AIP._calls.claude)||null),cmp:cmp};});
  d.summary=(ref.summary||'')+(notes.length?' '+notes.join('; ')+'.':'');d.confidence=ref.confidence!=null?Math.round(+ref.confidence):null;
  d.agreements=ref.agreements||[];d.disagreements=ref.disagreements||[];d.flags=(ref.flags||[]);d.platform_notes=ref.platform_notes||null;
  d.finalTotal=okRuns.length?priceOf(fin):0;
