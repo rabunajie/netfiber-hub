@@ -8849,7 +8849,7 @@ async function bdAIContext(q){
   }catch(e){return '';}
 }
 
-var APP_VERSION='2.23.0',APP_BUILD_DATE='Oct 29, 2026';
+var APP_VERSION='2.24.0',APP_BUILD_DATE='Oct 29, 2026';
 (function(){function s(){var e=document.getElementById('sb-ver');if(e)e.textContent='Vantage v'+APP_VERSION+' · '+APP_BUILD_DATE;}s();document.addEventListener('DOMContentLoaded',s);})();
 
 </script>
@@ -9501,11 +9501,22 @@ function chunkCorpus(docs,max){
  });
  if(cur.trim())chunks.push(cur);return chunks;
 }
+/* ---- GC email / notes: typed by the user in Bid Opportunities or New project, read by the AI FIRST ---- */
+AIP.gcKey=function(ref){var r=String(ref||'').trim();var n=AIP.pnum?AIP.pnum(r):'';return (n||r.toLowerCase().replace(/[^a-z0-9]/g,''));};
+AIP.gcNotesOf=async function(ref){var k=AIP.gcKey(ref);if(!k)return '';try{var r=await sb.from('vg_settings').select('value').eq('key','gcnotes_'+k).maybeSingle();return (r.data&&r.data.value&&r.data.value.t)||'';}catch(e){return '';}};
+AIP.digestGcNotes=async function(text){
+ try{var d=await aiJson(AIP._p.SYS_TRADE,'These notes / email come from the general contractor (GC) who sent NetFiber a bid request. NetFiber is the low-voltage / structured cabling / AV / security subcontractor. Read them carefully and list what the GC is actually asking for. Return ONLY JSON: {"summary":"2-3 sentences","requests":[{"kind":"add|remove|change|exclude|schedule|pricing|alternate|submittal|other","detail":"","applies_to":"data|av|security|all"}],"deadlines":[""],"questions_for_user":[""]}\n\nGC NOTES:\n'+String(text).slice(0,12000),2000);return d;}catch(e){return null;}
+};
+AIP.gcBlock=function(){
+ if(!AIP._gcn)return '';
+ return '\n\nGC EMAIL / NOTES FROM THE GENERAL CONTRACTOR (HIGHEST PRIORITY - read these FIRST; they say what the GC is actually asking for):\n"""\n'+String(AIP._gcn).slice(0,12000)+'\n"""'+(AIP._gcd?'\nKEY POINTS OF THE GC NOTES: '+JSON.stringify(AIP._gcd).slice(0,3000):'')+'\nRULES FOR THE GC NOTES: build the work from BOTH the GC notes and the project documents (drawings, specs, addenda). If the GC notes conflict with the drawings or specs, FOLLOW THE GC NOTES and list every conflict in "gc_conflicts": [{"gc_says":"","documents_say":"","followed":"GC notes","where":"sheet / spec section"}] so the user can review it.';
+};
 var REQ_SCHEMA='{"data":[{"requirement":"","qty":null,"location":"","responsibility":"NetFiber|Others|Unclear","source":"file name + section","quote":""}],"av":[...same],"security":[...same],"exclusions":[""],"bid_info":{"gc":"","due":"","notes":""},"questions":[""]}';
 async function extractRequirements(job,ctx,bid,lessons){
  var chunks=chunkCorpus(ctx.docs,70000),merged={data:[],av:[],security:[],exclusions:[],questions:[],bid_info:{}};
  if(!chunks.length)return merged;
  var bidTxt=bid?('BID RECORD: project '+bid.project+'; GC '+bid.gc+'; due '+bid.due_date+'; SOW chosen by the estimator (authoritative for which scopes NetFiber is bidding: Comm = data/communications cabling, AV, Security): "'+(bid.scope||'not set')+'"; notes: '+(bid.notes||'')):'';
+ bidTxt+=AIP.gcBlock()+(AIP._gcn?' When you list requirements, ALSO list every request in the GC notes (source "GC notes") and add to "questions" anything in the documents that contradicts the GC notes.':'');
  for(var i=0;i<chunks.length;i++){
   var mkBase=function(ct){return 'Read these project documents (part '+(i+1)+' of '+chunks.length+'). Find EVERYTHING that asks for, specifies or assigns work in: (1) DATA/structured cabling & wireless (this work may be called LOW VOLTAGE, low-voltage, telecommunications, communications, technology, Division 27 or structured cabling, and low-voltage work is often listed inside the Electrical division, the E/T sheets or the general notes - the specification can even be inside the drawing file; also note any WRITTEN count of data outlets/drops, and remember a VOICE/DATA outlet = 2 cables), (2) AUDIO-VIDEO, (3) SECURITY / access control / cameras. For each, say what the client requires, quantities if stated, location, and whether NetFiber (low-voltage/technology subcontractor) is responsible or Others (electrical, GC, owner-furnished, vendor). Quote the exact words. Include forms, addenda and reference documents. '+bidTxt+(lessons?'\nLessons learned from past corrections:\n'+lessons:'')+'\nReturn ONLY JSON: '+REQ_SCHEMA+'\n\nDOCUMENTS:\n'+ct;};var base=mkBase(chunks[i]);
   var pass1=async function(ct,depth){
@@ -9686,10 +9697,11 @@ async function writeSummaries(job,bid,proj,req,sheets,totals,ctx){
 async function generateProposal(job,bid,proj,req,sheets,totals,lessons){
  var st=await styleSamples(bid),lib=await libraryText();
  var gcn=bid?bid.gc:'';
- var prompt='Create a proposal for NetFiber. Copy the WRITING STYLE, section layout, wording of scope/exclusions/notes and the way items are named and described from the EXAMPLE proposals NetFiber wrote earlier. Quantities MUST come from the drawing counts and requirements below (never invent quantities; if the SOW names a quantity and the drawings disagree, use the drawing count and add a flag). Prices: use the ITEM LIBRARY rates when an item matches; otherwise use the rate from a similar line in the examples; if no price exists set rate 0 and price_source "none". Separate sections for Data, AV and Security only when that scope exists. Only include work NetFiber is responsible for.'+(AIP.tradeLine?AIP.tradeLine():'')+' ALSO write a one-page PROJECT SUMMARY AND SOW for the client (field summary_page) in the style of this example: title "Scope of Work: Network Cabling - New Installation & Relocation (Cat6)"; overview = 3 to 5 sentences (what the project includes with the real quantities, who the work is coordinated with, the drawings and codes/standards it follows); services = 6 to 10 items, each a short label (for example "Site Assessment & Planning", "New Cable Installation (18 Drops)", "Cable Relocation (12 Drops)", "Termination", "Labeling", "Testing & Certification", "Cleanup") and one or two sentences starting with "Furnish and install", "Verify", "Terminate" and so on; exclusions = the things NOT included. Use only real numbers from the drawing counts and requirements, and only NetFiber scope.\n\nPROJECT: '+(bid?bid.project:proj.name)+' | GC/client: '+gcn+' | city: '+(bid?bid.city:'')+' | SOW FIELD FROM THE BID (the estimator decided this; include ONLY these scopes - Comm = data/communications cabling, AV, Security; if empty decide from the documents): "'+(bid?bid.scope||'':'')+'" | bid notes: '+(bid?bid.notes||'':'')+(AIP.specPrompt?AIP.specPrompt():'')+'\n\nREQUIREMENTS FROM THE SPECS:\n'+JSON.stringify({data:req.data,av:req.av,security:req.security,exclusions:req.exclusions}).slice(0,22000)+'\n\nDRAWING TOTALS (symbols): '+JSON.stringify(totals)+'\nCABLES TO PRICE (use the cable category the SPECIFICATION SUMMARY requires, Cat6 only when no spec says otherwise; drops; a VOICE/DATA outlet = 2 cables, VOICE = 1, DATA = 1 - use THESE numbers for cable drop quantities, not the symbol count): '+JSON.stringify(AIP.cableTotals?AIP.cableTotals(sheets):{})+'\nPER SHEET: '+JSON.stringify(sheets.map(function(s){return {sheet:s.sheet_number||s.file+' p'+s.page,title:s.title,counts:s.counts,cables:s.cables,mounts:s.mounts,method:s.method,flags:s.flags};})).slice(0,9000)+(lessons?'\n\nLESSONS FROM PAST CORRECTIONS (must follow):\n'+lessons:'')+'\n\nITEM LIBRARY:\n'+lib+'\n\n'+st.text+'\n\nReturn ONLY JSON: {"project_sow":"short SOW label e.g. DATA / AV / SECURITY","scope_of_work":"bullet lines starting with the bullet character, one per line","exclusions":"bullet lines","notes":"lines","sections":[{"header":"DATA CABLING","items":[{"product":"","description":"","qty":0,"rate":0,"cost":0,"taxable":true,"price_source":"library|history|none","basis":"where the qty came from"}]}],"summary_page":{"title":"Scope of Work: ...","overview":"","services":[{"label":"","text":""}],"exclusions":[""]},"flags":["anything the reviewer must check"],"confidence":0}';
+ var prompt='Create a proposal for NetFiber. Copy the WRITING STYLE, section layout, wording of scope/exclusions/notes and the way items are named and described from the EXAMPLE proposals NetFiber wrote earlier. Quantities MUST come from the drawing counts and requirements below (never invent quantities; if the SOW names a quantity and the drawings disagree, use the drawing count and add a flag). Prices: use the ITEM LIBRARY rates when an item matches; otherwise use the rate from a similar line in the examples; if no price exists set rate 0 and price_source "none". Separate sections for Data, AV and Security only when that scope exists. Only include work NetFiber is responsible for.'+(AIP.tradeLine?AIP.tradeLine():'')+' ALSO write a one-page PROJECT SUMMARY AND SOW for the client (field summary_page) in the style of this example: title "Scope of Work: Network Cabling - New Installation & Relocation (Cat6)"; overview = 3 to 5 sentences (what the project includes with the real quantities, who the work is coordinated with, the drawings and codes/standards it follows); services = 6 to 10 items, each a short label (for example "Site Assessment & Planning", "New Cable Installation (18 Drops)", "Cable Relocation (12 Drops)", "Termination", "Labeling", "Testing & Certification", "Cleanup") and one or two sentences starting with "Furnish and install", "Verify", "Terminate" and so on; exclusions = the things NOT included. Use only real numbers from the drawing counts and requirements, and only NetFiber scope.\n\nPROJECT: '+(bid?bid.project:proj.name)+' | GC/client: '+gcn+' | city: '+(bid?bid.city:'')+' | SOW FIELD FROM THE BID (the estimator decided this; include ONLY these scopes - Comm = data/communications cabling, AV, Security; if empty decide from the documents): "'+(bid?bid.scope||'':'')+'" | bid notes: '+(bid?bid.notes||'':'')+(AIP.specPrompt?AIP.specPrompt():'')+AIP.gcBlock()+'\n\nREQUIREMENTS FROM THE SPECS:\n'+JSON.stringify({data:req.data,av:req.av,security:req.security,exclusions:req.exclusions}).slice(0,22000)+'\n\nDRAWING TOTALS (symbols): '+JSON.stringify(totals)+'\nCABLES TO PRICE (use the cable category the SPECIFICATION SUMMARY requires, Cat6 only when no spec says otherwise; drops; a VOICE/DATA outlet = 2 cables, VOICE = 1, DATA = 1 - use THESE numbers for cable drop quantities, not the symbol count): '+JSON.stringify(AIP.cableTotals?AIP.cableTotals(sheets):{})+'\nPER SHEET: '+JSON.stringify(sheets.map(function(s){return {sheet:s.sheet_number||s.file+' p'+s.page,title:s.title,counts:s.counts,cables:s.cables,mounts:s.mounts,method:s.method,flags:s.flags};})).slice(0,9000)+(lessons?'\n\nLESSONS FROM PAST CORRECTIONS (must follow):\n'+lessons:'')+'\n\nITEM LIBRARY:\n'+lib+'\n\n'+st.text+'\n\nReturn ONLY JSON: {"project_sow":"short SOW label e.g. DATA / AV / SECURITY","scope_of_work":"bullet lines starting with the bullet character, one per line","exclusions":"bullet lines","notes":"lines","sections":[{"header":"DATA CABLING","items":[{"product":"","description":"","qty":0,"rate":0,"cost":0,"taxable":true,"price_source":"library|history|none","basis":"where the qty came from"}]}],"summary_page":{"title":"Scope of Work: ...","overview":"","services":[{"label":"","text":""}],"exclusions":[""]},"flags":["anything the reviewer must check"],"confidence":0}';
  var p=await (AIP.genCall?AIP.genCall(prompt):aiJson(P.SYS_TRADE,prompt,8000));
  if(AIP.specFix)AIP.specFix(p);
  var lib2=window._aipLib||[],flags=(p.flags||[]).slice(),n=0;
+ if(AIP._gcn){p.gc_conflicts=(Array.isArray(p.gc_conflicts)?p.gc_conflicts:[]).filter(function(c){return c&&(c.gc_says||c.documents_say);}).slice(0,20);p.gc_conflicts.forEach(function(c){flags.unshift('GC NOTES CONFLICT: the GC says "'+String(c.gc_says||'').slice(0,160)+'" but the documents say "'+String(c.documents_say||'').slice(0,160)+'"'+(c.where?' ('+c.where+')':'')+'. The proposal follows the GC notes - please review.');});}
  (p.sections||[]).forEach(function(s){(s.items||[]).forEach(function(it){
   var m=lib2.find(function(l){return String(l.name||'').trim().toLowerCase()===String(it.product||'').trim().toLowerCase();});
   if(m){it.rate=+m.rate||0;it.cost=+m.cost||0;it.price_source='library';}
@@ -9814,6 +9826,12 @@ AIP.runJob=async function(job){
     rerunInfo={review_points:(pvr.wrong||[]).length+(pvr.corrections||[]).length+(pvr.lessons||[]).length,fresh:true};
    }
   }
+  AIP._gcn='';AIP._gcd=null;
+  if(bid&&job.mode!=='training'){
+   try{AIP._gcn=await AIP.gcNotesOf(bid.ref)||'';}catch(e){AIP._gcn='';}
+   if(AIP._gcn.trim()){await step(job,'Reading the GC notes first',6,'Reading the GC email / notes ('+AIP._gcn.length+' characters) before the project documents');AIP._gcd=await AIP.digestGcNotes(AIP._gcn);}
+   else AIP._gcn='';
+  }
   if(rerunInfo)await step(job,'Re-run with your review',5,'Applying '+rerunInfo.review_points+' review point(s) and '+(lessons.split('\n').length)+' lesson line(s); every drawing sheet is read again (saved sheet results are NOT reused)');
   await step(job,'Reading files',6,'Project "'+proj.name+'" - reading every file (7.0 REFERENCE, FORMS & TEMPLATES first)');
   var ctx=await P.readFiles(job,proj);
@@ -9887,7 +9905,8 @@ AIP.runJob=async function(job){
   if(marks.length){var sumTxt=Object.keys(totals).map(function(k){return TYPES[k].label+': '+totals[k];}).join('\n')||'No devices found';var mk=buildMarkupPdf(job,marks,'Totals across all sheets\n'+sumTxt+'\n\nColours: blue = data, orange = AV, red = security. Yellow ring = seen in only one pass.');await put('AI_Markup_Drawings_'+sref+'.pdf',mk,'application/pdf');outputs.push('AI_Markup_Drawings_'+sref+'.pdf');}
   var conf=sheets.length?Math.round(sheets.reduce(function(a,s){return a+s.confidence;},0)/sheets.length):(gen.confidence||50);
   var _ri=rerunInfo;
-  var result={rerun_info:_ri,prev_review:(pvr||null),sheets:sheets,totals:totals,flags:gen.flags,confidence:conf,files_read:ctx.docs.length,drawing_files:ctx.drawings.length,skipped:ctx.skipped,outputs:outputs.filter(function(n){return failedPuts.indexOf(n)<0;}),save_errors:failedPuts,saved_to:(training?tf.name:'0.0 HAND-OFF DOCS / Kickoff Meeting'),proposal_total:total,draft:{items:allItems.map(function(x){return [x.section_header,x.product_service,x.qty,x.rate];}),scope:propData.scope_of_work,exclusions:propData.exclusions,notes:propData.notes,total:total},item_count:allItems.length,style_examples:gen._styleN,requirements:{data:req.data,av:req.av,security:req.security,exclusions:req.exclusions,questions:req.questions},seconds:Math.round((Date.now()-t0)/1000)};
+  var _gcnU=AIP._gcn?{chars:AIP._gcn.length,summary:(AIP._gcd&&AIP._gcd.summary)||'',requests:(AIP._gcd&&AIP._gcd.requests)||[],conflicts:(gen.gc_conflicts||[])}:null;
+  var result={gc_notes:_gcnU,rerun_info:_ri,prev_review:(pvr||null),sheets:sheets,totals:totals,flags:gen.flags,confidence:conf,files_read:ctx.docs.length,drawing_files:ctx.drawings.length,skipped:ctx.skipped,outputs:outputs.filter(function(n){return failedPuts.indexOf(n)<0;}),save_errors:failedPuts,saved_to:(training?tf.name:'0.0 HAND-OFF DOCS / Kickoff Meeting'),proposal_total:total,draft:{items:allItems.map(function(x){return [x.section_header,x.product_service,x.qty,x.rate];}),scope:propData.scope_of_work,exclusions:propData.exclusions,notes:propData.notes,total:total},item_count:allItems.length,style_examples:gen._styleN,requirements:{data:req.data,av:req.av,security:req.security,exclusions:req.exclusions,questions:req.questions},seconds:Math.round((Date.now()-t0)/1000)};
   if(!training&&AIP.xcheck){ // second opinions from other AI platforms -> one Accurate Proposal + a report (extra files only; everything above is unchanged)
    try{var xo=await AIP.xcheck(job,{bid:bid,proj:proj,ref:ref,pname:pname,addr:addr,ctx:ctx,req:req,sheets:sheets,totals:totals,sums:sums,gen:gen,lessons:lessons,put:put,sref:sref,propData:propData,gcRow:gcRow,taxRate:taxRate});
     if(xo){(xo.outputs||[]).forEach(function(n){if(failedPuts.indexOf(n)<0){result.outputs.push(n);}});result.xcheck=xo.summary||null;}
@@ -9901,7 +9920,7 @@ AIP.runJob=async function(job){
   console.warn('AI job failed',e);
   await upd(job,{status:'error',error:String(e&&e.message||e).slice(0,500),finished_at:new Date().toISOString()});
  }finally{
-  AIP._lock=null;
+  AIP._lock=null;AIP._gcn='';AIP._gcd=null;
   var sameProj=snap.proj&&snap.proj.id===job.build_project_id;
   BD.proj=snap.proj;BD.folders=snap.folders;BD.files=snap.files;BD.members=snap.members;BD.role=snap.role;
   // the person is looking at this very project in Build: show the files the AI just saved
@@ -11146,6 +11165,7 @@ else{window.bdAIContext=async function(q){try{return await VG.aiContext(q);}catc
 (function(){var _p=window.bdAIContext;window.bdAIContext=async function(q){var s='';try{s=await _p(q);}catch(e){}return s+'\nTABLE ITEM LIBRARY: items saved from proposal tables (name, description, default qty, picture) are stored in the shared item_library with rate 0; the pictures are in vg_settings as libimg_<item id>. The AI ignores library items with no rate for pricing.';};})();
 (function(){var _p=window.bdAIContext;window.bdAIContext=async function(q){var s='';try{s=await _p(q);}catch(e){}return s+'\nTABLE TITLES: each table on an Additional Page can have a title (heading) that prints as a blue bar with white text above the table.';};})();
 (function(){var _p=window.bdAIContext;window.bdAIContext=async function(q){var s='';try{s=await _p(q);}catch(e){}return s+'\nPROPOSAL INFO BLOCK: each proposal can hide the Bill To / Ship To / Estimate Details block on the printed proposal (setting info in proposals.fixed_sections_on, default shown). AI proposals keep it shown.';};})();
+(function(){var _p=window.bdAIContext;window.bdAIContext=async function(q){var s='';try{s=await _p(q);}catch(e){}return s+'\nGC EMAIL / NOTES: optional notes the user pastes in Bid Opportunities or Build New project (saved in vg_settings as gcnotes_<project #>). The AI reads them first, builds from the notes plus the documents, follows the GC notes when they conflict with drawings/specs, and flags GC NOTES CONFLICT.';};})();
 
 /* ===== Vantage Departments (field tools, gallery, Modules visibility dropdown) ===== */
 (function(){
@@ -12865,7 +12885,7 @@ async function referee(C,runs){
  var pl={claude:digest(null,C.sheets,C.totals,C.req,C.gen,AIP._xcClaudeSpec)};
  runs.forEach(function(r){if(r.ok)pl[KEYS[r.prov]]=digest(null,r.sheets,r.totals,r.req,r.gen,r.spec);});
  var names=Object.keys(pl).join(', ');
- var prompt='You are Claude, the lead estimator and referee for NetFiber. '+(Object.keys(pl).length-1)+' other AI platform(s) independently read the same SOW, specification and drawings and each wrote its own proposal. Compare all of them (platforms: '+names+') against each other and against your own work, and decide the most accurate proposal possible.\n\n'
+ var prompt='You are Claude, the lead estimator and referee for NetFiber. '+(Object.keys(pl).length-1)+' other AI platform(s) independently read the same SOW, specification and drawings and each wrote its own proposal. Compare all of them (platforms: '+names+') against each other and against your own work, and decide the most accurate proposal possible.'+(AIP.gcBlock?AIP.gcBlock().replace('list every conflict in "gc_conflicts"','mention every conflict in your summary'):'')+'\n\n'
  +'RULES: (1) The legend-matched drawing counts and the written spec / SOW decide quantities and materials, not a vote - if two platforms agree but the drawings or spec say otherwise, follow the drawings/spec. (2) Counts that came from exact vector symbol counting (mentioned in sheet flags) beat visual estimates. (3) Only NetFiber scope for this trade. (4) Never invent quantities. If you cannot tell who is right, keep Claude\'s value and add it to "flags" for a human. (5) Prices: do not change rates except for items that do not exist in Claude\'s proposal (use the rate another platform used only if it looks like a library/history rate, else 0).\n\n'
  +'PLATFORMS (JSON):\n'+JSON.stringify(pl).slice(0,60000)
  +'\n\nReturn ONLY JSON: {"summary":"3 to 5 sentences: what happened and how close the platforms were","confidence":0,"agreements":["short plain sentence each - things all/most platforms agreed on"],'
@@ -13455,6 +13475,66 @@ window.saveLibraryItem=async function(){
  closeModal('item-form-modal');await loadLibraryItems();renderLibraryItems();
 };
 window.tlibOpen=T.open;window.tlibSaveRow=T.saveRow;
+})();
+
+/* ===== GC email / notes: optional field in Bid Opportunities and New project; the AI reads it first ===== */
+(function(){
+if(window.GCN)return;
+var G=window.GCN={};
+function toast(m,bad){try{if(typeof bdToast==='function')bdToast(m,bad);}catch(e){}}
+G.key=function(ref){return (window.AIP&&AIP.gcKey)?AIP.gcKey(ref):String(ref||'').toLowerCase().replace(/[^a-z0-9]/g,'');};
+G.get=async function(ref){var k=G.key(ref);if(!k)return '';try{var r=await sb.from('vg_settings').select('value').eq('key','gcnotes_'+k).maybeSingle();return (r.data&&r.data.value&&r.data.value.t)||'';}catch(e){return '';}};
+G.put=async function(ref,text){
+ var k=G.key(ref);if(!k)return;text=String(text||'').trim();
+ try{
+  if(text){var r=await sb.from('vg_settings').upsert({key:'gcnotes_'+k,value:{t:text.slice(0,20000),ref:String(ref).trim(),by:(window.CU&&CU.id)||null,at:new Date().toISOString()},updated_by:(window.CU&&CU.id)||null,updated_at:new Date().toISOString()});if(r&&r.error)throw r.error;}
+  else await sb.from('vg_settings').delete().eq('key','gcnotes_'+k);
+ }catch(e){console.warn('GC notes',e);toast('The GC notes could not be saved: '+((e&&e.message)||e),true);}
+};
+var PH='Optional. Paste the GC\'s bid-request email or any notes the GC gave you (scope changes, what they want or do not want, deadlines, alternates). The AI reads this FIRST, then the project documents. If the GC notes disagree with the drawings or specs, the AI follows the GC notes and flags the conflict for you.';
+/* ---- Bid Opportunities modal ---- */
+function ensureBid(){
+ if(document.getElementById('bm-gcnotes'))return;
+ var n=document.getElementById('bm-notes');if(!n)return;var row=n.closest('.frow');if(!row)return;
+ var d=document.createElement('div');d.className='frow';d.innerHTML='<label>GC Email / Notes <span style="font-weight:400;color:#999">(optional - the AI reads this first)</span></label><textarea autocomplete="off" id="bm-gcnotes" style="min-height:90px" placeholder="'+PH.replace(/"/g,'&quot;')+'"></textarea>';
+ row.parentNode.insertBefore(d,row);
+}
+function wrapBid(){
+ var ob=window.openBidModal;
+ if(typeof ob==='function')window.openBidModal=async function(){var r=await ob.apply(this,arguments);try{ensureBid();document.getElementById('bm-gcnotes').value='';}catch(e){}return r;};
+ var oe=window.editBid;
+ if(typeof oe==='function')window.editBid=async function(id){var r=await oe.apply(this,arguments);try{ensureBid();var t=document.getElementById('bm-gcnotes');t.value='';var ref=(document.getElementById('bm-ref')||{}).value;if(ref){var v=await G.get(ref);if((document.getElementById('bm-ref')||{}).value===ref)t.value=v;}}catch(e){}return r;};
+ var os=window.saveBid;
+ if(typeof os==='function')window.saveBid=async function(){
+  var t=document.getElementById('bm-gcnotes'),ref=(document.getElementById('bm-ref')||{}).value,txt=t?t.value:null;
+  var r=await os.apply(this,arguments);
+  try{if(txt!==null&&ref){var old=await G.get(ref);if(String(old).trim()!==String(txt).trim())await G.put(ref,txt);}}catch(e){}
+  return r;};
+}
+wrapBid();
+/* ---- Build: New project ---- */
+var onp=window.bdNewProject;
+if(typeof onp==='function')window.bdNewProject=async function(){
+ var r=await onp.apply(this,arguments);
+ try{
+  var a=document.getElementById('bp-addr');var row=a&&a.parentNode;
+  if(row&&!document.getElementById('bp-gcnotes')){
+   var d=document.createElement('div');d.style.gridColumn='1/-1';d.innerHTML='<label>GC Email / Notes <span style="color:#999;font-weight:400">(optional - the AI reads this first)</span></label><textarea id="bp-gcnotes" autocomplete="off" style="width:100%;min-height:80px;box-sizing:border-box;padding:7px 10px;border:1px solid #d0dcea;border-radius:7px;font-size:13px;font-family:inherit" placeholder="'+PH.replace(/"/g,'&quot;')+'"></textarea>';
+   row.parentNode.insertBefore(d,row.nextSibling);
+   var code=document.getElementById('bp-code');
+   var load=async function(){var t=document.getElementById('bp-gcnotes');if(!t||t.value.trim()||!code.value.trim())return;var v=await G.get(code.value);if(v&&!t.value.trim()){t.value=v;toast('GC notes from the bid were loaded');}};
+   code.addEventListener('change',load);code.addEventListener('blur',function(){setTimeout(load,300);});
+  }
+ }catch(e){}
+ return r;
+};
+var ocp=window.bdCreateProject;
+if(typeof ocp==='function')window.bdCreateProject=async function(){
+ var t=document.getElementById('bp-gcnotes'),code=(document.getElementById('bp-code')||{}).value,txt=t?t.value.trim():'';
+ var r=await ocp.apply(this,arguments);
+ try{if(txt&&code){var old=await G.get(code);if(old.trim()!==txt)await G.put(code,txt);}}catch(e){}
+ return r;
+};
 })();
 
 </script>
