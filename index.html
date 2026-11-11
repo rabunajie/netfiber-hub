@@ -8851,7 +8851,7 @@ async function bdAIContext(q){
   }catch(e){return '';}
 }
 
-var APP_VERSION='2.30.3',APP_BUILD_DATE='Nov 11, 2026';
+var APP_VERSION='2.31.0',APP_BUILD_DATE='Nov 11, 2026';
 (function(){function s(){var e=document.getElementById('sb-ver');if(e)e.textContent='Vantage v'+APP_VERSION+' · '+APP_BUILD_DATE;}s();document.addEventListener('DOMContentLoaded',s);})();
 
 </script>
@@ -14068,6 +14068,48 @@ document.head.appendChild(st);
 /* ---------- AI knowledge ---------- */
 var _p=window.bdAIContext;if(typeof _p==='function')window.bdAIContext=async function(q){var s='';try{s=await _p(q);}catch(e){}
  return s+'\nPROJECT LIFECYCLE (default chain, every step can be done, undone or skipped by a manager/admin/the PM with a note, all logged in the change log): 1 Bid created (Estimating > Bid Opportunities) -> 2 Awarded (bid status Win; project created as Awarded) -> 3 Lead in Sales > Leads (awarded bids are added automatically, source "Awarded Bid") -> 4 Team assigned (Sales > Leads > Assign project team: PM, Engineer, Lead Tech, Sales rep, others; each gets the project in Dashboard > My Projects and a notification) -> 5 Work scheduled (PM schedules in Operations; the person gets it in My Schedule) -> 6 Field work (photos, logs, notes, drawings, punch list, tests are saved to the project the tech picked in the project bar) -> 7 Approvals (timesheets, daily logs, material requests go to the project PM; status Pending=Submitted/Requested, Approved, Rejected, Needs Changes) -> 8 Accounting (invoices, purchases, approved material requests and invoice requests are tied to the project and notify Accounting) -> 9 Closed out. VISIBILITY: Admin sees everything; Operations Managers/managers, Sales, Accounting and other office groups see all projects; Project Managers, Engineers and Technicians only see projects they are on (PM, engineer, tech, sales rep or team member). Field-level users cannot see project budgets, change orders, risks or meetings. HIERARCHY: Admin > Operations Manager > Project Manager > Engineer/Technician; Management > Groups > Reporting lines sets who reports to whom, and that person approves their own submissions. Project Management > Lifecycle shows the board and change log.';};
+})();
+</script>
+<script id="vg-customers">
+/* ===== Sales > Customers = each sales person's own awarded projects, grouped by customer ===== */
+(function(){
+if(window.CUS||!window.VG||!window.AP)return;
+var CUS=window.CUS={q:'',rep:''},E=VG.E,V=VG.views;
+function esc(s){return E(String(s==null?'':s));}
+CUS.seeAll=function(){var g=String((CP&&CP.group_name)||'').toLowerCase();return AP.role()==='admin'||AP.isMgr()||/operation/.test(g);};
+/* Leads no longer have a separate "Convert to customer": the customer appears here once a project has a sales person */
+if(VG.acts.sal_leads)VG.acts.sal_leads=VG.acts.sal_leads.filter(function(a){return a.l!=='Convert to customer';});
+var tabs=VG.def.vg_sales.tabs;tabs.forEach(function(t){if(t.id==='cust'){delete t.t;t.v='salCust';t.l='Customers';}});
+VG.def.vg_sales.sub='Leads, customers (your projects), GC contacts, pipeline, activity and targets';
+V.salCust=async function(host){
+ var me=CU&&CU.id,all=CUS.seeAll();
+ await VG.loadRefs();
+ var a=await Promise.all([VG.rows('vg_projects',true),VG.rows('sal_leads',true)]);
+ var projs=a[0]||[],leads=a[1]||[];
+ var mine=function(p){if(p.sales_id===me)return true;return leads.some(function(l){return l.owner_id===me&&l.project_code&&String(l.project_code).toUpperCase()===String(p.code||'').toUpperCase();});};
+ var rows=projs.filter(function(p){return ['Bidding','Lost','Cancelled'].indexOf(p.status)<0;});
+ if(!all)rows=rows.filter(mine);
+ var reps={};rows.forEach(function(p){if(p.sales_id)reps[p.sales_id]=VG.uname(p.sales_id)||'?';});
+ function draw(){
+  var q=CUS.q.toLowerCase(),list=rows.filter(function(p){
+   if(all&&CUS.rep&&p.sales_id!==CUS.rep)return false;
+   return !q||[p.code,p.name,p.client,VG.uname(p.sales_id),VG.uname(p.pm_id)].join(' ').toLowerCase().indexOf(q)>=0;});
+  var by={};list.forEach(function(p){var k=(p.client||'(No customer name)').trim();(by[k]=by[k]||[]).push(p);});
+  var names=Object.keys(by).sort(function(x,y){return x.localeCompare(y);});
+  var tot=list.reduce(function(s,p){return s+(+p.contract_value||0);},0);
+  var h='<style>.cu-bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}.cu-bar input,.cu-bar select{padding:8px 12px;border:1px solid #d6dce8;border-radius:8px;font-size:13px}.cu-bar input{flex:1;min-width:200px}.cu-c{border:1px solid #e3e8f0;border-radius:12px;background:#fff;margin-bottom:10px}.cu-h{display:flex;justify-content:space-between;gap:10px;padding:10px 14px;border-bottom:1px solid #eef1f6;font-weight:700}.cu-h small{font-weight:400;color:#889}.cu-r{display:grid;grid-template-columns:110px 1.6fr 100px 110px 1fr 1fr;gap:10px;align-items:center;padding:8px 14px;border-bottom:1px solid #f4f6fa;font-size:12.5px;cursor:pointer}.cu-r:hover{background:#f5f9ff}.cu-r:last-child{border-bottom:0}.cu-th{font-size:10.5px;text-transform:uppercase;color:#99a;font-weight:700;cursor:default}.cu-th:hover{background:none}@media(max-width:800px){.cu-r{grid-template-columns:1fr 1fr}.cu-th{display:none}}</style>';
+  h+='<div class="vg-kpis">'+VG.kpi(all?'Customers':'My customers',names.length)+VG.kpi(all?'Projects':'My projects',list.length)+VG.kpi('Contract value',VG.money0(tot))+'</div>';
+  h+='<div class="cu-bar"><input id="cu-q" placeholder="Search customer, project, sales rep..." value="'+esc(CUS.q)+'">'+(all?'<select id="cu-rep"><option value="">All sales people</option>'+Object.keys(reps).map(function(k){return '<option value="'+esc(k)+'"'+(CUS.rep===k?' selected':'')+'>'+esc(reps[k])+'</option>';}).join('')+'</select>':'')+'</div>';
+  if(!names.length)h+='<div style="padding:24px;color:#889;text-align:center">'+(all?'No customer projects yet.':'No projects are assigned to you yet. When a won bid is moved to Leads and you are set as the sales person, it shows up here.')+'</div>';
+  names.forEach(function(n){var ps=by[n],v=ps.reduce(function(s,p){return s+(+p.contract_value||0);},0);
+   h+='<div class="cu-c"><div class="cu-h"><span>'+esc(n)+' <small>'+ps.length+' project'+(ps.length===1?'':'s')+'</small></span><span>'+VG.money0(v)+'</span></div><div class="cu-r cu-th"><span>Code</span><span>Project</span><span>Status</span><span>Value</span><span>Sales</span><span>PM</span></div>'+
+   ps.map(function(p){return '<div class="cu-r" onclick="VG.edit(\'vg_projects\',\''+esc(p.id)+'\')"><b>'+esc(p.code)+'</b><span>'+esc(p.name||'')+'</span><span>'+VG.badge(p.status)+'</span><span>'+VG.money0(p.contract_value)+'</span><span>'+esc(VG.uname(p.sales_id)||'-')+'</span><span>'+esc(VG.uname(p.pm_id)||'-')+'</span></div>';}).join('')+'</div>';});
+  host.innerHTML=h;
+  var qi=document.getElementById('cu-q');qi.oninput=function(){CUS.q=this.value;var pos=this.selectionStart;draw();var n=document.getElementById('cu-q');n.focus();n.setSelectionRange(pos,pos);};
+  var rs=document.getElementById('cu-rep');if(rs)rs.onchange=function(){CUS.rep=this.value;draw();};}
+ draw();};
+var _pa=window.bdAIContext;if(typeof _pa==='function')window.bdAIContext=async function(q){var s='';try{s=await _pa(q);}catch(e){}
+ return s+'\nSALES > CUSTOMERS: shows each sales person\'s own awarded projects grouped by customer (projects where they are the assigned sales person). Sales people only see their own; Admin, managers and Operations see all customers and can filter by sales person. Flow: Bid (Estimating) -> Won -> Sales > Leads -> assign team incl. sales person -> project appears in that sales person\'s Customers tab. Leads is the intake list; Customers is the sales person\'s book of projects.';};
 })();
 </script>
 <script id="vg-orgui">
