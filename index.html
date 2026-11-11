@@ -8851,7 +8851,7 @@ async function bdAIContext(q){
   }catch(e){return '';}
 }
 
-var APP_VERSION='2.25.0',APP_BUILD_DATE='Oct 29, 2026';
+var APP_VERSION='2.26.0',APP_BUILD_DATE='Oct 29, 2026';
 (function(){function s(){var e=document.getElementById('sb-ver');if(e)e.textContent='Vantage v'+APP_VERSION+' · '+APP_BUILD_DATE;}s();document.addEventListener('DOMContentLoaded',s);})();
 
 </script>
@@ -13540,6 +13540,76 @@ if(typeof ocp==='function')window.bdCreateProject=async function(){
 };
 })();
 
+</script>
+<script id="vg-autolabel">
+/* ===== Every input box gets a label (visible when it has none), a hint of what to enter, and a hover tooltip ===== */
+(function(){
+if(window.AutoLabel)return;
+var AL=window.AutoLabel={n:0};
+var SKIP={hidden:1,file:1,color:1,checkbox:1,radio:1,range:1,button:1,submit:1,reset:1,image:1};
+/* examples shown inside empty boxes. Matched on the label / id / placeholder words. */
+var EX=[
+ [/\bsource\b/,'Where it came from, e.g. Referral, PlanHub, Website'],
+ [/\bnext ?step\b/,'What happens next, e.g. Send proposal'],
+ [/\bemail\b/,'name@company.com'],[/\bphone|mobile|cell\b/,'(713) 555-0100'],
+ [/\bzip\b/,'77002'],[/\bstate\b/,'TX'],[/\bcity\b/,'City'],
+ [/\baddress|street|site\b/,'Street address'],
+ [/\bcompany|gc|client|customer|vendor|supplier\b/,'Company name'],
+ [/\bcontact|poc|name\b/,'Full name'],
+ [/\bpo ?(number|no|#)?\b/,'PO number'],[/\binvoice\b/,'Invoice number'],
+ [/\bnotes?|comment|description|details?\b/,'Type any notes or details'],
+ [/\bsearch\b/,'Type to search'],[/\bqty|quantity\b/,'Quantity, e.g. 4'],
+ [/\brate|price|cost|amount|value|total|budget\b/,'0.00'],
+ [/\bhours?\b/,'Hours, e.g. 2.5'],[/\bpercent|probability|%/,'0-100'],
+ [/\bserial\b/,'Serial number'],[/\bmodel\b/,'Model number'],[/\bsku|part\b/,'Part number'],
+ [/\blocation|bin|room\b/,'Where it is'],[/\burl|link|website\b/,'https://']
+];
+function norm(s){return String(s||'').replace(/\s+/g,' ').replace(/[:*•]+\s*$/,'').trim();}
+function hum(s){s=String(s||'').replace(/^(vgf|bm|bp|pp|ped|fu|ret|gc|iform|tlf|bd|vg|f|inp|txt|sel)[-_]/i,'').replace(/[-_]+/g,' ').replace(/([a-z])([A-Z])/g,'$1 $2').trim();return s?s.charAt(0).toUpperCase()+s.slice(1):'';}
+function shortText(n){if(!n||n.nodeType!==1)return '';if(n.querySelector&&n.querySelector('input,select,textarea,button'))return '';if(/^(INPUT|SELECT|TEXTAREA|BUTTON|SCRIPT|STYLE|OPTION)$/.test(n.tagName))return '';var t=norm(n.textContent);return t&&t.length<=70?t:'';}
+function labelOf(el){
+ if(el.id){var l=document.querySelector('label[for="'+el.id.replace(/"/g,'\\"')+'"]');if(l&&norm(l.textContent))return norm(l.textContent);}
+ var w=el.closest('label');if(w){var c=w.cloneNode(true);[].slice.call(c.querySelectorAll('input,select,textarea')).forEach(function(x){x.remove();});if(norm(c.textContent))return norm(c.textContent);}
+ var a=el.getAttribute('aria-label');if(a)return norm(a);
+ var td=el.closest('td');if(td){var tr=td.parentElement,tb=tr&&tr.parentElement&&tr.parentElement.parentElement;var th=tb&&tb.tHead&&tb.tHead.rows[0]&&tb.tHead.rows[0].cells[td.cellIndex];if(th&&norm(th.textContent))return norm(th.textContent);}
+ var n=el;for(var up=0;up<3&&n&&n!==document.body;up++){var p=n.previousElementSibling;var hops=0;while(p&&hops<2){var t=shortText(p);if(t)return t;p=p.previousElementSibling;hops++;}n=n.parentElement;}
+ var par=el.parentElement;if(par){var first=par.firstElementChild;if(first&&first!==el){var t2=shortText(first);if(t2)return t2;}}
+ return '';
+}
+function exFor(txt){txt=String(txt||'').toLowerCase();for(var i=0;i<EX.length;i++)if(EX[i][0].test(txt))return EX[i][1];return '';}
+function inFormZone(el){return !!el.closest('.modal,.modal-bg,.vg-modal,.bd-ov,.mbody,.vg-form,.frow,.ifield,.afield,[id*="modal"],[class*="modal"],[class*="dlg"],[id$="-form"]');}
+function inFlexRow(el){var p=el.parentElement;if(!p)return true;var cs=getComputedStyle(p);return cs.display==='flex'&&cs.flexDirection.indexOf('row')===0&&p.children.length>1;}
+function fix(el){
+ if(el._al)return;el._al=1;
+ var typ=(el.type||'').toLowerCase();if(SKIP[typ])return;
+ if(el.closest('.rte-editable,#bp-box,.bp-box,#tlib-ov .no-al'))return;
+ var lab=labelOf(el),ph=el.getAttribute('placeholder')||'';
+ var name=lab||norm(el.getAttribute('title'))||norm(ph)||hum(el.name||el.id)||(el.tagName==='SELECT'&&el.options&&el.options[0]?norm(el.options[0].text):'');
+ if(!name)return;
+ if(!el.getAttribute('aria-label'))el.setAttribute('aria-label',name);
+ /* visible label when the box has none */
+ if(!lab&&!el.closest('td')&&inFormZone(el)&&!inFlexRow(el)&&el.offsetParent!==null&&!/^(vg-al)/.test((el.previousElementSibling||{}).className||'')){
+  var d=document.createElement('div');d.className='vg-al';d.textContent=name;el.parentNode.insertBefore(d,el);AL.n++;
+ }
+ /* hint of what to enter */
+ var txtLike=(el.tagName==='TEXTAREA')||(el.tagName==='INPUT'&&/^(text|search|email|tel|url|number|)$/.test(typ));
+ if(txtLike&&!ph){var h=exFor(lab+' '+(el.id||'')+' '+(el.name||''));if(h)el.setAttribute('placeholder',h);else if(typ==='number')el.setAttribute('placeholder','0');else if(lab)el.setAttribute('placeholder',(el.tagName==='TEXTAREA'?'Type ':'Enter ')+lab.toLowerCase());}
+ if(!el.title){var hh=el.getAttribute('placeholder')||'';el.title=name+(hh&&hh.toLowerCase().indexOf(name.toLowerCase())<0?' - '+hh:'');}
+}
+function scan(root){
+ try{var r=root&&root.querySelectorAll?root:document;
+  if(r.matches&&r.matches('input,select,textarea'))fix(r);
+  [].forEach.call(r.querySelectorAll('input,select,textarea'),fix);}catch(e){}
+}
+var st=document.createElement('style');st.textContent='.vg-al{font-size:11px;font-weight:700;color:#4a5568;margin:6px 0 3px;letter-spacing:.2px}';document.head.appendChild(st);
+var pend=[],tm=null;
+var mo=new MutationObserver(function(ms){ms.forEach(function(m){[].forEach.call(m.addedNodes,function(n){if(n.nodeType===1)pend.push(n);});});clearTimeout(tm);tm=setTimeout(function(){var l=pend;pend=[];l.forEach(scan);},120);});
+function start(){scan(document);mo.observe(document.body,{childList:true,subtree:true});}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start);else start();
+/* modals that are opened (not added) later, and tab switches: scan again when anything is clicked */
+document.addEventListener('click',function(){setTimeout(function(){scan(document);},400);},true);
+AL.scan=function(){scan(document);};
+})();
 </script>
 </body>
 </html>
