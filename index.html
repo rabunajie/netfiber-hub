@@ -8851,7 +8851,7 @@ async function bdAIContext(q){
   }catch(e){return '';}
 }
 
-var APP_VERSION='2.26.0',APP_BUILD_DATE='Oct 29, 2026';
+var APP_VERSION='2.27.0',APP_BUILD_DATE='Oct 29, 2026';
 (function(){function s(){var e=document.getElementById('sb-ver');if(e)e.textContent='Vantage v'+APP_VERSION+' · '+APP_BUILD_DATE;}s();document.addEventListener('DOMContentLoaded',s);})();
 
 </script>
@@ -13540,6 +13540,44 @@ if(typeof ocp==='function')window.bdCreateProject=async function(){
 };
 })();
 
+</script>
+<script id="vg-leadbid">
+/* ===== Sales > Leads > New: pick a bid from Bid Opportunities, the matching fields fill in ===== */
+(function(){
+if(window.LeadBid||!window.VG||!VG.edit||!window.BidPick)return;
+window.LeadBid={};
+var BP=window.BidPick;
+function sv(id,v){var el=document.getElementById(id);if(el&&v!=null&&String(v).trim()!==''){el.value=v;try{el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}));}catch(e){}}}
+function iv(s){s=String(s||'').toLowerCase(),k=[];if(/comm|data|cabl/.test(s))k.push('Data');if(/\bav\b|audio|visual/.test(s))k.push('AV');if(/secur|camera|access/.test(s))k.push('Security');return k.length>1?'Mixed':(k[0]||'');}
+var k;
+function fill(b){
+ sv('vgf_company',b.gc||b.project);sv('vgf_contact',b.poc);sv('vgf_email',b.email);sv('vgf_phone',b.phone);
+ sv('vgf_source','Bid Opportunities');
+ var v=parseFloat(b.price||b.value||b.amount);if(v>0)sv('vgf_est_value',v);
+ sv('vgf_expected_close',b.due_date);
+ var ty=iv(b.scope),sel=document.getElementById('vgf_interest');if(sel&&ty)sel.value=ty;
+ try{var ps=document.getElementById('vgf_project_code');if(ps&&b.ref){if(![].some.call(ps.options,function(o){return o.value===b.ref;})){var op=document.createElement('option');op.value=b.ref;op.textContent=b.ref+' - '+(b.project||'');ps.appendChild(op);}ps.value=b.ref;ps.dispatchEvent(new Event('change',{bubbles:true}));}}catch(e){}
+ var n=document.getElementById('vgf_notes');
+ if(n){var hdr='Bid '+(b.ref||'')+' - '+(b.project||'');if(!n.value||n.value.indexOf(hdr)<0)n.value=(hdr+(b.address?' ('+[b.address,b.city,b.state,b.zip].filter(Boolean).join(', ')+')':'')+(b.notes?'\n'+b.notes:'')+(n.value?'\n'+n.value:'')).trim();}
+ var l=document.getElementById('lb-picked');if(l)l.textContent='Filled from bid '+(b.ref||'')+' - '+(b.project||'')+'. Fill in the rest by hand.';
+}
+var oe=VG.edit;
+VG.edit=async function(t){
+ var r=await oe.apply(this,arguments);
+ try{
+  if(t==='sal_leads'&&VG._ed&&VG._ed.isNew&&!document.getElementById('lb-pick')){
+   var co=document.getElementById('vgf_company');if(!co)return r;
+   var fld=co.closest('.vg-f,.ifield,.afield,.frow,div')||co.parentElement;
+   var box=document.createElement('div');box.style.cssText='grid-column:1/-1;margin:0 0 10px;padding:10px;background:#eef5fd;border:1px solid #cfe0f5;border-radius:9px';
+   box.innerHTML='<div style="font-size:11px;font-weight:700;color:#1B5E9B;margin-bottom:4px">PICK A BID FROM BID OPPORTUNITIES (optional)</div><input id="lb-pick" type="text" autocomplete="off" placeholder="Type a bid # or project name, or click to see recent bids" style="width:100%;box-sizing:border-box"><div id="lb-picked" style="font-size:11px;color:#2e7d32;margin-top:4px"></div>';
+   var top=fld.parentElement;top.insertBefore(box,top.firstElementChild&&top.firstElementChild.contains(co)?top.firstElementChild:fld.parentElement.firstElementChild);
+   var opt={onPick:fill};
+   BP.attach(document.getElementById('lb-pick'),opt);
+  }
+ }catch(e){console.warn('lead bid',e);}
+ return r;
+};
+})();
 </script>
 <script id="vg-autolabel">
 /* ===== Every input box gets a label (visible when it has none), a hint of what to enter, and a hover tooltip ===== */
