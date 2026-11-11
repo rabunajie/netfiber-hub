@@ -8851,7 +8851,7 @@ async function bdAIContext(q){
   }catch(e){return '';}
 }
 
-var APP_VERSION='2.27.0',APP_BUILD_DATE='Oct 29, 2026';
+var APP_VERSION='2.29.0',APP_BUILD_DATE='Nov 11, 2026';
 (function(){function s(){var e=document.getElementById('sb-ver');if(e)e.textContent='Vantage v'+APP_VERSION+' · '+APP_BUILD_DATE;}s();document.addEventListener('DOMContentLoaded',s);})();
 
 </script>
@@ -13252,7 +13252,7 @@ BP.ensureProject=async function(it){
  if(it._vp)return it._vp;
  var code=String(it.ref).trim().toUpperCase(),b=it._bid||{};
  var ex=(VG.refs.projects||[]).find(function(p){return p.code===code;});if(ex)return ex;
- var st=/won|award/i.test(b.status||'')?'Awarded':'Bidding';
+ var st=/win|won|award/i.test(b.status||'')?'Awarded':'Bidding';
  var o={code:code,name:b.project||code,client:b.gc||null,type:typeOf(b)||null,status:st,address:b.address||null,city:b.city||null,state:b.state||null,bid_ref:b.ref,notes:b.notes||null,created_by:CU.id,updated_by:CU.id};if('zip' in b)o.zip=b.zip||null;
  var r=await sb.from('vg_projects').insert(o).select().single();
  if(r.error){var q=await sb.from('vg_projects').select('*').eq('code',code).maybeSingle();if(q.data)return q.data;throw r.error;}
@@ -13540,6 +13540,537 @@ if(typeof ocp==='function')window.bdCreateProject=async function(){
 };
 })();
 
+</script>
+<script id="vg-approvals">
+/* ===== Approvals, scheduling alerts, notifications (bell + email) and standard roles ===== */
+(function(){
+if(window.AP||!window.VG||!VG.hooks||!VG.views)return;
+var AP=window.AP={ready:false,probed:false,notifs:[],seen:{},profs:null,profT:0};
+var E=VG.E,V=VG.views;
+var REV=['Approved','Rejected','Needs Changes'];
+AP.cfg={
+ ops_timesheets:{label:'Timesheet',owner:'user_id',sub:'Submitted',sum:function(r){return (r.hours!=null?r.hours+' h ':'')+(r.type||'')+(r.task?' - '+r.task:'')+(r.work_date?' - '+VG.d(r.work_date):'');}},
+ fld_logs:{label:'Daily log',owner:'author',sub:'Submitted',sum:function(r){return VG.d(r.log_date)+' - '+String(r.work_done||'').slice(0,90);}},
+ wh_requests:{label:'Material request',owner:'requested_by',sub:'Requested',sum:function(r){return String(r.items||'').replace(/\s+/g,' ').slice(0,90)+(r.needed_by?' - needed '+VG.d(r.needed_by):'');}}
+};
+['ops_timesheets'].forEach(function(t){var c=VG.spec.tables[t].cols.find(function(x){return x.k==='status';});if(c&&c.opts.indexOf('Needs Changes')<0)c.opts.push('Needs Changes');});
+(function(){var c=VG.spec.tables.fld_logs.cols.find(function(x){return x.k==='status';});['Approved','Needs Changes','Rejected'].forEach(function(s){if(c.opts.indexOf(s)<0)c.opts.push(s);});
+ c=VG.spec.tables.wh_requests.cols.find(function(x){return x.k==='status';});['Needs Changes','Rejected'].forEach(function(s){if(c.opts.indexOf(s)<0)c.opts.push(s);});})();
+var ob=VG.badge;VG.badge=function(v){if(/^needs changes$/i.test(String(v||'')))return '<span class="vg-bd" style="color:#a04000;background:#ffe5d0">Needs Changes</span>';return ob.apply(this,arguments);};
+
+/* ---------- who is who ---------- */
+AP.role=function(){var g=String((CP&&CP.group_name)||'staff').toLowerCase();
+ if(g==='admin')return 'admin';if(/project|^pm$/.test(g))return 'pm';if(/manager|director|supervisor|owner/.test(g))return 'manager';
+ if(/sales|estimat/.test(g))return 'sales';if(/engineer/.test(g))return 'eng';if(/tech|field|install/.test(g))return 'tech';
+ if(/account|financ|bookkeep/.test(g))return 'acct';if(/ware|stock/.test(g))return 'wh';if(/service/.test(g))return 'svc';return 'staff';};
+AP.isMgr=function(){var r=AP.role();return r==='admin'||r==='manager';};
+AP.pmOf=function(code){var c=String(code||'').toUpperCase();if(!c)return null;var p=(VG.refs.projects||[]).find(function(x){return String(x.code||'').toUpperCase()===c;});return p?p.pm_id:null;};
+AP.canReviewRow=function(t,row){var me=CU&&CU.id,c=AP.cfg[t],role=AP.role();if(!me)return false;if(role==='admin')return true;
+ if(row&&c&&row[c.owner]===me)return false;if(role==='manager')return true;return !!(row&&AP.pmOf(row.project_code)===me);};
+AP.profiles=async function(){if(AP.profs&&Date.now()-AP.profT<60000)return AP.profs;
+ var r=await sb.from('profiles').select('id,full_name,group_name,disabled');AP.profs=(r.data||[]).filter(function(p){return !p.disabled;});AP.profT=Date.now();return AP.profs;};
+function isMgrGroup(g){g=String(g||'').toLowerCase();return g==='admin'||(/manager/.test(g)&&!/project/.test(g));}
+AP.name=function(id){return VG.uname(id)||((AP.profs||[]).find(function(p){return p.id===id;})||{}).full_name||'Someone';};
+AP.approversFor=async function(t,row){await VG.loadRefs();var ps=await AP.profiles(),c=AP.cfg[t],owner=row[c.owner],pm=AP.pmOf(row.project_code);
+ if(pm&&pm!==owner)return [pm];
+ var m=ps.filter(function(p){return isMgrGroup(p.group_name)&&p.id!==owner;}).map(function(p){return p.id;});
+ if(!m.length)m=ps.filter(function(p){return p.group_name==='admin'&&p.id!==owner;}).map(function(p){return p.id;});return m;};
+
+/* ---------- readiness probe (SQL_approvals.sql run?) ---------- */
+AP.probe=async function(force){if(AP.probed&&!force)return AP.ready;
+ try{var a=await sb.from('vg_notifications').select('id').limit(1);var b=await sb.from('ops_timesheets').select('reviewed_by').limit(1);AP.ready=!(a.error||b.error);}catch(e){AP.ready=false;}
+ AP.probed=true;return AP.ready;};
+
+/* ---------- notifications ---------- */
+AP.notify=async function(ids,n){
+ try{var rows=[];(ids||[]).forEach(function(id){if(id&&id!==CU.id&&rows.every(function(x){return x.user_id!==id;}))rows.push({user_id:id,kind:n.kind,title:n.title,body:n.body||'',ref_table:n.ref_table||null,ref_id:n.ref_id!=null?String(n.ref_id):null,project_code:n.project_code||null,created_by:CU.id});});
+  if(!rows.length)return;var r=await sb.from('vg_notifications').insert(rows);if(r&&r.error){console.warn('notify',r.error.message);AP.ready=false;}}
+ catch(e){console.warn('notify',e);}
+};
+AP.ago=function(s){var m=Math.round((Date.now()-new Date(s).getTime())/60000);if(m<1)return 'just now';if(m<60)return m+' min ago';if(m<1440)return Math.round(m/60)+' h ago';return Math.round(m/1440)+' d ago';};
+AP.poll=async function(){
+ try{if(!CU||!CU.id)return;var r=await sb.from('vg_notifications').select('*').eq('user_id',CU.id).order('created_at',{ascending:false}).limit(40);
+  if(r.error){AP.notifs=[];AP.paint();return;}
+  var rows=r.data||[],first=!Object.keys(AP.seen).length;
+  rows.forEach(function(n){if(!AP.seen[n.id]){AP.seen[n.id]=1;if(!first&&!n.read){try{VG.toast(n.title);}catch(e){}}}});
+  AP.notifs=rows;AP.paint();}catch(e){}
+};
+AP.unread=function(){return AP.notifs.filter(function(n){return !n.read;}).length;};
+AP.paint=function(){var b=document.getElementById('vg-bell-n');if(b){var u=AP.unread();b.textContent=u>9?'9+':u;b.style.display=u?'flex':'none';}if(AP.open)AP.renderPanel();};
+AP.markRead=async function(id){var n=AP.notifs.find(function(x){return x.id===id;});if(n&&!n.read){n.read=true;AP.paint();try{await sb.from('vg_notifications').update({read:true}).eq('id',id);}catch(e){}}};
+AP.markAll=async function(){AP.notifs.forEach(function(n){n.read=true;});AP.paint();try{await sb.from('vg_notifications').update({read:true}).eq('user_id',CU.id).eq('read',false);}catch(e){}};
+AP.go=function(id){var n=AP.notifs.find(function(x){return x.id===id;});if(!n)return;AP.markRead(id);AP.toggle(false);
+ if(n.kind==='assign_pm'||n.kind==='submit'){VG.go('vg_pm','appr');return;}
+ if(n.ref_table&&n.ref_id){try{VG.edit(n.ref_table,n.ref_id);}catch(e){}}};
+AP.toggle=function(f){var p=document.getElementById('vg-bellp');if(!p)return;AP.open=(f==null)?!AP.open:f;p.style.display=AP.open?'block':'none';if(AP.open){AP.renderPanel();AP.poll();}};
+AP.renderPanel=async function(){var p=document.getElementById('vg-bellp');if(!p)return;
+ var h='<div class="apn-h"><b>Notifications</b><a href="#" onclick="AP.markAll();return false">Mark all read</a></div>';
+ try{var role=AP.role();if(role==='admin'||role==='manager'||role==='sales'){await VG.loadRefs();var np=(VG.refs.projects||[]).filter(function(x){return ['Awarded','Pre-Construction','Active'].indexOf(x.status)>=0&&!x.pm_id;});
+  if(np.length)h+='<div class="apn-warn" onclick="AP.toggle(false);VG.go(\'vg_pm\',\'appr\')">'+np.length+' project'+(np.length>1?'s have':' has')+' no Project Manager yet - click to assign</div>';}}catch(e){}
+ h+='<div class="apn-l">'+(AP.notifs.length?AP.notifs.slice(0,25).map(function(n){return '<div class="apn-i'+(n.read?'':' un')+'" onclick="AP.go(\''+n.id+'\')"><div class="apn-t">'+E(n.title)+'</div>'+(n.body?'<div class="apn-b">'+E(n.body).replace(/\n/g,'<br>')+'</div>':'')+'<div class="apn-a">'+AP.ago(n.created_at)+'</div></div>';}).join(''):'<div class="apn-e">'+(AP.ready===false&&AP.probed?'Notifications are not set up yet (admin: run SQL_approvals.sql).':'You have no notifications.')+'</div>')+'</div>';
+ try{var mine=await AP.mySchedule(14);h+='<div class="apn-h" style="border-top:1px solid #e3e8f0"><b>My schedule - next 14 days</b></div><div class="apn-l" style="max-height:170px">'+(mine.length?mine.slice(0,10).map(function(r){return '<div class="apn-i" onclick="AP.toggle(false);VG.edit(\'ops_schedule\',\''+r.id+'\')"><div class="apn-t">'+E(r.task||'Job')+'</div><div class="apn-b">'+VG.d(r.work_date)+(r.end_date&&r.end_date!==r.work_date?' - '+VG.d(r.end_date):'')+(r.start_time?' &middot; '+E(r.start_time):'')+' &middot; '+E(VG.pname(r.project_code)||r.project_code||'')+'</div></div>';}).join(''):'<div class="apn-e">Nothing scheduled.</div>')+'</div>';}catch(e){}
+ p.innerHTML=h;};
+AP.mySchedule=async function(days){await VG.loadRefs();var me=CU.id,first=((VG.uname(me)||'~').split(' ')[0]||'~').toLowerCase(),t=VG.today(),end=VG.addDays(t,days);
+ var rows=await VG.rows('ops_schedule',true);
+ return rows.filter(function(r){return r.status!=='Cancelled'&&(r.end_date||r.work_date)>=t&&r.work_date<=end&&(r.assigned_to===me||String(r.crew||'').toLowerCase().indexOf(first)>=0);}).sort(function(a,b){return (a.work_date+(a.start_time||''))<(b.work_date+(b.start_time||''))?-1:1;});};
+
+/* ---------- ask for a note ---------- */
+AP.ask=function(title,needNote,cb){var o=document.createElement('div');o.style.cssText='position:fixed;inset:0;background:rgba(10,20,40,.55);z-index:2147483100;display:flex;align-items:center;justify-content:center';
+ o.innerHTML='<div style="background:#fff;border-radius:12px;padding:18px;width:min(420px,92vw)"><div style="font-weight:700;margin-bottom:8px">'+E(title)+'</div><textarea id="ap-note" rows="3" style="width:100%;box-sizing:border-box" placeholder="'+(needNote?'Tell them what to fix (required)':'Optional note')+'"></textarea><div id="ap-err" style="color:#b3261e;font-size:12px;min-height:16px"></div><div style="display:flex;gap:8px;justify-content:flex-end"><button class="vg-btn" id="ap-c">Cancel</button><button class="vg-btn pri" id="ap-o">Send</button></div></div>';
+ document.body.appendChild(o);var ta=o.querySelector('#ap-note');ta.focus();
+ o.querySelector('#ap-c').onclick=function(){o.remove();};
+ o.querySelector('#ap-o').onclick=function(){var v=ta.value.trim();if(needNote&&!v){o.querySelector('#ap-err').textContent='Please add a short note.';return;}o.remove();cb(v);};};
+
+/* ---------- review ---------- */
+AP.review=async function(t,id,decision,note,quiet){
+ var c=AP.cfg[t],rows=await VG.rows(t,true),row=rows.find(function(x){return String(x.id)===String(id);});if(!row){VG.toast('Item not found',1);return false;}
+ await VG.loadRefs();if(!AP.canReviewRow(t,row)){alert('Only the project\'s Project Manager or a manager can review this. You cannot approve your own entries.');return false;}
+ var st={approve:'Approved',changes:'Needs Changes',deny:'Rejected'}[decision],u={status:st};
+ if(AP.ready){u.review_note=note||null;u.reviewed_by=CU.id;u.reviewed_at=new Date().toISOString();}
+ var r=await sb.from(t).update(u).eq('id',row.id);if(r.error){VG.toast(r.error.message,1);return false;}
+ VG.bust(t);
+ var verb={approve:'approved',changes:'sent back - needs changes',deny:'denied'}[decision];
+ await AP.notify([row[c.owner]||row.created_by],{kind:decision==='approve'?'approved':decision==='deny'?'denied':'changes',title:'Your '+c.label.toLowerCase()+' was '+verb,body:c.sum(row)+'\nReviewed by '+AP.name(CU.id)+(note?'\nNote: '+note:''),ref_table:t,ref_id:row.id,project_code:row.project_code});
+ if(!quiet){VG.toast(c.label+' '+verb);VG.refresh(t);}return true;};
+AP.act=function(t,id,decision){if(decision==='approve')return AP.review(t,id,'approve','');
+ AP.ask(decision==='deny'?'Deny - why?':'Send back for changes - what needs fixing?',true,function(n){AP.review(t,id,decision,n);});};
+AP.approveMany=async function(list){if(!list.length)return;if(!confirm('Approve '+list.length+' item(s)?'))return;var ok=0;
+ for(var i=0;i<list.length;i++){if(await AP.review(list[i].t,list[i].r.id,'approve','',true))ok++;}
+ VG.toast(ok+' approved');Object.keys(AP.cfg).forEach(function(t){VG.bust(t);VG.refresh(t);});};
+
+/* ---------- save hooks: route to the right approver ---------- */
+function mkHooks(t){var c=AP.cfg[t];
+ VG.hooks[t]={
+  before:async function(o,isNew,old){var err=document.getElementById('vg-err');await VG.loadRefs();
+   var row=Object.assign({},old||{},o),rev=AP.canReviewRow(t,row);
+   if(!rev){
+    if(old&&old.status==='Approved'&&t!=='wh_requests'){err.textContent='This entry is Approved and locked. Ask your Project Manager to send it back for changes.';return false;}
+    if(t==='wh_requests'){if(REV.indexOf(o.status)>=0)o.status=c.sub;}else o.status=c.sub;
+    if(isNew&&!AP.isMgr()&&AP.role()!=='pm')o[c.owner]=CU.id;
+   }
+   AP._resub=!!(old&&(old.status==='Needs Changes'||old.status==='Rejected'));
+  },
+  after:async function(saved,isNew,old){try{
+   var changed=!old||old.status!==saved.status;if(!changed)return;
+   if(saved.status===c.sub){var ids=await AP.approversFor(t,saved);
+    await AP.notify(ids,{kind:'submit',title:(AP._resub?'Resubmitted: ':'New ')+c.label.toLowerCase()+' from '+AP.name(saved[c.owner]||saved.created_by),body:c.sum(saved)+(saved.project_code?'\nProject '+saved.project_code+(VG.pname(saved.project_code)?' - '+VG.pname(saved.project_code):''):'\nNo project - needs a manager'),ref_table:t,ref_id:saved.id,project_code:saved.project_code});}
+   else if(REV.indexOf(saved.status)>=0){var verb={'Approved':'approved','Needs Changes':'sent back - needs changes','Rejected':'denied'}[saved.status];
+    await AP.notify([saved[c.owner]||saved.created_by],{kind:saved.status==='Approved'?'approved':saved.status==='Rejected'?'denied':'changes',title:'Your '+c.label.toLowerCase()+' was '+verb,body:c.sum(saved)+'\nReviewed by '+AP.name(CU.id)+(saved.review_note?'\nNote: '+saved.review_note:''),ref_table:t,ref_id:saved.id,project_code:saved.project_code});}
+  }catch(e){console.warn('approval notify',e);}}
+ };
+ VG.acts[t]=(VG.acts[t]||[]).concat([
+  {l:'Approve',fn:async function(row){if(await AP.review(t,row.id,'approve',''))VG.close();}},
+  {l:'Needs changes',fn:function(row){AP.ask('Send back - what needs fixing?',true,async function(n){if(await AP.review(t,row.id,'changes',n))VG.close();});}},
+  {l:'Deny',fn:function(row){AP.ask('Deny - why?',true,async function(n){if(await AP.review(t,row.id,'deny',n))VG.close();});}}]);
+}
+Object.keys(AP.cfg).forEach(mkHooks);
+VG.tools.ops_timesheets=[{l:'Approve all I can review',fn:async function(rows){await VG.loadRefs();var l=rows.filter(function(r){return r.status==='Submitted'&&AP.canReviewRow('ops_timesheets',r);}).map(function(r){return {t:'ops_timesheets',r:r};});if(!l.length){VG.toast('Nothing waiting for your approval');return;}AP.approveMany(l);}}];
+
+/* review result banner + status choices inside the form */
+var oe=VG.edit;
+VG.edit=async function(t){var r=await oe.apply(this,arguments);
+ try{var c=AP.cfg[t];if(c&&VG._ed&&VG._ed.t===t){await VG.loadRefs();var row=VG._ed.row||{},sel=document.getElementById('vgf_status');
+  if(sel&&!AP.canReviewRow(t,Object.assign({},row,VG._ed.isNew?{}:{}))){[].slice.call(sel.options).forEach(function(o){if(REV.indexOf(o.value)>=0&&o.value!==row.status)o.remove();});}
+  var fld=sel&&sel.parentElement,top=fld&&fld.parentElement;
+  if(top&&!document.getElementById('ap-banner')){var box=document.createElement('div');box.id='ap-banner';box.style.cssText='grid-column:1/-1;margin:0 0 10px;padding:9px 12px;border-radius:9px;font-size:12.5px;display:none';
+   var msg='',bg='#eef5fd',col='#1B5E9B';
+   if(!VG._ed.isNew){if(row.status==='Approved'){msg='Approved'+(row.reviewed_by?' by '+AP.name(row.reviewed_by):'')+(row.reviewed_at?' on '+VG.d(row.reviewed_at):'')+(row.review_note?' - '+row.review_note:'');bg='#e6f6ea';col='#1b7a3d';}
+    else if(row.status==='Needs Changes'||row.status==='Rejected'){msg=(row.status==='Rejected'?'Denied':'Needs changes')+(row.reviewed_by?' by '+AP.name(row.reviewed_by):'')+(row.review_note?': '+row.review_note:'')+'. Edit and save to resubmit.';bg='#fdeee0';col='#a04000';}
+    else if(row.status===c.sub){var ap=await AP.approversFor(t,row);msg='Waiting for approval from '+(ap.map(AP.name).join(', ')||'a manager')+'.';}}
+   else{var pc=null;msg='When you save, this goes to the Project Manager of the project you pick (or a manager if there is no project).';}
+   box.textContent=msg;box.style.background=bg;box.style.color=col;if(msg)box.style.display='block';top.insertBefore(box,top.firstElementChild);}
+ }}catch(e){console.warn('approval form',e);}
+ return r;};
+
+/* ---------- only see what fits your role (timesheets) ---------- */
+var orows=VG.rows;
+VG.rows=async function(t){var r=await orows.apply(this,arguments);
+ if(t==='ops_timesheets'){var role=AP.role();if(role==='admin'||role==='manager'||role==='acct'||!CU)return r;
+  try{await VG.loadRefs();}catch(e){}return r.filter(function(x){return x.user_id===CU.id||x.created_by===CU.id||AP.pmOf(x.project_code)===CU.id;});}
+ return r;};
+
+/* ---------- scheduling ---------- */
+VG.hooks.ops_schedule={
+ before:async function(o,isNew,old){var err=document.getElementById('vg-err');await VG.loadRefs();var role=AP.role();
+  if(role==='tech'){
+   if(isNew||!old||old.assigned_to!==CU.id){err.textContent='Only managers and Project Managers can schedule work. You can update the status of jobs assigned to you.';return false;}
+   Object.keys(o).forEach(function(k){if(k!=='status'&&k!=='notes'&&k!=='updated_by')o[k]=old[k];});return;}
+  if(o.assigned_to&&o.work_date){
+   var s=o.work_date,e=o.end_date||o.work_date;
+   var chg=isNew||!old||old.assigned_to!==o.assigned_to||old.work_date!==o.work_date||(old.end_date||old.work_date)!==e;
+   if(chg&&o.status!=='Cancelled'){var rows=await VG.rows('ops_schedule',true);
+    var clash=rows.filter(function(r){return r.assigned_to===o.assigned_to&&r.status!=='Cancelled'&&(!old||r.id!==old.id)&&r.work_date<=e&&(r.end_date||r.work_date)>=s;});
+    if(clash.length&&!VG.confirm(AP.name(o.assigned_to)+' already has '+clash.length+' job(s) on those dates:\n'+clash.slice(0,3).map(function(r){return '- '+(r.task||'Job')+' ('+VG.d(r.work_date)+')';}).join('\n')+'\n\nSchedule anyway?'))return false;}}
+ },
+ after:async function(saved,isNew,old){try{
+  var cancelled=saved.status==='Cancelled'&&(!old||old.status!=='Cancelled');
+  var moved=!old||old.assigned_to!==saved.assigned_to||old.work_date!==saved.work_date||old.end_date!==saved.end_date||old.start_time!==saved.start_time||old.location!==saved.location||old.task!==saved.task;
+  var pn=VG.pname(saved.project_code);
+  var body=VG.d(saved.work_date)+(saved.end_date&&saved.end_date!==saved.work_date?' - '+VG.d(saved.end_date):'')+(saved.start_time?' at '+saved.start_time:'')+(saved.project_code?'\nProject '+saved.project_code+(pn?' - '+pn:''):'')+(saved.location?'\n'+saved.location:'')+'\nScheduled by '+AP.name(CU.id);
+  if(old&&old.assigned_to&&old.assigned_to!==saved.assigned_to)await AP.notify([old.assigned_to],{kind:'schedule',title:'Removed from job: '+(saved.task||'Job'),body:VG.d(old.work_date)+(old.project_code?'\nProject '+old.project_code:''),ref_table:'ops_schedule',ref_id:saved.id,project_code:saved.project_code});
+  if(saved.assigned_to&&(cancelled||moved)){
+   var title=cancelled?'Job cancelled: ':(isNew||!old||old.assigned_to!==saved.assigned_to)?'You are scheduled: ':'Schedule changed: ';
+   await AP.notify([saved.assigned_to],{kind:'schedule',title:title+(saved.task||'Job'),body:body,ref_table:'ops_schedule',ref_id:saved.id,project_code:saved.project_code});}
+ }catch(e){console.warn('schedule notify',e);}}
+};
+V.mySched=async function(host){
+ await VG.loadRefs();var me=CU.id,first=((VG.uname(me)||'~').split(' ')[0]||'~').toLowerCase();
+ var rows=(await VG.rows('ops_schedule',true)).filter(function(r){return r.status!=='Cancelled'&&(r.assigned_to===me||String(r.crew||'').toLowerCase().indexOf(first)>=0);});
+ var ws=VG.weekStart(VG.weekOff||0),days=[];for(var i=0;i<7;i++){var d=new Date(ws);d.setDate(ws.getDate()+i);days.push(d);}
+ function k(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+ var h='<div class="vg-tbar"><button class="vg-btn" onclick="VG.weekOff--;VG.cur.redraw()">&larr; Prev</button><button class="vg-btn" onclick="VG.weekOff=0;VG.cur.redraw()">This week</button><button class="vg-btn" onclick="VG.weekOff++;VG.cur.redraw()">Next &rarr;</button><b style="margin-left:8px">My week of '+VG.d(k(ws))+'</b></div><div class="vg-week">';
+ days.forEach(function(d){var kk=k(d),items=rows.filter(function(r){return r.work_date<=kk&&(r.end_date||r.work_date)>=kk;});
+  h+='<div class="vg-day'+(kk===VG.today()?' tod':'')+'"><div class="vg-dn">'+['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][(d.getDay()+6)%7]+' '+(d.getMonth()+1)+'/'+d.getDate()+'</div>';
+  items.forEach(function(r){h+='<div class="vg-ev" onclick="VG.edit(\'ops_schedule\',\''+r.id+'\')"><b>'+E(r.task)+'</b><div>'+E(r.project_code||'')+'</div><div class="vg-evs">'+E(r.start_time||'')+' '+E(r.location||'')+'</div></div>';});h+='</div>';});
+ host.innerHTML=h+'</div>'+'<div style="margin-top:14px">'+VG.panel('Coming up',VG.list(rows.filter(function(r){return (r.end_date||r.work_date)>=VG.today();}).sort(function(a,b){return a.work_date<b.work_date?-1:1;}).slice(0,10),function(r){return VG.li(E(r.task||'Job'),E(r.project_code||'')+' &middot; '+VG.d(r.work_date)+(r.start_time?' '+E(r.start_time):'')+' &middot; '+E(r.location||''),VG.badge(r.status),VG.edl('ops_schedule',r.id));},'Nothing scheduled for you'))+'</div>';
+};
+
+/* ---------- projects: a Project Manager is required, and gets told ---------- */
+(function(){var h=VG.hooks.vg_projects||{},ob2=h.before,oa=h.after;
+ VG.hooks.vg_projects=Object.assign({},h,{
+  before:async function(o,isNew,old){
+   if(['Awarded','Pre-Construction','Active'].indexOf(o.status)>=0&&!o.pm_id&&(isNew||!old||old.status!==o.status||old.pm_id)){if(AP.isMgr()){if(!VG.confirm('This project has no Project Manager. Timesheets, logs and requests will go to the managers. Continue without one?'))return false;}else{document.getElementById('vg-err').textContent='Assign a Project Manager before setting this project to '+o.status+'. Timesheets, reports and requests for the project go to them for approval.';return false;}}
+   if(ob2)return ob2.apply(this,arguments);},
+  after:async function(saved,isNew,old){
+   if(oa)await oa.apply(this,arguments);
+   try{if(saved.pm_id&&(!old||old.pm_id!==saved.pm_id)){await AP.notify([saved.pm_id],{kind:'assign_pm',title:'You are the Project Manager of '+saved.code,body:(saved.name||'')+(saved.client?'\n'+saved.client:'')+'\nTimesheets, daily logs and requests for this project now come to you for approval.',ref_table:'vg_projects',ref_id:saved.id,project_code:saved.code});}
+    if(old&&old.pm_id&&old.pm_id!==saved.pm_id)await AP.notify([old.pm_id],{kind:'info',title:'You are no longer the Project Manager of '+saved.code,body:saved.name||'',ref_table:'vg_projects',ref_id:saved.id,project_code:saved.code});
+    VG.loadRefs(true);}catch(e){}}
+ });})();
+AP.assignPM=async function(code){await VG.loadRefs(true);var ps=await AP.profiles(),p=VG.refs.projects.find(function(x){return x.code===code;});if(!p)return;
+ var opts=ps.slice().sort(function(a,b){var x=/project/i.test(a.group_name)?0:1,y=/project/i.test(b.group_name)?0:1;return x-y||String(a.full_name).localeCompare(b.full_name);}).map(function(u){return '<option value="'+u.id+'">'+E(u.full_name||u.id)+(u.group_name?' ('+E(u.group_name)+')':'')+'</option>';}).join('');
+ var o=document.createElement('div');o.style.cssText='position:fixed;inset:0;background:rgba(10,20,40,.55);z-index:2147483100;display:flex;align-items:center;justify-content:center';
+ o.innerHTML='<div style="background:#fff;border-radius:12px;padding:18px;width:min(420px,92vw)"><div style="font-weight:700;margin-bottom:8px">Assign Project Manager - '+E(code)+'</div><div style="font-size:12px;color:#666;margin-bottom:8px">'+E(p.name||'')+'</div><select id="ap-pm" style="width:100%"><option value="">Choose a person</option>'+opts+'</select><div id="ap-err" style="color:#b3261e;font-size:12px;min-height:16px"></div><div style="display:flex;gap:8px;justify-content:flex-end"><button class="vg-btn" id="ap-c">Cancel</button><button class="vg-btn pri" id="ap-o">Assign</button></div></div>';
+ document.body.appendChild(o);o.querySelector('#ap-c').onclick=function(){o.remove();};
+ o.querySelector('#ap-o').onclick=async function(){var v=o.querySelector('#ap-pm').value;if(!v){o.querySelector('#ap-err').textContent='Choose a person.';return;}
+  var r=await sb.from('vg_projects').update({pm_id:v,updated_by:CU.id}).eq('id',p.id);if(r.error){o.querySelector('#ap-err').textContent=r.error.message;return;}
+  o.remove();VG.bust('vg_projects');await VG.loadRefs(true);
+  await AP.notify([v],{kind:'assign_pm',title:'You are the Project Manager of '+code,body:(p.name||'')+(p.client?'\n'+p.client:'')+'\nTimesheets, daily logs and requests for this project now come to you for approval.',ref_table:'vg_projects',ref_id:p.id,project_code:code});
+  VG.toast('Project Manager assigned');if(VG.cur&&VG.cur.redraw)VG.cur.redraw();AP.renderPanel&&AP.open&&AP.renderPanel();};};
+
+/* ---------- Approvals tab (Project Management) ---------- */
+V.apprView=async function(host){
+ await AP.probe(true);await VG.loadRefs(true);var ps=await AP.profiles();
+ var tabs=Object.keys(AP.cfg),all={};
+ for(var i=0;i<tabs.length;i++)all[tabs[i]]=await VG.rows(tabs[i],true);
+ var me=CU.id,wait=[],mine=[],done=[];
+ tabs.forEach(function(t){var c=AP.cfg[t];all[t].forEach(function(r){
+  var owner=r[c.owner]||r.created_by;
+  if(r.status===c.sub&&AP.canReviewRow(t,r))wait.push({t:t,r:r});
+  if(owner===me)mine.push({t:t,r:r});
+  if(r.reviewed_by===me&&r.reviewed_at&&REV.indexOf(r.status)>=0)done.push({t:t,r:r});});});
+ wait.sort(function(a,b){return (a.r.submitted_at||a.r.created_at||'')<(b.r.submitted_at||b.r.created_at||'')?-1:1;});
+ mine=mine.filter(function(x){return x.r.status!=='Approved'||(x.r.reviewed_at&&VG.diff(x.r.reviewed_at)>-15);}).sort(function(a,b){return (b.r.updated_at||'')>(a.r.updated_at||'')?1:-1;}).slice(0,15);
+ done.sort(function(a,b){return a.r.reviewed_at<b.r.reviewed_at?1:-1;});
+ var role=AP.role(),noPM=(role==='admin'||role==='manager'||role==='sales'||role==='pm')?VG.refs.projects.filter(function(x){return ['Awarded','Pre-Construction','Active'].indexOf(x.status)>=0&&!x.pm_id;}):[];
+ var oldest=wait.length?Math.max.apply(null,wait.map(function(x){var d=x.r.submitted_at||x.r.created_at;return d?Math.max(0,-VG.diff(d)):0;})):0;
+ var h='';
+ if(!AP.ready)h+='<div style="background:#fff1cc;border:1px solid #f0d58a;color:#7a5200;padding:10px 12px;border-radius:9px;font-size:12.5px;margin-bottom:10px">Approvals work, but notifications, review notes and the approval security need <b>SQL_approvals.sql</b> to be run once in the Supabase SQL Editor.</div>';
+ h+='<div class="vg-kpis">'+VG.kpi('Waiting for my approval',wait.length,'',wait.length?'#8a5a00':'')+VG.kpi('Oldest waiting',oldest+' d')+VG.kpi('My submissions open',mine.filter(function(x){return x.r.status!=='Approved';}).length)+VG.kpi('Projects with no PM',noPM.length,'',noPM.length?'#b3261e':'')+'</div><div class="vg-grid2">';
+ h+=VG.panel('Waiting for my approval',VG.list(wait,function(x){var c=AP.cfg[x.t],r=x.r,own=r[c.owner]||r.created_by,pm=AP.pmOf(r.project_code);
+   var btn='<span style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end" onclick="event.stopPropagation()"><button class="vg-btn pri" onclick="AP.act(\''+x.t+'\',\''+r.id+'\',\'approve\')">Approve</button><button class="vg-btn" onclick="AP.act(\''+x.t+'\',\''+r.id+'\',\'changes\')">Changes</button><button class="vg-btn" onclick="AP.act(\''+x.t+'\',\''+r.id+'\',\'deny\')">Deny</button></span>';
+   return VG.li('<b>'+E(c.label)+'</b> - '+E(AP.name(own)),E(c.sum(r))+' &middot; '+E(r.project_code?r.project_code+(VG.pname(r.project_code)?' '+VG.pname(r.project_code):''):'no project')+(pm?'':' &middot; <span style="color:#b3261e">no PM</span>'),btn,VG.edl(x.t,r.id));},'Nothing is waiting for you. Items from your projects show up here.'),wait.length>1?'<a href="#" onclick="AP.approveMany(AP._wait);return false">Approve all ('+wait.length+')</a>':'');
+ AP._wait=wait;
+ h+=VG.panel('My submissions',VG.list(mine,function(x){var c=AP.cfg[x.t],r=x.r;return VG.li('<b>'+E(c.label)+'</b> - '+E(c.sum(r)),(r.project_code?E(r.project_code)+' &middot; ':'')+(r.status==='Submitted'||r.status==='Requested'?'with '+E((AP._ap&&AP._ap[r.id])||'your approver'):(r.reviewed_by?E(AP.name(r.reviewed_by))+' &middot; ':'')+(r.review_note?E(r.review_note):'')),VG.badge(r.status),VG.edl(x.t,r.id));},'You have not submitted anything yet.'));
+ if(noPM.length)h+=VG.panel('Projects needing a Project Manager',VG.list(noPM,function(p){return VG.li('<b>'+E(p.code)+'</b> '+E(p.name||''),E(p.client||'')+' &middot; '+E(p.status)+(p.sales_id?' &middot; sales '+E(VG.uname(p.sales_id)):''),'<button class="vg-btn pri" onclick="event.stopPropagation();AP.assignPM(\''+E(p.code)+'\')">Assign PM</button>');},'All projects have a PM'));
+ if(done.length)h+=VG.panel('Recently reviewed by me',VG.list(done.slice(0,8),function(x){var c=AP.cfg[x.t],r=x.r;return VG.li('<b>'+E(c.label)+'</b> - '+E(AP.name(r[c.owner]||r.created_by)),E(c.sum(r)),VG.badge(r.status),VG.edl(x.t,r.id));}));
+ host.innerHTML=h+'</div>';
+};
+
+/* ---------- tabs ---------- */
+try{var pm=VG.def.vg_pm.tabs;if(!pm.some(function(x){return x.id==='appr';}))pm.splice(1,0,{id:'appr',l:'Approvals',v:'apprView'});
+ var tc=VG.def.vg_technician.tabs;if(!tc.some(function(x){return x.id==='mysch';}))tc.splice(1,0,{id:'mysch',l:'My Schedule',v:'mySched'});}catch(e){}
+
+/* ---------- bell ---------- */
+var st=document.createElement('style');st.textContent='#vg-bell{position:relative;cursor:pointer;font-size:17px;margin-right:10px;color:#fff;user-select:none}#vg-bell-n{display:none;position:absolute;top:-6px;right:-8px;min-width:16px;height:16px;border-radius:8px;background:#e53935;color:#fff;font-size:10px;font-weight:700;align-items:center;justify-content:center;padding:0 3px}#vg-bellp{display:none;position:fixed;top:52px;right:14px;width:min(380px,94vw);max-height:80vh;overflow:auto;background:#fff;border:1px solid #cfd8e6;border-radius:12px;box-shadow:0 12px 34px rgba(20,40,80,.25);z-index:2147482000;color:#222}.apn-h{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;font-size:13px;border-bottom:1px solid #eef1f6}.apn-h a{font-size:12px;color:#1B5E9B}.apn-l{max-height:320px;overflow:auto}.apn-i{padding:9px 14px;border-bottom:1px solid #f1f3f8;cursor:pointer}.apn-i:hover{background:#f4f8fd}.apn-i.un{background:#eef5fd;border-left:3px solid #1B5E9B}.apn-t{font-size:13px;font-weight:700}.apn-b{font-size:12px;color:#555;margin-top:2px}.apn-a{font-size:10.5px;color:#999;margin-top:3px}.apn-e{padding:16px;font-size:12.5px;color:#888;text-align:center}.apn-warn{padding:9px 14px;background:#fff1cc;color:#7a5200;font-size:12.5px;cursor:pointer;border-bottom:1px solid #f0d58a}';
+document.head.appendChild(st);
+function mount(){var r=document.querySelector('.tb-right');if(!r||document.getElementById('vg-bell'))return;
+ var b=document.createElement('div');b.id='vg-bell';b.title='Notifications';b.setAttribute('aria-label','Notifications');b.innerHTML='&#128276;<span id="vg-bell-n"></span>';b.onclick=function(e){e.stopPropagation();AP.toggle();};
+ r.insertBefore(b,r.firstElementChild);var p=document.createElement('div');p.id='vg-bellp';p.onclick=function(e){e.stopPropagation();};document.body.appendChild(p);
+ document.addEventListener('click',function(){if(AP.open)AP.toggle(false);});}
+mount();
+setInterval(function(){try{if(typeof CU!=='undefined'&&CU&&CU.id){mount();if(!AP._started){AP._started=1;AP.probe().then(AP.poll);}}}catch(e){}},2000);
+setInterval(function(){try{if(AP._started&&!document.hidden)AP.poll();}catch(e){}},45000);
+
+/* ---------- standard role groups (Admin > Management > Groups) ---------- */
+AP.STD={
+ 'Manager':['dashboard','tasks','build','log','ai','bids','gc','retail','proposals','purchases','pipeline','inbox','vg_sales','vg_estimating','vg_operations','vg_pm','vg_engineering','vg_technician','vg_warehouse','vg_accounting','vg_service'],
+ 'Project Manager':['dashboard','tasks','build','vg_operations','vg_pm','vg_engineering','vg_technician','vg_warehouse','vg_service'],
+ 'Sales':['dashboard','tasks','bids','gc','retail','proposals','pipeline','ai','inbox','vg_sales','vg_estimating','vg_pm'],
+ 'Technician':['dashboard','tasks','vg_technician','vg_warehouse'],
+ 'Engineering':['dashboard','tasks','ai','vg_engineering','vg_technician'],
+ 'Accounting':['dashboard','tasks','purchases','vg_accounting'],
+ 'Warehouse':['dashboard','tasks','vg_warehouse'],
+ 'Service':['dashboard','tasks','vg_technician','vg_service']
+};
+AP.addStd=async function(){var g=getGroups(),added=[];Object.keys(AP.STD).forEach(function(n){if(!g[n]){g[n]=AP.STD[n].slice();added.push(n);}});
+ GROUPS=g;await saveGroups(g);try{var cu=getCustomGroups();added.forEach(function(n){if(cu.indexOf(n)<0)cu.push(n);});localStorage.setItem('netfiber_custom_groups',JSON.stringify(cu));}catch(e){}
+ renderGroupPermsTable();showToast(added.length?'Added: '+added.join(', '):'All standard roles already exist','#1D9E75');};
+var ogc=window.getCustomGroups;
+if(typeof ogc==='function')window.getCustomGroups=function(){var a=ogc();try{Object.keys(getGroups()).forEach(function(k){if(['admin','sales','staff','field'].indexOf(k)<0&&a.indexOf(k)<0)a.push(k);});}catch(e){}return a;};
+var orp=window.renderGroupPermsTable;
+if(typeof orp==='function')window.renderGroupPermsTable=function(){var r=orp.apply(this,arguments);try{var el=document.getElementById('group-perms-table');if(el&&!document.getElementById('std-roles-bar')){var d=document.createElement('div');d.id='std-roles-bar';d.style.cssText='margin:0 0 10px;padding:10px 12px;background:#eef5fd;border:1px solid #cfe0f5;border-radius:9px;font-size:12.5px;display:flex;gap:10px;align-items:center;flex-wrap:wrap';
+ d.innerHTML='<span style="flex:1;min-width:220px"><b>Standard roles.</b> Adds ready-made groups: Manager, Project Manager, Sales, Technician, Engineering, Accounting, Warehouse, Service, each with only the pages that role needs. Existing groups are not changed.</span><button class="btn-primary" onclick="AP.addStd()" style="padding:7px 14px">Add standard roles</button>';el.parentElement.insertBefore(d,el);}}catch(e){}return r;};
+
+/* ---------- AI knowledge ---------- */
+var _p=window.bdAIContext;if(typeof _p==='function')window.bdAIContext=async function(q){var s='';try{s=await _p(q);}catch(e){}
+ return s+'\nAPPROVALS AND ROUTING: items submitted for a project go to that project\'s Project Manager (the PM set on the project) for approval: timesheets, daily logs and material requests. If the project has no PM, or the PM submitted it, it goes to the managers/admin. Nobody can approve their own entry (only admin can). The reviewer chooses Approve, Needs changes or Deny (a note is required for the last two); the employee gets a bell notification and an email, edits and resubmits if needed. Approved timesheets and logs are locked. Approvals tab: Project Management > Approvals (also shows My submissions and Projects needing a Project Manager). A project cannot be set Awarded, Pre-Construction or Active without a Project Manager; the sales person assigns one (Approvals > Assign PM, or the Project form). SCHEDULING: when a manager or PM schedules someone in Operations (All Jobs / Schedule), the job appears in that person\'s Technician > My Schedule, in the bell > My schedule, and they get a notification and email; changes and cancellations notify them too; double-booking shows a warning; technicians cannot schedule, they only update status of their own jobs. ROLES: Admin > Management > Groups > Add standard roles creates Manager, Project Manager, Sales, Technician, Engineering, Accounting, Warehouse and Service groups with only the pages each needs; assign the group when creating the user. Employees see only their own timesheets, PMs see their projects\' timesheets, managers/accounting/admin see all.';};
+})();
+</script>
+<script id="vg-lifecycle">
+/* ===== Project lifecycle: award -> lead -> team -> schedule -> approvals -> accounting, project-based work, hierarchy, change log ===== */
+(function(){
+if(window.LC||!window.AP||!window.VG)return;
+var LC=window.LC={wp:'',awards:[]},E=VG.E,V=VG.views,SP=VG.spec.tables;
+var MODS_BAR={vg_technician:1,vg_engineering:1,vg_pm:1,vg_operations:1};
+function U(s){return String(s||'').trim().toUpperCase();}
+function ls(k,v){try{if(v===undefined)return localStorage.getItem(k);if(v===null)localStorage.removeItem(k);else localStorage.setItem(k,v);}catch(e){}return null;}
+LC.wp=ls('vg_wp')||'';
+
+/* ---------- who is on which project ---------- */
+LC.teamRows=async function(){try{return await VG.rows('pm_team',true);}catch(e){return [];}};
+LC.members=function(p,tm){var m={};function add(id,role){if(id){(m[id]=m[id]||[]);if(m[id].indexOf(role)<0)m[id].push(role);}}
+ add(p.pm_id,'Project Manager');add(p.eng_id,'Engineer');add(p.tech_id,'Lead Technician');add(p.sales_id,'Sales');
+ (tm||[]).forEach(function(r){if(U(r.project_code)===U(p.code))add(r.user_id,r.role||'Team');});return m;};
+LC.myProjects=async function(){await VG.loadRefs();var tm=await LC.teamRows(),me=CU.id,out=[];
+ (VG.refs.projects||[]).forEach(function(p){var m=LC.members(p,tm);if(m[me])out.push({p:p,roles:m[me],m:m});});return out;};
+LC.canManage=function(p){var r=AP.role();if(r==='admin'||r==='manager'||r==='sales')return true;return !!(p&&p.pm_id===CU.id);};
+LC.acctIds=async function(){var ps=await AP.profiles();return ps.filter(function(x){return /account|financ|bookkeep/i.test(x.group_name||'');}).map(function(x){return x.id;});};
+LC.proj=function(code){return (VG.refs.projects||[]).find(function(p){return U(p.code)===U(code);});};
+
+/* ---------- team assignment dialog ---------- */
+LC.teamDlg=async function(code){
+ await VG.loadRefs(true);var p=LC.proj(code);if(!p){alert('Project '+code+' was not found. Add it from the bid first.');return;}
+ if(!LC.canManage(p)){alert('Only managers, sales and this project\'s Project Manager can change the team.');return;}
+ var ps=await AP.profiles(),tm=await LC.teamRows(),cur=LC.members(p,tm);
+ function opts(sel,pref){return '<option value="">-</option>'+ps.slice().sort(function(a,b){var x=pref&&pref.test(a.group_name||'')?0:1,y=pref&&pref.test(b.group_name||'')?0:1;return x-y||String(a.full_name).localeCompare(b.full_name);}).map(function(u){return '<option value="'+u.id+'"'+(u.id===sel?' selected':'')+'>'+E(u.full_name||u.id)+(u.group_name?' ('+E(u.group_name)+')':'')+'</option>';}).join('');}
+ var core=[['pm','Project Manager *',p.pm_id,/project/i],['eng','Engineer',p.eng_id,/engineer/i],['tech','Lead Technician',p.tech_id,/tech|field|install/i],['sales','Sales rep',p.sales_id,/sales/i]];
+ var extra=[];Object.keys(cur).forEach(function(id){cur[id].forEach(function(r){if(['Project Manager','Engineer','Lead Technician','Sales'].indexOf(r)<0||false){extra.push({id:id,role:r});}});});
+ // a person who is only on the core roles is not repeated as extra
+ var roles=SP.pm_team.cols.find(function(c){return c.k==='role';}).opts;
+ var o=document.createElement('div');o.id='lc-team';o.style.cssText='position:fixed;inset:0;background:rgba(10,20,40,.55);z-index:2147483100;display:flex;align-items:center;justify-content:center';
+ function xrow(x){return '<div class="lc-x" style="display:flex;gap:6px;margin-bottom:6px"><select class="lc-xp" style="flex:1">'+opts(x.id)+'</select><select class="lc-xr" style="width:150px">'+roles.map(function(r){return '<option'+(r===x.role?' selected':'')+'>'+E(r)+'</option>';}).join('')+'</select><button class="vg-btn" onclick="this.parentNode.remove()">&times;</button></div>';}
+ o.innerHTML='<div style="background:#fff;border-radius:12px;padding:18px;width:min(520px,94vw);max-height:90vh;overflow:auto"><div style="font-weight:700;font-size:15px">Project team - '+E(code)+'</div><div style="font-size:12px;color:#666;margin-bottom:10px">'+E(p.name||'')+'. Everyone you pick gets this project in their account and a notification. Timesheets, logs and requests go to the Project Manager.</div>'
+  +core.map(function(c){return '<div class="vg-f" style="margin-bottom:8px"><label style="font-size:11px;font-weight:700">'+c[1]+'</label><select id="lc-'+c[0]+'" style="width:100%">'+opts(c[2],c[3])+'</select></div>';}).join('')
+  +'<div style="font-size:11px;font-weight:700;margin:10px 0 4px">Others on this project (more techs, estimator, accounting...)</div><div id="lc-xs">'+extra.map(xrow).join('')+'</div><button class="vg-btn" id="lc-addx">+ Add person</button><div id="lc-err" style="color:#b3261e;font-size:12px;min-height:16px;margin-top:6px"></div><div style="display:flex;gap:8px;justify-content:flex-end"><button class="vg-btn" id="lc-c">Cancel</button><button class="vg-btn pri" id="lc-s">Save team</button></div></div>';
+ document.body.appendChild(o);
+ o.querySelector('#lc-addx').onclick=function(){var d=document.createElement('div');d.innerHTML=xrow({id:'',role:'Technician'});o.querySelector('#lc-xs').appendChild(d.firstChild);};
+ o.querySelector('#lc-c').onclick=function(){o.remove();};
+ o.querySelector('#lc-s').onclick=async function(){
+  var v={pm:o.querySelector('#lc-pm').value,eng:o.querySelector('#lc-eng').value,tech:o.querySelector('#lc-tech').value,sales:o.querySelector('#lc-sales').value},err=o.querySelector('#lc-err');
+  if(!v.pm&&!(AP.isMgr()&&confirm('No Project Manager. Approvals will go to the managers. Continue anyway?'))){err.textContent='Choose the Project Manager.';return;}
+  var want={};function add(id,role){if(id){want[id]=want[id]||[];if(want[id].indexOf(role)<0)want[id].push(role);}}
+  add(v.pm,'Project Manager');add(v.eng,'Engineer');add(v.tech,'Lead Technician');add(v.sales,'Sales');
+  [].forEach.call(o.querySelectorAll('.lc-x'),function(x){add(x.querySelector('.lc-xp').value,x.querySelector('.lc-xr').value);});
+  var upd={pm_id:v.pm||null,eng_id:v.eng||null,tech_id:v.tech||null,sales_id:v.sales||null,updated_by:CU.id};
+  var r=await sb.from('vg_projects').update(upd).eq('id',p.id);if(r.error){err.textContent=r.error.message;return;}
+  // roster table: replace this project's rows
+  var old=tm.filter(function(x){return U(x.project_code)===U(code);});
+  for(var i=0;i<old.length;i++)await sb.from('pm_team').delete().eq('id',old[i].id);
+  var rows=[];Object.keys(want).forEach(function(id){want[id].forEach(function(role){rows.push({project_code:p.code,user_id:id,role:role,created_by:CU.id});});});
+  if(rows.length){var ri=await sb.from('pm_team').insert(rows);if(ri.error){err.textContent=ri.error.message;return;}}
+  o.remove();VG.bust('vg_projects');VG.bust('pm_team');await VG.loadRefs(true);
+  // tell everyone new on the project
+  var ppm=AP.name(v.pm),body=(p.name||'')+(p.client?' - '+p.client:'')+(p.address?'\n'+[p.address,p.city,p.state].filter(Boolean).join(', '):'')+(v.pm?'\nProject Manager: '+ppm:'');
+  for(var id in want){if(cur[id]&&cur[id].join()===want[id].join())continue;
+   await AP.notify([id],{kind:id===v.pm?'assign_pm':'team',title:(id===v.pm?'You are the Project Manager of ':'You were added to ')+p.code+(id===v.pm?'':' as '+want[id].join(', ')),body:body+(id===v.pm?'\nTimesheets, logs and requests for this project now come to you for approval.':'\nThe project is now in your account (Dashboard > My Projects).'),ref_table:'vg_projects',ref_id:p.id,project_code:p.code});}
+  var removed=Object.keys(cur).filter(function(id){return !want[id];});
+  if(removed.length)await AP.notify(removed,{kind:'info',title:'You were removed from '+p.code,body:p.name||'',ref_table:'vg_projects',ref_id:p.id,project_code:p.code});
+  if(!p.pm_id&&v.pm){var ac=await LC.acctIds();await AP.notify(ac,{kind:'billing',title:'New project to set up for billing: '+p.code,body:(p.name||'')+(p.client?' - '+p.client:'')+(p.contract_value?'\nContract '+VG.money0(p.contract_value):'')+'\nPM: '+ppm,ref_table:'vg_projects',ref_id:p.id,project_code:p.code});}
+  try{await logAct('Assigned project team','vg_projects',p.id,code+': '+Object.keys(want).map(function(id){return AP.name(id)+' ('+want[id].join('/')+')';}).join(', '));}catch(e){}
+  VG.toast('Team saved and notified');if(VG.cur&&VG.cur.redraw)VG.cur.redraw();LC.paintDash&&LC.paintDash();
+ };
+};
+AP.assignPM=function(code){return LC.teamDlg(code);};
+
+/* ---------- awarded bids become leads ---------- */
+LC.pendingAwards=async function(){
+ var r=AP.role();if(!(r==='admin'||r==='manager'||r==='sales'))return [];
+ var a=await Promise.all([sb.from('bids').select('*'),VG.rows('sal_leads',true)]);if(a[0].error)return [];
+ var have={};a[1].forEach(function(l){if(l.project_code)have[U(l.project_code)]=1;});
+ return (a[0].data||[]).filter(function(b){return /^(win|won)$/i.test(b.status||'')&&b.ref&&!have[U(b.ref)]&&!/^testing/i.test(b.ref);});};
+LC.addAward=async function(b,quiet){
+ var code=U(b.ref),it={ref:b.ref,_bid:b},p;try{p=await BidPick.ensureProject(it);}catch(e){p=LC.proj(code);}
+ if(p&&p.status==='Bidding'){try{await sb.from('vg_projects').update({status:'Awarded',updated_by:CU.id}).eq('id',p.id);p.status='Awarded';VG.bust('vg_projects');}catch(e){}}
+ var ty=/av/i.test(b.scope||'')?'AV':/sec/i.test(b.scope||'')?'Security':/comm|data|cabl/i.test(b.scope||'')?'Data':null;
+ var lead={company:b.gc||b.project||code,contact:b.poc||null,email:b.email||null,phone:b.phone||null,source:'Awarded Bid',stage:'Won',interest:ty,est_value:+b.price||null,expected_close:VG.today(),owner_id:b.assigned_to||CU.id,next_step:'Assign project team (PM, Engineer, Tech)',next_date:VG.today(),project_code:code,notes:'Awarded: '+code+' - '+(b.project||'')+(b.notes?'\n'+b.notes:''),created_by:CU.id,updated_by:CU.id};
+ var r=await sb.from('sal_leads').insert(lead);if(r.error){if(!/duplicate|unique/i.test(r.error.message))console.warn('award lead',r.error.message);return false;}
+ VG.bust('sal_leads');
+ var ps=await AP.profiles(),ids=[b.assigned_to].filter(Boolean);if(!ids.length)ids=ps.filter(function(x){return /sales/i.test(x.group_name||'');}).map(function(x){return x.id;});
+ if(!quiet)await AP.notify(ids,{kind:'award',title:'Project awarded: '+code+' - '+(b.project||''),body:'It is now in Sales > Leads. Open it and assign the project team (PM, Engineer, Tech).',ref_table:'sal_leads',project_code:code});
+ return true;};
+LC.addAllAwards=async function(){var l=LC.awards.slice(),n=0;for(var i=0;i<l.length;i++){if(await LC.addAward(l[i],true))n++;}
+ VG.toast(n+' lead(s) added from awarded bids');LC.awards=[];VG.refresh('sal_leads');if(VG.cur&&VG.cur.redraw)VG.cur.redraw();};
+LC.refreshAwards=async function(){try{LC.awards=await LC.pendingAwards();}catch(e){LC.awards=[];}
+ // wins that happened after the feature was first used are added automatically; older ones wait for one click
+ try{var rows=await sb.from('vg_settings').select('*').eq('key','lc_award_baseline').maybeSingle();var base=rows&&rows.data&&rows.data.value;
+  if(!base&&AP.isMgr()){base=new Date().toISOString();await sb.from('vg_settings').insert({key:'lc_award_baseline',value:base});}
+  if(base){var fresh=LC.awards.filter(function(b){return (b.updated_at||b.created_at||'')>(typeof base==='string'?base:base.v||'');});
+   for(var i=0;i<fresh.length;i++)await LC.addAward(fresh[i],false);
+   if(fresh.length){LC.awards=LC.awards.filter(function(b){return fresh.indexOf(b)<0;});}}}catch(e){}};
+var otbl=VG.tbl;
+VG.tbl=async function(host,t,opt){
+ var pageMod=VG.cur&&VG.cur.page;
+ if(MODS_BAR[pageMod]&&SP[t]&&(t==='vg_projects'||SP[t].cols.some(function(c){return c.k==='project_code';}))){VG.ts[t]=VG.ts[t]||{q:'',status:'',project:'',view:'list',sk:SP[t].sort||'created_at',sd:-1};VG.ts[t].project=LC.wp||'';}
+ var r=await otbl.apply(this,arguments);
+ try{if(t==='sal_leads'&&host){await LC.refreshAwards();if(LC.awards.length&&!document.getElementById('lc-awards')){var d=document.createElement('div');d.id='lc-awards';d.style.cssText='background:#e8f3ff;border:1px solid #bcd8f5;color:#12456f;padding:10px 12px;border-radius:9px;font-size:12.5px;margin-bottom:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap';
+   d.innerHTML='<span style="flex:1;min-width:200px"><b>'+LC.awards.length+' awarded bid'+(LC.awards.length>1?'s are':' is')+' not in Leads yet:</b> '+E(LC.awards.slice(0,4).map(function(b){return b.ref;}).join(', '))+(LC.awards.length>4?'...':'')+'</span><button class="vg-btn pri" onclick="LC.addAllAwards()">Add to Leads</button>';host.insertBefore(d,host.firstChild);}}}catch(e){}
+ return r;};
+
+/* ---------- actions on leads and projects ---------- */
+VG.acts.sal_leads=(VG.acts.sal_leads||[]).concat([{l:'Assign project team',fn:function(row){var c=row.project_code;if(!c){alert('Pick the Linked Project first (or use "Pick a bid").');return;}VG.close();LC.teamDlg(c);}}]);
+VG.acts.vg_projects=(VG.acts.vg_projects||[]).concat([
+ {l:'Assign team',fn:function(row){VG.close();LC.teamDlg(row.code);}},
+ {l:'Lifecycle',fn:function(row){VG.close();LC.lifeDlg(row.code);}},
+ {l:'Request invoice',fn:function(row){AP.ask('Request an invoice for '+row.code+' - what should accounting bill?',false,async function(n){var ac=await LC.acctIds();if(!ac.length){VG.toast('No Accounting user found',1);return;}await AP.notify(ac,{kind:'billing',title:'Invoice requested: '+row.code+' - '+(row.name||''),body:(n||'Progress billing')+'\nRequested by '+AP.name(CU.id)+(row.contract_value?'\nContract '+VG.money0(row.contract_value):''),ref_table:'vg_projects',ref_id:row.id,project_code:row.code});VG.toast('Accounting notified');});}}]);
+['ops_timesheets','fld_logs','wh_requests'].forEach(function(t){VG.acts[t]=(VG.acts[t]||[]).concat([{l:'Reopen (undo approval)',fn:function(row){
+ VG.loadRefs().then(function(){if(!AP.canReviewRow(t,row)||row.status==='Submitted'||row.status==='Requested'){alert(row.status==='Submitted'||row.status==='Requested'?'This is already pending.':'Only the project\'s Project Manager or a manager can reopen this.');return;}
+  AP.ask('Reopen - why?',true,async function(n){var c=AP.cfg[t],u={status:c.sub};if(AP.ready){u.review_note='Reopened: '+n;}var r=await sb.from(t).update(u).eq('id',row.id);if(r.error){VG.toast(r.error.message,1);return;}VG.bust(t);
+   await AP.notify([row[c.owner]||row.created_by],{kind:'changes',title:'Your '+c.label.toLowerCase()+' was reopened',body:c.sum(row)+'\nBy '+AP.name(CU.id)+'\nReason: '+n,ref_table:t,ref_id:row.id,project_code:row.project_code});VG.toast('Reopened');VG.close();VG.refresh(t);});});}}]);});
+// a material request that is approved is also a purchasing job: tell accounting
+(function(){var h=VG.hooks.wh_requests,oa=h.after;h.after=async function(saved,isNew,old){if(oa)await oa.apply(this,arguments);try{if(saved.status==='Approved'&&(!old||old.status!=='Approved')){var ac=await LC.acctIds();await AP.notify(ac,{kind:'purchase',title:'Approved material request for '+(saved.project_code||'no project'),body:AP.cfg.wh_requests.sum(saved)+'\nProject '+(saved.project_code||'-')+(LC.proj(saved.project_code)?' - '+LC.proj(saved.project_code).name:''),ref_table:'wh_requests',ref_id:saved.id,project_code:saved.project_code});}}catch(e){}};})();
+var oreview=AP.review;AP.review=async function(t,id,d,n,q){var ok=await oreview.apply(this,arguments);if(ok&&t==='wh_requests'&&d==='approve'){try{var row=(await VG.rows(t,true)).find(function(x){return String(x.id)===String(id);});var ac=await LC.acctIds();await AP.notify(ac,{kind:'purchase',title:'Approved material request for '+(row.project_code||'no project'),body:AP.cfg.wh_requests.sum(row),ref_table:t,ref_id:id,project_code:row.project_code});}catch(e){}}return ok;};
+// closing a project tells accounting to do final billing
+(function(){var h=VG.hooks.vg_projects,oa=h.after;h.after=async function(saved,isNew,old){if(oa)await oa.apply(this,arguments);try{if(old&&saved.status==='Closed Out'&&old.status!=='Closed Out'){var ac=await LC.acctIds();await AP.notify(ac,{kind:'billing',title:'Project closed out: '+saved.code+' - final billing',body:(saved.name||'')+'\nCheck retainage and the last invoice.',ref_table:'vg_projects',ref_id:saved.id,project_code:saved.code});}}catch(e){}};})();
+
+/* ---------- reporting lines: who approves a PM or manager ---------- */
+var op=AP.profiles;AP.profiles=async function(){if(AP.profs&&Date.now()-AP.profT<60000)return AP.profs;
+ var r=await sb.from('profiles').select('id,full_name,group_name,disabled,reports_to');if(r.error)r=await sb.from('profiles').select('id,full_name,group_name,disabled');
+ AP.profs=(r.data||[]).filter(function(x){return !x.disabled;});AP.profT=Date.now();return AP.profs;};
+var oap=AP.approversFor;AP.approversFor=async function(t,row){await VG.loadRefs();var ps=await AP.profiles(),c=AP.cfg[t],owner=row[c.owner]||row.created_by,pm=AP.pmOf(row.project_code);
+ if(pm&&pm!==owner)return [pm];
+ var me=ps.find(function(x){return x.id===owner;});if(me&&me.reports_to&&me.reports_to!==owner&&ps.some(function(x){return x.id===me.reports_to;}))return [me.reports_to];
+ return oap.apply(this,arguments);};
+LC.orgPanel=async function(){var ps=(await AP.profiles()).slice().sort(function(a,b){return String(a.full_name).localeCompare(String(b.full_name));});
+ var d=document.getElementById('lc-org');if(!d)return;
+ function tree(pid,depth,seen){return ps.filter(function(x){return (x.reports_to||null)===pid&&seen.indexOf(x.id)<0;}).map(function(x){return '<div style="margin-left:'+depth*16+'px;font-size:12px">'+(depth?'&#8627; ':'')+'<b>'+E(x.full_name||'')+'</b> <span style="color:#888">'+E(x.group_name||'')+'</span></div>'+tree(x.id,depth+1,seen.concat([x.id]));}).join('');}
+ d.innerHTML='<div style="font-weight:700;margin-bottom:6px">Reporting lines</div><div style="font-size:12px;color:#556;margin-bottom:8px">Who each person reports to (for example Project Managers report to the Operations Manager). Their own timesheets and requests go to that person, and that person can approve for them. Admin sees everything.</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:6px 12px">'+ps.map(function(u){return '<label style="font-size:12px"><span style="display:block;font-weight:600">'+E(u.full_name||'')+' <span style="color:#888;font-weight:400">'+E(u.group_name||'')+'</span></span><select onchange="LC.setBoss(\''+u.id+'\',this.value)" style="width:100%"><option value="">Reports to nobody</option>'+ps.filter(function(x){return x.id!==u.id;}).map(function(x){return '<option value="'+x.id+'"'+(u.reports_to===x.id?' selected':'')+'>'+E(x.full_name||'')+'</option>';}).join('')+'</select></label>';}).join('')+'</div><div style="margin-top:10px;font-weight:700;font-size:12px">Org chart</div>'+(tree(null,0,[])||'<div style="font-size:12px;color:#888">Nobody is set yet.</div>');};
+LC.setBoss=async function(id,boss){var r=await sb.from('profiles').update({reports_to:boss||null}).eq('id',id);if(r.error){showToast(r.error.message+' (run SQL_lifecycle.sql)','#E24B4A');return;}AP.profT=0;await LC.orgPanel();showToast('Saved','#1D9E75');};
+var orp2=window.renderGroupPermsTable;
+if(typeof orp2==='function')window.renderGroupPermsTable=function(){var r=orp2.apply(this,arguments);try{var el=document.getElementById('group-perms-table');if(el&&!document.getElementById('lc-org')){var d=document.createElement('div');d.id='lc-org';d.style.cssText='margin:0 0 14px;padding:12px;background:#fff;border:1px solid #dde3ee;border-radius:9px';el.parentElement.insertBefore(d,el);LC.orgPanel();}}catch(e){}return r;};
+AP.STD['Operations Manager']=AP.STD['Manager'].slice();
+
+/* ---------- project bar: work inside one project ---------- */
+LC.setWP=function(code){LC.wp=code||'';ls('vg_wp',LC.wp||null);if(VG.cur)VG.render(VG.cur.page);};
+LC.bar=async function(page){
+ var pg=document.querySelector('#main-content .vg-page');if(!pg||document.getElementById('lc-bar'))return;
+ await VG.loadRefs();var priv=LC._priv,list=LC._list||[];
+ var cur=LC.proj(LC.wp),tm=cur?await LC.teamRows():[],m=cur?LC.members(cur,tm):{};
+ var d=document.createElement('div');d.id='lc-bar';d.style.cssText='display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:#fff;border:1px solid #cfe0f5;border-left:4px solid #1B5E9B;border-radius:9px;padding:9px 12px;margin:0 0 10px;font-size:12.5px';
+ d.innerHTML='<b>Project</b><select id="lc-sel" style="min-width:230px"><option value="">'+(priv?'All projects':'All my projects')+'</option>'+list.map(function(p){return '<option value="'+E(p.code)+'"'+(p.code===LC.wp?' selected':'')+'>'+E(p.code+' - '+(p.name||''))+'</option>';}).join('')+'</select>'
+  +(cur?'<span>'+VG.badge(cur.status)+'</span><span style="color:#556">PM: <b>'+E(VG.uname(cur.pm_id)||'none')+'</b> &middot; Team: '+Object.keys(m).map(function(id){return E(VG.uname(id))+' ('+E(m[id][0])+')';}).slice(0,6).join(', ')+'</span><span style="flex:1"></span><a href="#" onclick="LC.lifeDlg(\''+E(cur.code)+'\');return false">Lifecycle</a>'+(LC.canManage(cur)?' <a href="#" onclick="LC.teamDlg(\''+E(cur.code)+'\');return false">Team</a>':''):'<span style="color:#667">Everything you add here is saved to the project you pick. Choose one to work inside it.</span>');
+ var tabs=pg.querySelector('.vg-tabs');pg.insertBefore(d,tabs);
+ d.querySelector('#lc-sel').onchange=function(){if(!this.value)ls('vg_wp_off','1');else ls('vg_wp_off',null);LC.setWP(this.value);};};
+LC.initWP=async function(){await VG.loadRefs();var mine=await LC.myProjects(),priv=AP.role()==='admin'||AP.isMgr()||AP.role()==='sales',list=priv?(VG.refs.projects||[]).filter(function(p){return ['Lost','Bidding'].indexOf(p.status)<0;}):mine.map(function(x){return x.p;});
+ if(LC.wp&&!list.some(function(p){return p.code===LC.wp;}))LC.wp='';
+ if(!LC.wp&&!priv&&list.length===1&&!ls('vg_wp_off'))LC.wp=list[0].code;LC._list=list;LC._priv=priv;};
+var ore=VG.render;VG.render=async function(page){if(MODS_BAR[page]){try{await LC.initWP();}catch(e){}}var r=await ore.apply(this,arguments);try{if(MODS_BAR[page])await LC.bar(page);}catch(e){console.warn('proj bar',e);}return r;};
+var oed=VG.edit;VG.edit=async function(t,id){var r=await oed.apply(this,arguments);
+ try{if(LC.wp&&VG._ed&&VG._ed.t===t&&VG._ed.isNew&&t!=='vg_projects'){var s=document.getElementById('vgf_project_code');if(s&&!s.value){if(![].some.call(s.options,function(o){return o.value===LC.wp;})){var op=document.createElement('option');op.value=LC.wp;op.textContent=LC.wp;s.appendChild(op);}s.value=LC.wp;}}}catch(e){}return r;};
+['photoDialog','shareDialog'].forEach(function(n){var o=VG[n];if(typeof o==='function')VG[n]=function(code,x){return o.call(this,code||LC.wp||undefined,x);};});
+['fld_photos','fld_logs','fld_notes','fld_shares','fld_punch','fld_tests'].forEach(function(t){var c=SP[t].cols.find(function(x){return x.k==='project_code';});if(c)c.req=1;});
+
+/* ---------- Dashboard: My Projects ---------- */
+LC.paintDash=async function(){
+ var mc=document.getElementById('main-content');if(!mc||!CU||!CU.id)return;if(!document.getElementById('lc-mine')){var d=document.createElement('div');d.id='lc-mine';mc.insertBefore(d,mc.firstChild);}
+ var box=document.getElementById('lc-mine');
+ try{await VG.loadRefs();var mine=await LC.myProjects(),priv=AP.role()==='admin'||AP.isMgr();
+  var mineCodes={};mine.forEach(function(x){mineCodes[x.p.code]=1;});
+  var sch=[];try{sch=await AP.mySchedule(30);}catch(e){}
+  function card(p,roles){var nj=sch.find(function(s){return U(s.project_code)===U(p.code);});
+   return '<div class="lc-card" onclick="LC.work(\''+E(p.code)+'\')"><div style="display:flex;justify-content:space-between;gap:6px"><b>'+E(p.code)+'</b>'+VG.badge(p.status)+'</div><div class="lc-n">'+E(p.name||'')+'</div><div class="lc-s">'+(roles?'You: '+E(roles.join(', '))+' &middot; ':'')+'PM '+E(VG.uname(p.pm_id)||'none')+'</div>'+(nj?'<div class="lc-s" style="color:#1B5E9B">Next job: '+VG.d(nj.work_date)+' '+E(nj.task||'')+'</div>':'')+'</div>';}
+  if(!mine.length&&!priv){box.innerHTML='';return;}
+  var h='<div class="lc-hd"><b>My Projects</b><span class="lc-s">'+mine.length+' assigned to you. Click one to work inside it.</span></div>';
+  h+='<div class="lc-grid">'+(mine.length?mine.map(function(x){return card(x.p,x.roles);}).join(''):'<div class="lc-s">You are not on any project yet.</div>')+'</div>';
+  if(priv){var others=(VG.refs.projects||[]).filter(function(p){return !mineCodes[p.code]&&['Awarded','Pre-Construction','Active'].indexOf(p.status)>=0;});
+   if(others.length)h+='<div class="lc-hd" style="margin-top:12px"><b>All active projects</b><span class="lc-s">'+others.length+' &middot; <a href="#" onclick="LC.openBoard();return false">Lifecycle board</a></span></div><div class="lc-grid">'+others.slice(0,8).map(function(p){return card(p,null);}).join('')+'</div>';}
+  box.innerHTML=h;}catch(e){box.innerHTML='';}};
+LC.work=function(code){LC.wp=code;ls('vg_wp',code);ls('vg_wp_off',null);var r=AP.role(),order=r==='eng'?['vg_engineering','vg_technician','vg_pm']:r==='pm'||r==='manager'||r==='admin'?['vg_pm','vg_operations','vg_technician','vg_engineering']:['vg_technician','vg_engineering','vg_pm'];
+ for(var i=0;i<order.length;i++){if(typeof canAccess==='function'&&!canAccess(order[i]))continue;showPage(order[i]);setTimeout(function(){},0);return;}showPage('dashboard');};
+LC.openBoard=function(){showPage('vg_pm');setTimeout(function(){VG.go('vg_pm','life');},60);};
+var odash=window.renderDashboard;if(typeof odash==='function')window.renderDashboard=async function(){var r=await odash.apply(this,arguments);try{await LC.paintDash();}catch(e){}return r;};
+
+/* ---------- Lifecycle steps ---------- */
+LC.STEPS=[
+ {id:'bid',l:'Bid created',ev:function(p,c){return p.bid_ref||c.bids.some(function(b){return U(b.ref)===U(p.code);})?'Bid '+(p.bid_ref||p.code):'';}},
+ {id:'award',l:'Awarded',ev:function(p){return ['Awarded','Pre-Construction','Active','On Hold','Closed Out','Warranty'].indexOf(p.status)>=0?p.status:'';}},
+ {id:'lead',l:'Lead / opportunity in Sales',ev:function(p,c){var n=c.leads.filter(function(l){return U(l.project_code)===U(p.code);}).length;return n?n+' lead':'';}},
+ {id:'team',l:'Team assigned',ev:function(p,c){var m=Object.keys(LC.members(p,c.team));return p.pm_id&&m.length>1?m.length+' people, PM '+(VG.uname(p.pm_id)||''):'';}},
+ {id:'sched',l:'Work scheduled',ev:function(p,c){var n=c.sched.filter(function(s){return U(s.project_code)===U(p.code);}).length;return n?n+' job(s)':'';}},
+ {id:'field',l:'Field work underway',ev:function(p,c){var n=c.logs.filter(function(s){return U(s.project_code)===U(p.code);}).length+c.ts.filter(function(s){return U(s.project_code)===U(p.code);}).length;return n?n+' log/timesheet entries':'';}},
+ {id:'appr',l:'Approvals current',ev:function(p,c){var all=c.logs.concat(c.ts).filter(function(s){return U(s.project_code)===U(p.code);}),pend=all.filter(function(s){return s.status==='Submitted';}).length;return all.length&&!pend?'nothing pending':'';},pend:function(p,c){return c.logs.concat(c.ts).filter(function(s){return U(s.project_code)===U(p.code)&&s.status==='Submitted';}).length;}},
+ {id:'bill',l:'Invoiced',ev:function(p,c){var n=c.inv.filter(function(s){return U(s.project_code)===U(p.code);}).length;return n?n+' invoice(s)':'';}},
+ {id:'close',l:'Closed out',ev:function(p){return ['Closed Out','Warranty'].indexOf(p.status)>=0?p.status:'';}}
+];
+LC.ctx=async function(){var a=await Promise.all([sb.from('bids').select('ref'),VG.rows('sal_leads',true),LC.teamRows(),VG.rows('ops_schedule',true),VG.rows('fld_logs',true),VG.rows('ops_timesheets',true),VG.rows('acc_invoices',true).catch(function(){return [];})]);
+ return {bids:(a[0].data||[]),leads:a[1],team:a[2],sched:a[3],logs:a[4],ts:a[5],inv:a[6]};};
+LC.state=function(p,c){var ov=(p.lifecycle&&typeof p.lifecycle==='object')?p.lifecycle:{},firstOpen=null,out=[];
+ LC.STEPS.forEach(function(s){var ev=s.ev(p,c),o=ov[s.id],st;
+  if(o&&o.s==='skipped')st='skipped';else if(o&&o.s==='done')st='done';else if(o&&o.s==='open')st='todo';else st=ev?'done':'todo';
+  if(st==='todo'&&!firstOpen)firstOpen=s.id;out.push({s:s,st:st,ev:ev,o:o,manual:!!o});});
+ out.forEach(function(x){if(x.s.id===firstOpen)x.st='current';});return out;};
+LC.board=async function(host){
+ await VG.loadRefs(true);var c=await LC.ctx(),ps=(VG.refs.projects||[]).filter(function(p){return p.status!=='Lost'&&(!LC.wp||p.code===LC.wp);});
+ var col={done:'#1b7a3d',skipped:'#8a94a6',current:'#1B5E9B',todo:'#c9d1de'};
+ host.innerHTML='<div class="vg-panel"><div class="vg-ph"><b>Project lifecycle</b><span style="font-size:12px;color:#667">Click a project to do, undo or skip a step. Every change is logged.</span></div><div style="overflow:auto"><table class="vg-t"><thead><tr><th>Project</th><th>PM</th>'+LC.STEPS.map(function(s){return '<th style="text-align:center;font-size:10.5px">'+E(s.l)+'</th>';}).join('')+'</tr></thead><tbody>'+
+  (ps.map(function(p){var st=LC.state(p,c);return '<tr style="cursor:pointer" onclick="LC.lifeDlg(\''+E(p.code)+'\')"><td><b>'+E(p.code)+'</b> '+E(p.name||'')+'</td><td>'+E(VG.uname(p.pm_id)||'-')+'</td>'+st.map(function(x){var pend=x.s.pend&&x.s.pend(p,c);return '<td style="text-align:center"><span title="'+E(x.s.l+': '+x.st+(x.ev?' ('+x.ev+')':''))+'" style="display:inline-block;width:16px;height:16px;border-radius:50%;background:'+(x.st==='todo'?'#fff':col[x.st])+';border:2px solid '+col[x.st]+';color:#fff;font-size:10px;line-height:12px">'+(x.st==='done'?'&#10003;':x.st==='skipped'?'-':pend?pend:'')+'</span></td>';}).join('')+'</tr>';}).join('')||'<tr><td colspan="11" style="padding:16px;color:#888">No projects.</td></tr>')+'</tbody></table></div></div>'
+  +'<div style="font-size:11.5px;color:#667;margin-top:8px">&#10003; done &middot; blue = next step &middot; - skipped &middot; empty = not yet</div>';};
+V.lifeView=function(host){return LC.board(host);};
+try{var pmt=VG.def.vg_pm.tabs;if(!pmt.some(function(x){return x.id==='life';}))pmt.splice(3,0,{id:'life',l:'Lifecycle',v:'lifeView'});}catch(e){}
+LC.chgText=function(r){var f=r.field,n=r.new_value,o=r.old_value;
+ function nm(v){return v?(VG.uname(v)||v):'nobody';}
+ if(r.action==='created')return 'Created'+(r.new_value?' ('+r.new_value+')':'');if(r.action==='deleted')return 'Deleted';
+ if(['pm_id','eng_id','tech_id','sales_id','assigned_to','owner_id'].indexOf(f)>=0)return {pm_id:'Project Manager',eng_id:'Engineer',tech_id:'Lead tech',sales_id:'Sales rep',assigned_to:'Assigned to',owner_id:'Owner'}[f]+': '+nm(o)+' -> '+nm(n);
+ if(f==='lifecycle'){try{var a=JSON.parse(o||'{}'),b=JSON.parse(n||'{}'),d=[];LC.STEPS.forEach(function(s){var x=JSON.stringify(a[s.id]||null),y=JSON.stringify(b[s.id]||null);if(x!==y)d.push(s.l+': '+(b[s.id]?b[s.id].s+(b[s.id].note?' ('+b[s.id].note+')':''):'back to automatic'));});return 'Lifecycle - '+d.join('; ');}catch(e){return 'Lifecycle changed';}}
+ return (f||'')+': '+(o||'-')+' -> '+(n||'-');};
+LC.lifeDlg=async function(code){
+ await VG.loadRefs(true);var p=LC.proj(code);if(!p)return;var c=await LC.ctx(),st=LC.state(p,c),can=LC.canManage(p)&&AP.role()!=='sales'||AP.isMgr()||p.pm_id===CU.id;
+ var hist=[];try{var r=await sb.from('vg_changelog').select('*').eq('project_code',p.code).order('at',{ascending:false}).limit(40);hist=r.data||[];}catch(e){}
+ var o=document.createElement('div');o.id='lc-life';o.style.cssText='position:fixed;inset:0;background:rgba(10,20,40,.55);z-index:2147483100;display:flex;align-items:center;justify-content:center';
+ var lab={done:'Done',skipped:'Skipped',current:'Next',todo:'Not yet'};
+ o.innerHTML='<div style="background:#fff;border-radius:12px;padding:18px;width:min(640px,95vw);max-height:92vh;overflow:auto"><div style="display:flex;justify-content:space-between"><div><b style="font-size:15px">'+E(p.code)+' - '+E(p.name||'')+'</b><div style="font-size:12px;color:#667">'+VG.badge(p.status)+' PM '+E(VG.uname(p.pm_id)||'none')+'</div></div><button class="vg-btn" id="lf-x">Close</button></div><div style="font-size:12px;color:#556;margin:8px 0">The default order. You can undo or skip any step; the note is saved in the change log.</div>'
+  +st.map(function(x,i){var b='';if(can){if(x.st==='skipped'||(x.manual&&x.o.s==='done'))b='<button class="vg-btn" data-a="auto" data-s="'+x.s.id+'">Undo</button>';else if(x.st==='done')b='<button class="vg-btn" data-a="open" data-s="'+x.s.id+'">Reopen</button>';else b='<button class="vg-btn" data-a="done" data-s="'+x.s.id+'">Mark done</button><button class="vg-btn" data-a="skipped" data-s="'+x.s.id+'">Skip</button>';}
+   return '<div style="display:flex;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid #eef1f6"><span style="width:20px;text-align:center;font-weight:700;color:#8a94a6">'+(i+1)+'</span><div style="flex:1"><b>'+E(x.s.l)+'</b> <span style="font-size:11px;color:'+(x.st==='done'?'#1b7a3d':x.st==='current'?'#1B5E9B':'#8a94a6')+'">'+lab[x.st]+(x.manual?' (set by hand)':'')+'</span>'+(x.ev?'<div style="font-size:11.5px;color:#667">'+E(x.ev)+'</div>':'')+(x.o&&x.o.note?'<div style="font-size:11.5px;color:#a04000">Note: '+E(x.o.note)+' - '+E(VG.uname(x.o.by)||'')+'</div>':'')+'</div>'+b+'</div>';}).join('')
+  +'<div style="display:flex;gap:8px;margin:10px 0">'+(LC.canManage(p)?'<button class="vg-btn" id="lf-team">Assign team</button>':'')+'<button class="vg-btn" id="lf-inv">Request invoice</button></div>'
+  +'<div style="font-weight:700;font-size:12.5px;margin:8px 0 4px">Change log</div><div style="max-height:200px;overflow:auto;font-size:12px">'+(hist.length?hist.map(function(h){return '<div style="padding:4px 0;border-bottom:1px solid #f1f3f8"><span style="color:#889">'+VG.d(h.at)+' '+new Date(h.at).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})+'</span> <b>'+E(h.by_name||'')+'</b> '+E(String(h.table_name||'').replace(/^[a-z]+_/,''))+': '+E(LC.chgText(h))+'</div>';}).join(''):'<div style="color:#888">'+(AP.probed&&!AP.ready?'Run SQL_lifecycle.sql to record the change log.':'No changes recorded yet.')+'</div>')+'</div></div>';
+ document.body.appendChild(o);o.querySelector('#lf-x').onclick=function(){o.remove();};
+ var tb=o.querySelector('#lf-team');if(tb)tb.onclick=function(){o.remove();LC.teamDlg(p.code);};
+ o.querySelector('#lf-inv').onclick=function(){o.remove();var row=p;(VG.acts.vg_projects.find(function(a){return a.l==='Request invoice';})).fn(row);};
+ [].forEach.call(o.querySelectorAll('[data-a]'),function(btn){btn.onclick=function(){var a=btn.getAttribute('data-a'),sid=btn.getAttribute('data-s');
+  var go=async function(note){var lc=Object.assign({},(p.lifecycle&&typeof p.lifecycle==='object')?p.lifecycle:{});if(a==='auto')delete lc[sid];else lc[sid]={s:a,by:CU.id,at:new Date().toISOString(),note:note||''};
+   var r=await sb.from('vg_projects').update({lifecycle:lc,updated_by:CU.id}).eq('id',p.id);if(r.error){VG.toast(r.error.message+' (run SQL_lifecycle.sql)',1);return;}
+   try{await logAct('Lifecycle '+a,'vg_projects',p.id,p.code+' - '+sid+(note?': '+note:''));}catch(e){}
+   VG.bust('vg_projects');await VG.loadRefs(true);o.remove();LC.lifeDlg(p.code);if(VG.cur&&VG.cur.redraw)VG.cur.redraw();};
+  if(a==='skipped'||a==='open')AP.ask((a==='skipped'?'Skip this step - why?':'Reopen this step - why?'),true,go);else go('');};});};
+
+/* ---------- Accounting: project billing queue + purchases linked to projects ---------- */
+var oacc=V.accDash;
+V.accDash=async function(host){await oacc.apply(this,arguments);
+ try{var c=await LC.ctx(),ps=(VG.refs.projects||[]).filter(function(p){return ['Awarded','Pre-Construction','Active'].indexOf(p.status)>=0&&!c.inv.some(function(i){return U(i.project_code)===U(p.code);});});
+  var pu=await sb.from('purchase_projects').select('id,estimate_no,project_name,project_code'),unl=[],auto=[];
+  if(!pu.error)(pu.data||[]).forEach(function(r){if(r.project_code)return;var m=(VG.refs.projects||[]).find(function(p){return U(p.code)===U(r.estimate_no)||U(p.bid_ref)===U(r.estimate_no);});if(m)auto.push({r:r,p:m});else unl.push(r);});
+  var d=document.createElement('div');d.style.marginTop='14px';
+  d.innerHTML='<div class="vg-grid2">'+VG.panel('Projects with no invoice yet',VG.list(ps,function(p){return VG.li('<b>'+E(p.code)+'</b> '+E(p.name||''),E(p.client||'')+' &middot; '+E(p.status)+(p.contract_value?' &middot; contract '+VG.money0(p.contract_value):''),'',VG.edl('vg_projects',p.id));},'Every active project has an invoice.'))
+   +VG.panel('Purchases and projects',(auto.length?'<div style="padding:8px 12px;background:#e8f3ff;font-size:12.5px"><b>'+auto.length+' purchase file(s)</b> match a project by estimate / project #. <button class="vg-btn pri" id="lc-link">Link them</button></div>':'')+VG.list(unl,function(r){return VG.li(E(r.project_name||r.estimate_no||'Purchase file'),'Estimate '+E(r.estimate_no||'-')+' &middot; not linked to a project','');},'All purchase files are linked to projects.'))+'</div>';
+  host.appendChild(d);var lk=d.querySelector('#lc-link');if(lk)lk.onclick=async function(){for(var i=0;i<auto.length;i++)await sb.from('purchase_projects').update({project_code:auto[i].p.code}).eq('id',auto[i].r.id);VG.toast(auto.length+' linked');V.accDash(host);};
+ }catch(e){console.warn('acc queue',e);}};
+
+/* ---------- bell: awarded bids waiting ---------- */
+var orpn=AP.renderPanel;AP.renderPanel=async function(){await orpn.apply(this,arguments);try{var p=document.getElementById('vg-bellp');if(p&&LC.awards.length&&!p.querySelector('.lc-aw')){var w=document.createElement('div');w.className='apn-warn lc-aw';w.textContent=LC.awards.length+' awarded bid'+(LC.awards.length>1?'s':'')+' not in Sales > Leads yet - click to add';w.onclick=function(){AP.toggle(false);VG.go('vg_sales','leads');};var l=p.querySelector('.apn-l');p.insertBefore(w,l);}}catch(e){}};
+var ogo=AP.go;AP.go=function(id){var n=AP.notifs.find(function(x){return x.id===id;});
+ if(n&&n.kind==='award'){AP.markRead(id);AP.toggle(false);VG.go('vg_sales','leads');return;}
+ if(n&&(n.kind==='team')&&n.project_code){AP.markRead(id);AP.toggle(false);LC.work(n.project_code);return;}
+ if(n&&n.kind==='billing'){AP.markRead(id);AP.toggle(false);VG.go('vg_accounting','dash');return;}
+ return ogo.apply(this,arguments);};
+setInterval(function(){try{if(AP._started&&!LC._aw){LC._aw=1;LC.refreshAwards();}}catch(e){}},4000);
+
+var st=document.createElement('style');st.textContent='#lc-mine{margin:0 0 16px}.lc-hd{display:flex;gap:10px;align-items:baseline;margin-bottom:8px}.lc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}.lc-card{background:#fff;border:1px solid #dde3ee;border-left:4px solid #1B5E9B;border-radius:10px;padding:10px 12px;cursor:pointer}.lc-card:hover{box-shadow:0 4px 14px rgba(20,40,80,.12)}.lc-n{font-size:13px;margin:3px 0}.lc-s{font-size:11.5px;color:#667}';
+document.head.appendChild(st);
+
+/* ---------- AI knowledge ---------- */
+var _p=window.bdAIContext;if(typeof _p==='function')window.bdAIContext=async function(q){var s='';try{s=await _p(q);}catch(e){}
+ return s+'\nPROJECT LIFECYCLE (default chain, every step can be done, undone or skipped by a manager/admin/the PM with a note, all logged in the change log): 1 Bid created (Estimating > Bid Opportunities) -> 2 Awarded (bid status Win; project created as Awarded) -> 3 Lead in Sales > Leads (awarded bids are added automatically, source "Awarded Bid") -> 4 Team assigned (Sales > Leads > Assign project team: PM, Engineer, Lead Tech, Sales rep, others; each gets the project in Dashboard > My Projects and a notification) -> 5 Work scheduled (PM schedules in Operations; the person gets it in My Schedule) -> 6 Field work (photos, logs, notes, drawings, punch list, tests are saved to the project the tech picked in the project bar) -> 7 Approvals (timesheets, daily logs, material requests go to the project PM; status Pending=Submitted/Requested, Approved, Rejected, Needs Changes) -> 8 Accounting (invoices, purchases, approved material requests and invoice requests are tied to the project and notify Accounting) -> 9 Closed out. VISIBILITY: Admin sees everything; Operations Managers/managers, Sales, Accounting and other office groups see all projects; Project Managers, Engineers and Technicians only see projects they are on (PM, engineer, tech, sales rep or team member). Field-level users cannot see project budgets, change orders, risks or meetings. HIERARCHY: Admin > Operations Manager > Project Manager > Engineer/Technician; Management > Groups > Reporting lines sets who reports to whom, and that person approves their own submissions. Project Management > Lifecycle shows the board and change log.';};
+})();
 </script>
 <script id="vg-leadbid">
 /* ===== Sales > Leads > New: pick a bid from Bid Opportunities, the matching fields fill in ===== */
