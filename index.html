@@ -1661,12 +1661,18 @@ async function adminAction(action,payload,_isRetry){
     if(msg){
       // If the token had simply gone stale, refresh it once and retry silently —
       // this is what caused "Invalid or expired session" during longer sessions.
-      var isSessionIssue=/invalid or expired session|jwt|token/i.test(msg);
+      var isSessionIssue=/invalid or expired session|jwt|token|non-2xx|unauthor/i.test(msg)||(res.error&&res.error.context&&res.error.context.status===401);
       if(isSessionIssue&&!_isRetry){
         var refreshRes=await sb.auth.refreshSession();
         if(refreshRes.data&&refreshRes.data.session){
           return adminAction(action,payload,true);
         }
+      }
+      if(isSessionIssue){
+        // Refresh failed too: the login is gone (signed out elsewhere, expired, or revoked). Send them to sign in again.
+        try{showToast('Your session expired. Please sign in again.','#E24B4A');}catch(e){}
+        setTimeout(function(){try{sb.auth.signOut().then(function(){location.reload();});}catch(e){location.reload();}},2500);
+        return {data:null,error:{message:'Your session expired. Please sign in again, then repeat the change.'}};
       }
       return {data:null,error:{message:msg}};
     }
@@ -8851,7 +8857,7 @@ async function bdAIContext(q){
   }catch(e){return '';}
 }
 
-var APP_VERSION='2.31.3',APP_BUILD_DATE='Nov 11, 2026';
+var APP_VERSION='2.31.4',APP_BUILD_DATE='Nov 11, 2026';
 (function(){function s(){var e=document.getElementById('sb-ver');if(e)e.textContent='Vantage v'+APP_VERSION+' · '+APP_BUILD_DATE;}s();document.addEventListener('DOMContentLoaded',s);})();
 
 </script>
