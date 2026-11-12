@@ -8857,7 +8857,7 @@ async function bdAIContext(q){
   }catch(e){return '';}
 }
 
-var APP_VERSION='2.31.4',APP_BUILD_DATE='Nov 11, 2026';
+var APP_VERSION='2.32.0',APP_BUILD_DATE='Nov 11, 2026';
 (function(){function s(){var e=document.getElementById('sb-ver');if(e)e.textContent='Vantage v'+APP_VERSION+' · '+APP_BUILD_DATE;}s();document.addEventListener('DOMContentLoaded',s);})();
 
 </script>
@@ -14074,6 +14074,109 @@ document.head.appendChild(st);
 /* ---------- AI knowledge ---------- */
 var _p=window.bdAIContext;if(typeof _p==='function')window.bdAIContext=async function(q){var s='';try{s=await _p(q);}catch(e){}
  return s+'\nPROJECT LIFECYCLE (default chain, every step can be done, undone or skipped by a manager/admin/the PM with a note, all logged in the change log): 1 Bid created (Estimating > Bid Opportunities) -> 2 Awarded (bid status Win; project created as Awarded) -> 3 Lead in Sales > Leads (awarded bids are added automatically, source "Awarded Bid") -> 4 Team assigned (Sales > Leads > Assign project team: PM, Engineer, Lead Tech, Sales rep, others; each gets the project in Dashboard > My Projects and a notification) -> 5 Work scheduled (PM schedules in Operations; the person gets it in My Schedule) -> 6 Field work (photos, logs, notes, drawings, punch list, tests are saved to the project the tech picked in the project bar) -> 7 Approvals (timesheets, daily logs, material requests go to the project PM; status Pending=Submitted/Requested, Approved, Rejected, Needs Changes) -> 8 Accounting (invoices, purchases, approved material requests and invoice requests are tied to the project and notify Accounting) -> 9 Closed out. VISIBILITY: Admin sees everything; Operations Managers/managers, Sales, Accounting and other office groups see all projects; Project Managers, Engineers and Technicians only see projects they are on (PM, engineer, tech, sales rep or team member). Field-level users cannot see project budgets, change orders, risks or meetings. HIERARCHY: Admin > Operations Manager > Project Manager > Engineer/Technician; Management > Groups > Reporting lines sets who reports to whom, and that person approves their own submissions. Project Management > Lifecycle shows the board and change log.';};
+})();
+</script>
+<script id="vg-techbuild">
+/* ===== Technician tabs, field uploads mirrored into Build, and Build access rules ===== */
+(function(){
+if(window.BX||!window.VG||!window.LC)return;
+var BX=window.BX={},TP=window.TP={code:'',sub:'logs'},E=VG.E,V=VG.views,U=function(s){return String(s||'').trim().toUpperCase();};
+function esc(s){return E(String(s==null?'':s));}
+function ls(k,v){try{if(v===undefined)return localStorage.getItem(k);if(v===null)localStorage.removeItem(k);else localStorage.setItem(k,v);}catch(e){return null;}}
+
+/* ---- who may create Build projects: Admin and Operations only ---- */
+BX.canCreate=function(){var g=String((CP&&CP.group_name)||'').toLowerCase();return g==='admin'||/operation/.test(g);};
+var orb=window.renderBuild;
+window.renderBuild=async function(){var r=await orb.apply(this,arguments);
+ try{if(!BX.canCreate()){var b=document.querySelector('.bd-page .btn.btn-blue[onclick="bdNewProject()"]');if(b)b.remove();
+  var l=document.getElementById('bd-plist');if(l&&l.querySelector('.bd-empty')&&/No projects yet/.test(l.innerText))l.innerHTML='<div class="bd-empty"><b>No projects shared with you yet.</b><br>Operations creates the project folders. When you are assigned to a project team you will see it here automatically.</div>';}}catch(e){}
+ return r;};
+var onp=window.bdNewProject;
+window.bdNewProject=function(){if(!BX.canCreate()){showToast('Only Admin and Operations can create projects. Yours appear here once you are on the team.','#E24B4A');return;}return onp.apply(this,arguments);};
+var ocp=window.bdCreateProject;
+window.bdCreateProject=async function(){
+ try{var code=(document.getElementById('bp-code')||{}).value;code=String(code||'').trim();
+  if(code){var q=await sb.from('build_projects').select('id,name').ilike('code',code).limit(1);
+   if(q.data&&q.data.length){bdToast('A project with code '+code+' already exists ('+q.data[0].name+'). Opening it instead.',true);bdOvClose();bdOpen(q.data[0].id);return;}}}catch(e){}
+ return ocp.apply(this,arguments);};
+
+/* ---- find / create the Build project for a project code ---- */
+BX.cache={};
+BX.projId=async function(code){code=String(code||'').trim();if(!code)return null;if(BX.cache[U(code)])return BX.cache[U(code)];
+ var p=(VG.refs.projects||[]).find(function(x){return U(x.code)===U(code);}),id=null;
+ if(p&&p.build_project_id){var a=await sb.from('build_projects').select('id').eq('id',p.build_project_id).maybeSingle();if(a.data)id=a.data.id;}
+ if(!id){var b=await sb.from('build_projects').select('id').ilike('code',code).limit(1);if(b.data&&b.data[0])id=b.data[0].id;}
+ if(!id){var c=await sb.rpc('build_sync',{p_code:code});if(c&&c.data)id=c.data;}
+ if(id)BX.cache[U(code)]=id;return id;};
+BX.folderId=async function(pid,path){var r=await sb.from('build_folders').select('id,parent_id,name').eq('project_id',pid).eq('is_deleted',false);
+ var all=r.data||[],parent=null;
+ for(var i=0;i<path.length;i++){var nm=path[i],f=all.find(function(x){return (x.parent_id||null)===parent&&String(x.name).trim().toLowerCase()===nm.toLowerCase();});
+  if(!f){f={id:bdId(),project_id:pid,parent_id:parent,name:nm,sort_order:99,created_by:CU.id};var ins=await sb.from('build_folders').insert(f);if(ins.error)throw ins.error;all.push(f);}
+  parent=f.id;}
+ return parent;};
+BX.put=async function(pid,fid,name,blob,mime,text){var id=bdId(),path=pid+'/'+id+'/v1-'+bdSafe(name),now=new Date().toISOString();
+ var u=await sb.storage.from('build-files').upload(path,blob,{contentType:mime||'application/octet-stream',upsert:false});if(u.error)throw u.error;
+ var row={id:id,project_id:pid,folder_id:fid,name:name,mime:mime||null,size:blob.size||0,version:1,storage_path:path,created_by:CU.id,updated_by:CU.id,created_at:now,updated_at:now,index_status:text?'ok':'pending',is_deleted:false};
+ if(text)row.extracted_text=text;
+ var r=await sb.from('build_files').insert(row);if(r.error)throw r.error;
+ await sb.from('build_file_versions').insert({file_id:id,project_id:pid,version:1,storage_path:path,size:row.size,note:'Added from the field screens',created_by:CU.id});
+ sb.from('build_projects').update({updated_at:now}).eq('id',pid).then(function(){},function(){});return row;};
+
+/* ---- where each kind of field record goes in the project's Build folders ---- */
+BX.MAP={fld_photos:['4.0 CONSTRUCTION','Photos'],fld_logs:['4.0 CONSTRUCTION','Daily Reports'],fld_notes:['4.0 CONSTRUCTION','Field Notes'],fld_shares:['7.0 REFERENCE, FORMS & TEMPLATES','Drawings'],fld_punch:['6.0 CLOSE OUT','Punch Lists'],fld_tests:['6.0 CLOSE OUT','Test Results']};
+VG._ups=[];var oup=VG.upload;
+VG.upload=async function(file,folder,compress){var p=await oup.apply(this,arguments);try{VG._ups.push({path:p,name:(file&&file.name)||'file',type:(file&&file.type)||''});}catch(e){}return p;};
+BX.mirror=async function(t,code,rec,isNew){
+ var ups=VG._ups.splice(0),texts=[];
+ if(isNew&&(t==='fld_logs'||t==='fld_notes')){var S=VG.spec.tables[t],lines=[(t==='fld_logs'?'DAILY LOG':'FIELD NOTE')+' - '+code];
+  S.cols.forEach(function(c){var v=rec[c.k];if(c.k==='project_code'||v==null||v==='')return;if(c.t==='user')v=VG.uname(v)||v;lines.push(c.l+': '+v);});
+  var who=VG.uname(rec.author)||'',nm=(t==='fld_logs'?'Daily Log '+(rec.log_date||VG.today())+(who?' - '+who:''):'Note '+(rec.note_date||VG.today())+' - '+(rec.title||'')).replace(/[\\/:*?"<>|]+/g,'')+'.txt';
+  texts.push({name:nm,text:lines.join('\n')});}
+ if(!ups.length&&!texts.length)return;
+ try{var pid=await BX.projId(code);if(!pid){showToast('Saved. It could not be copied to Build because this project has no Build folder yet (ask Operations).','#BA7517');return;}
+  var fid=await BX.folderId(pid,BX.MAP[t]),n=0;
+  for(var i=0;i<ups.length;i++){var d=await sb.storage.from(VG.BUCKET).download(ups[i].path);if(d.error)throw d.error;
+   var nm=ups[i].name;if(/^image\//.test(ups[i].type)&&!/\.jpe?g$/i.test(nm))nm=nm.replace(/\.[^.]+$/,'')+'.jpg';
+   await BX.put(pid,fid,(rec.title?String(rec.title).replace(/[\\/:*?"<>|]+/g,'')+' - ':'')+nm,d.data,d.data.type||ups[i].type,null);n++;}
+  for(var k=0;k<texts.length;k++){await BX.put(pid,fid,texts[k].name,new Blob([texts[k].text],{type:'text/plain'}),'text/plain',texts[k].text);n++;}
+  showToast('Also saved to Build: '+BX.MAP[t].join(' / ')+(n>1?' ('+n+' files)':''),'#1D9E75');
+ }catch(e){console.warn('build mirror',e);showToast('Saved, but copying to Build failed: '+(e.message||e),'#BA7517');}};
+Object.keys(BX.MAP).forEach(function(t){if(t==='fld_photos')return;var h=VG.hooks[t]=VG.hooks[t]||{},oa=h.after;
+ h.after=async function(saved,isNew,old){if(oa)await oa.apply(this,arguments);if(saved&&saved.project_code)await BX.mirror(t,saved.project_code,saved,isNew);};});
+var ops=VG.photoSave;VG.photoSave=async function(){var code=(document.getElementById('vp-proj')||{}).value;VG._ups=[];var r=await ops.apply(this,arguments);
+ if(!document.getElementById('vp-go')&&code)await BX.mirror('fld_photos',code,{},false);else VG._ups=[];return r;};
+var oss=VG.shareSend;VG.shareSend=async function(){var code=(document.getElementById('vs-proj')||{}).value,title=(document.getElementById('vs-title')||{}).value;VG._ups=[];var r=await oss.apply(this,arguments);
+ if(!document.getElementById('vs-go')&&code)await BX.mirror('fld_shares',code,{title:title},false);else VG._ups=[];return r;};
+BX.openBuild=async function(code){var pid=await BX.projId(code);if(!pid){showToast('No Build folder for this project yet.','#BA7517');return;}VG.closeProject&&VG.closeProject();showPage('build');setTimeout(function(){bdOpen(pid);},700);};
+
+/* ---- Technician tabs ---- */
+var tdef=VG.def.vg_technician;tdef.sub='Your day, schedule, hours and assigned projects';
+tdef.tabs=[{id:'dash',l:'My Day',v:'techDash'},{id:'sched',l:'My Schedule',v:'techSched'},{id:'time',l:'My Hours',t:'ops_timesheets'},{id:'proj',l:'My Projects',v:'techProj'}];
+if(VG.tab&&['photos','logs','notes','share','punch','tests'].indexOf(VG.tab.vg_technician)>=0)VG.tab.vg_technician='dash';
+V.techSched=async function(host){
+ var rows=await AP.mySchedule(30),t=VG.today(),by={};
+ rows.forEach(function(r){var d=r.work_date<t?t:r.work_date;(by[d]=by[d]||[]).push(r);});
+ var days=Object.keys(by).sort(),n=rows.length;
+ var h='<div class="vg-kpis">'+VG.kpi('Jobs next 30 days',n)+VG.kpi('Today',(by[t]||[]).length)+VG.kpi('Projects',Object.keys(rows.reduce(function(o,r){if(r.project_code)o[r.project_code]=1;return o;},{})).length)+'</div>';
+ if(!days.length)h+='<div class="vg-empty2">Nothing scheduled for you in the next 30 days. When your PM schedules you, it shows up here and in your notifications.</div>';
+ days.forEach(function(d){h+='<div style="margin:14px 0 6px;font-weight:700">'+(d===t?'Today - ':'')+esc(VG.d(d))+'</div>'+VG.panel('',VG.list(by[d],function(r){return VG.li(esc(r.task),esc(r.project_code||'')+(r.start_time?' &middot; '+esc(r.start_time):'')+(r.location?' &middot; '+esc(r.location):'')+(r.crew?' &middot; Crew: '+esc(r.crew):''),VG.badge(r.status),r.project_code?"VG.openProject('"+esc(r.project_code)+"')":'');},''));});
+ host.innerHTML=h;};
+TP.open=function(code){TP.code=code;TP.sub='logs';ls('vg_wp_off',null);LC.setWP(code);};
+TP.back=function(){TP.code='';ls('vg_wp_off','1');LC.setWP('');};
+TP.setSub=function(s){TP.sub=s;if(VG.cur)VG.cur.redraw();};
+V.techProj=async function(host){
+ var mine=await LC.myProjects(),list=mine.filter(function(x){return ['Lost','Bidding'].indexOf(x.p.status)<0;});
+ if(TP.code&&!list.some(function(x){return x.p.code===TP.code;}))TP.code='';
+ if(!TP.code){
+  host.innerHTML='<style>.tp-g{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}.tp-c{border:1px solid #e3e8f0;border-radius:12px;background:#fff;padding:14px;cursor:pointer}.tp-c:hover{border-color:#1B5E9B;box-shadow:0 2px 10px rgba(27,94,155,.1)}.tp-c b{display:block;font-size:11.5px;color:#1B5E9B}.tp-c h4{margin:2px 0 4px;font-size:14.5px}.tp-c small{color:#889;font-size:12px;display:block}</style>'
+  +(list.length?'<div class="tp-g">'+list.map(function(x){var p=x.p;return '<div class="tp-c" onclick="TP.open(\''+esc(p.code)+'\')"><b>'+esc(p.code)+'</b><h4>'+esc(p.name||'')+'</h4><small>'+esc(p.client||'')+'</small><div style="margin-top:8px;display:flex;justify-content:space-between;align-items:center">'+VG.badge(p.status)+'<small>'+esc(x.roles.join(', '))+' &middot; PM '+esc(VG.uname(p.pm_id)||'none')+'</small></div></div>';}).join('')+'</div>':'<div class="vg-empty2">No projects are assigned to you yet. When Sales or Operations adds you to a project team, it appears here.</div>');
+  return;}
+ var p=LC.proj(TP.code)||{code:TP.code},SUBS=[['logs','Daily Logs','fld_logs'],['notes','Notes','fld_notes'],['share','Shared Drawings','fld_shares'],['punch','Punch List','fld_punch'],['tests','Cable Tests','fld_tests']],cur=SUBS.find(function(s){return s[0]===TP.sub;})||SUBS[0];
+ host.innerHTML='<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px"><button class="vg-btn" onclick="TP.back()">&larr; All my projects</button><b style="font-size:15px">'+esc(p.code)+' &middot; '+esc(p.name||'')+'</b>'+VG.badge(p.status||'')+'<span style="flex:1"></span><button class="vg-btn" onclick="VG.photoDialog(\''+esc(p.code)+'\')">&#128247; Add photos</button><button class="vg-btn" onclick="BX.openBuild(\''+esc(p.code)+'\')">Open in Build</button></div>'
+  +'<div class="vg-tabs" style="margin-bottom:10px">'+SUBS.map(function(s){return '<button class="'+(s[0]===cur[0]?'on':'')+'" onclick="TP.setSub(\''+s[0]+'\')">'+s[1]+'</button>';}).join('')+'</div><div id="tp-body"></div>';
+ LC.wp=p.code;await VG.tbl(document.getElementById('tp-body'),cur[2],{});};
+var _pa=window.bdAIContext;if(typeof _pa==='function')window.bdAIContext=async function(q){var s='';try{s=await _pa(q);}catch(e){}
+ return s+'\nTECHNICIAN: tabs are My Day, My Schedule, My Hours and My Projects. Inside a project: Daily Logs, Notes, Shared Drawings, Punch List, Cable Tests. Photos, drawings, reports and notes a tech saves are also filed automatically in that project\'s Build folders (Photos, Daily Reports, Field Notes, Drawings, Punch Lists, Test Results). BUILD: Admin and Operations create project folders (one per project code, no duplicates). Everyone on the project team (PM, Engineer, Tech, Sales, roster) automatically gets access to that project in Build and can work in it, but cannot create projects.';};
 })();
 </script>
 <script id="vg-customers">
