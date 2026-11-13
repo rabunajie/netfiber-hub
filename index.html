@@ -3494,13 +3494,9 @@ async function loadUsers(){
     var isMe=u.id===CU.id;
     var isSuperAdminUser=(u.email||'')==='mabunajie@netfibernetwork.com';
     var disabled=u.disabled===true;
-    var custom=getCustomGroups().map(function(g){return '<option value="'+g+'"'+(u.group_name===g?' selected':'')+'>'+g+'</option>';}).join('');
+    var gnames=['admin'].concat(getGroups()&&Object.keys(getGroups()).filter(function(g){return g!=='admin';}));if(u.group_name&&gnames.indexOf(u.group_name)<0)gnames.push(u.group_name);
     var groupSel='<select autocomplete="off" onchange="changeGroup(&quot;'+u.id+'&quot;,this.value)" style="padding:5px 8px;border:1px solid #ddd;border-radius:6px;font-size:12px">'
-      +'<option value="admin"'+(u.group_name==='admin'?' selected':'')+'>Admin</option>'
-      +'<option value="sales"'+(u.group_name==='sales'?' selected':'')+'>Sales</option>'
-      +'<option value="staff"'+(u.group_name==='staff'?' selected':'')+'>Staff</option>'
-      +'<option value="field"'+(u.group_name==='field'?' selected':'')+'>Field</option>'
-      +custom+'</select>';
+      +gnames.map(function(g){return '<option value="'+g+'"'+(u.group_name===g?' selected':'')+'>'+groupLabel(g)+'</option>';}).join('')+'</select>';
     var pwBtn='<button onclick="adminChangePassword(&quot;'+u.id+'&quot;,&quot;'+(u.full_name||u.email)+'&quot;)" style="padding:5px 12px;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;background:#854F0B;color:#fff">Reset PW</button>';
     var disBtn='<button onclick="toggleUserDisabled(&quot;'+u.id+'&quot;,'+disabled+')" style="padding:5px 12px;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;background:'+(disabled?'#1D9E75':'#E24B4A')+';color:#fff">'+(disabled?'Enable':'Disable')+'</button>';
     var viewOnly=u.view_only===true;
@@ -3619,7 +3615,18 @@ function buildCustomGroups(current){
 }
 
 function getCustomGroups(){
-  try{return JSON.parse(localStorage.getItem('netfiber_custom_groups')||'[]');}catch(e){return[];}
+  // every group except admin (all of them can be edited and deleted)
+  return Object.keys(getGroups()).filter(function(g){return g!=='admin';});
+}
+function groupLabel(g){return g?g.charAt(0).toUpperCase()+g.slice(1):g;}
+function groupOptionsHtml(sel){
+  var names=Object.keys(getGroups()).filter(function(g){return g!=='admin';});names.unshift('admin');
+  if(sel&&names.indexOf(sel)<0)names.push(sel);
+  return names.map(function(g){return '<option value="'+String(g).replace(/"/g,'&quot;')+'">'+String(groupLabel(g)).replace(/</g,'&lt;')+(g==='admin'?' — full access':'')+'</option>';}).join('');
+}
+function fillGroupSelects(){
+  var n=document.getElementById('nu-group');
+  if(n){var cur=n.value;n.innerHTML=groupOptionsHtml();var g=getGroups();n.value=(cur&&g[cur])?cur:(g.sales?'sales':(Object.keys(g).filter(function(x){return x!=='admin';})[0]||'admin'));}
 }
 
 async function toggleViewOnly(userId,currentlyViewOnly){
@@ -3642,14 +3649,7 @@ async function toggleUserDisabled(userId,currentlyDisabled){
   var res=await adminAction('toggle_disabled',{id:userId,disabled:!currentlyDisabled});
   if(res.error){alert('Error: '+res.error.message);return;}
   await loadUsers();
-  // Add custom groups to the create-user dropdown
-  var nuSel=document.getElementById('nu-group');
-  if(nuSel){
-    var customs=getCustomGroups();
-    customs.forEach(function(g){
-      var opt=document.createElement('option');opt.value=g;opt.textContent=g;nuSel.appendChild(opt);
-    });
-  }
+  fillGroupSelects();
 }
 
 async function changeGroup(userId,newGroup){
@@ -3666,9 +3666,7 @@ function openEditUser(id,name,email,group){
   document.getElementById('eu-email').value=email||'';
   // Rebuild group dropdown including custom groups
   var sel=document.getElementById('eu-group');
-  var customs=getCustomGroups();
-  sel.innerHTML='<option value="admin">Admin</option><option value="sales">Sales</option><option value="staff">Staff</option><option value="field">Field</option>'
-    +customs.map(function(g){return '<option value="'+g+'">'+g+'</option>';}).join('');
+  sel.innerHTML=groupOptionsHtml(group);
   sel.value=group;
   document.getElementById('edit-user-modal').classList.add('open');
 }
@@ -4664,6 +4662,7 @@ function addCustomGroup(){
   saveGroups(grps);
   document.getElementById('new-group-name').value='';
   renderCustomGroups();
+  fillGroupSelects();
   renderGroupPermsTable();
 }
 
@@ -4742,12 +4741,13 @@ function saveGroupPermissions(){
 }
 
 function deleteGroup(groupName){
-  if(groupName==='admin'||groupName==='sales'||groupName==='staff'||groupName==='field'){
-    alert('Cannot delete built-in groups.');return;
-  }
-  if(!confirm('Delete group "'+groupName+'"? Users in this group will be moved to Staff.'))return;
+  if(groupName==='admin'){alert('The Admin group is protected and cannot be deleted.');return;}
+  var rest=Object.keys(getGroups()).filter(function(g){return g!==groupName&&g!=='admin';});
+  if(!rest.length){alert('This is the last group besides Admin. Create another group first, so people have somewhere to go.');return;}
+  var fallback=rest.indexOf('staff')>=0?'staff':rest[0];
+  if(!confirm('Delete group "'+groupName+'"? Users in this group will be moved to "'+fallback+'".'))return;
   // Move users out first
-  adminAction('reassign_group_members',{fromGroup:groupName,toGroup:'staff'});
+  adminAction('reassign_group_members',{fromGroup:groupName,toGroup:fallback});
   var grps=getGroups();
   delete grps[groupName];
   GROUPS=grps;
@@ -4756,6 +4756,7 @@ function deleteGroup(groupName){
   var custom=getCustomGroups().filter(function(g){return g!==groupName;});
   localStorage.setItem('netfiber_custom_groups',JSON.stringify(custom));
   renderCustomGroups();
+  fillGroupSelects();
   renderGroupPermsTable();
   loadUsers();
   showToast('Group "'+groupName+'" deleted');
@@ -8857,7 +8858,7 @@ async function bdAIContext(q){
   }catch(e){return '';}
 }
 
-var APP_VERSION='2.32.0',APP_BUILD_DATE='Nov 11, 2026';
+var APP_VERSION='2.32.1',APP_BUILD_DATE='Nov 11, 2026';
 (function(){function s(){var e=document.getElementById('sb-ver');if(e)e.textContent='Vantage v'+APP_VERSION+' · '+APP_BUILD_DATE;}s();document.addEventListener('DOMContentLoaded',s);})();
 
 </script>
@@ -14253,7 +14254,7 @@ GP.paint=function(){var el=document.getElementById('group-perms-table');if(!el)r
   var vis=open?items:items.slice(0,6),more=items.length-6;
   h+=vis.join('');
   if(more>0)h+='<span class="gp-more">'+(open?'Show less &#9652;':'+'+more+' more &#9662;')+'</span>';
-  h+='</div>'+(g!=='admin'&&['sales','staff','field'].indexOf(g)<0?'<div class="gp-f"><a href="#" style="font-size:11px;color:#c0392b" onclick="event.stopPropagation();deleteGroup(\''+esc(g).replace(/'/g,"\\'")+'\');return false">Delete group</a></div>':'')+'</div>';});
+  h+='</div>'+(g!=='admin'?'<div class="gp-f"><a href="#" style="font-size:11px;color:#c0392b" onclick="event.stopPropagation();deleteGroup(\''+esc(g).replace(/'/g,"\\'")+'\');return false">Delete group</a></div>':'')+'</div>';});
  h+='</div>';
  el.innerHTML=h+'<div style="font-size:11.5px;color:#99a">Click + Add to give a group more sections. Click &times; on a tag to take one away. Admin always has full access. Dashboard is always included.</div>';};
 GP.open={};GP.flip=function(g){GP.open[g]=!GP.open[g];GP.paint();};
