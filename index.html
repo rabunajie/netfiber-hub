@@ -1451,6 +1451,7 @@ async function saveGroups(g){
   }catch(e){console.log('Saved to localStorage only:',e);}
 }
 var GROUPS=getGroups();
+function canKpi(){var g=CP?CP.group_name||'staff':'staff';return g==='admin'||canAccess('dash_kpi');}
 function canAccess(p){
   if(CP&&CP.disabled)return false;
   var grps=getGroups();
@@ -1782,7 +1783,7 @@ function rowCls(bid){if(!bid.fu_next_date)return'';if(bid.fu_status==='closed'||
 function showPage(p){
   GROUPS=getGroups();
   if(!canAccess(p)){
-    var fp=ALL_PAGES.filter(function(k){return canAccess(k);})[0];
+    var fp=ALL_PAGES.filter(function(k){return k!=='dash_kpi'&&canAccess(k);})[0];
     if(!fp){var mc0=document.getElementById('main-content');if(mc0)mc0.innerHTML='<div style="padding:40px;text-align:center;color:#889"><h3 style="color:#444">No sections assigned yet</h3><p>Your group does not have any sections turned on. Ask an admin to add some in Management &rsaquo; Modules &amp; Group Permissions.</p></div>';document.querySelectorAll('.sb-item').forEach(function(el){el.classList.remove('on');});return;}
     p=fp;}
   document.querySelectorAll('.sb-item').forEach(el=>el.classList.toggle('on',el.dataset.page===p));
@@ -1906,7 +1907,7 @@ async function renderDashboard(){
       <div class="gr-left"><h2>${hour<12?'Good morning':hour<17?'Good afternoon':'Good evening'}, ${CP.full_name?.split(' ')[0]||''}${overdueFollowups.length||tasksDueToday.length?' 👋':''}</h2><p>${overdueFollowups.length?`${overdueFollowups.length} follow-up${overdueFollowups.length>1?'s':''} overdue · `:''} ${tasksDueToday.length?`${tasksDueToday.length} task${tasksDueToday.length>1?'s':''} due today`:pendingTasks.length+' tasks pending'}</p></div>
       <div class="gr-date">${todayDate}</div>
     </div>
-    ${canAccess('bids')?`
+    ${canKpi()?`
     <div class="kpi-row">
       <div class="kpi"><div class="kpi-lbl">Total bids 2026</div><div class="kpi-v">${fmt$(bids.reduce((s,b)=>s+(b.price||0),0))}</div><div class="kpi-sub" style="color:#1D9E75">↑ ${bids.length} submitted</div></div>
       <div class="kpi"><div class="kpi-lbl">Revenue won</div><div class="kpi-v" style="color:#1D9E75">${fmt$(wins.reduce((s,b)=>s+(b.price||0),0))}</div><div class="kpi-sub" style="color:#1D9E75">${wins.length} project${wins.length!==1?'s':''} won</div></div>
@@ -4677,8 +4678,8 @@ function deleteCustomGroup(idx){
 }
 
 
-var ALL_PAGES=['dashboard','bids','gc','retail','proposals','purchases','tasks','build','log','mgmt','pipeline','ai','inbox'];
-var PAGE_LABELS=['Dashboard','Bid Opp.','GC Contacts','Retail','Proposals','Purchases','Taskflow','Build','Activity Log','Management','Pipeline','AI Advisor','Quick Save'];
+var ALL_PAGES=['dashboard','dash_kpi','bids','gc','retail','proposals','purchases','tasks','build','log','mgmt','pipeline','ai','inbox'];
+var PAGE_LABELS=['Dashboard','Dashboard KPI Cards','Bid Opp.','GC Contacts','Retail','Proposals','Purchases','Taskflow','Build','Activity Log','Management','Pipeline','AI Advisor','Quick Save'];
 
 function renderGroupPermsTable(){
   var el=document.getElementById('group-perms-table');
@@ -8856,7 +8857,7 @@ async function bdAIContext(q){
   }catch(e){return '';}
 }
 
-var APP_VERSION='2.33.0',APP_BUILD_DATE='Nov 11, 2026';
+var APP_VERSION='2.34.0',APP_BUILD_DATE='Nov 11, 2026';
 (function(){function s(){var e=document.getElementById('sb-ver');if(e)e.textContent='Vantage v'+APP_VERSION+' · '+APP_BUILD_DATE;}s();document.addEventListener('DOMContentLoaded',s);})();
 
 </script>
@@ -11280,7 +11281,7 @@ window.renderMgmt=async function(){
  try{await VG.loadSettings();}catch(e){}
  VG.mountModBar();
 };
-VG.pages=function(){return ALL_PAGES.map(function(p,i){return {k:p,l:PAGE_LABELS[i]};}).filter(function(x){return x.k!=='dashboard'&&x.k!=='mgmt';});};
+VG.pages=function(){return ALL_PAGES.map(function(p,i){return {k:p,l:PAGE_LABELS[i]};}).filter(function(x){return x.k!=='dashboard'&&x.k!=='mgmt'&&x.k!=='dash_kpi';});};
 VG.mountModBar=function(){
  var tbl=document.getElementById('group-perms-table');if(!tbl)return;
  var sec=tbl.closest('.mgmt-sec');var hdr=sec&&sec.querySelector('.mgmt-hdr h3');if(hdr)hdr.textContent='Modules & Group Permissions';if(sec)sec.style.overflow='visible';
@@ -14232,7 +14233,7 @@ function isDept(k){return !!(VG.MODS&&VG.MODS[k]);}
 function copy(o){return JSON.parse(JSON.stringify(o));}
 
 var _pa=window.bdAIContext;if(typeof _pa==='function')window.bdAIContext=async function(q){var s='';try{s=await _pa(q);}catch(e){}
- return s+'\nMANAGEMENT (admin): Modules & Group Permissions shows each group with tags of the sections it can open; + Add opens a list to pick one or more sections, x removes one, then Save changes. Reporting Lines is an org chart (Management): search a person to see who they report to and who reports to them, expand/collapse by manager or department, click a person and Change manager (admin only, loops blocked). The New User form has a Reports to field; Edit User can change it. Timesheet and approval routing uses these reporting lines.';};
+ return s+'\nDASHBOARD KPI CARDS (Total bids, Revenue won, Follow-ups overdue, Tasks due today) are visible to Admin only by default; Admin can turn them on for other groups in Management > Modules & Group Permissions by adding Dashboard KPI Cards to that group. MANAGEMENT (admin): Modules & Group Permissions shows each group with tags of the sections it can open; + Add opens a list to pick one or more sections, x removes one, then Save changes. Reporting Lines is an org chart (Management): search a person to see who they report to and who reports to them, expand/collapse by manager or department, click a person and Change manager (admin only, loops blocked). The New User form has a Reports to field; Edit User can change it. Timesheet and approval routing uses these reporting lines.';};
 /* ---------- Group permissions: chips ---------- */
 function ensureDraft(){var g=getGroups();getCustomGroups().forEach(function(n){if(!g[n])g[n]=['dashboard','tasks'];});
  if(!GP.draft||!GP.dirty){GP.draft=copy(g);}else{Object.keys(g).forEach(function(n){if(!GP.draft[n])GP.draft[n]=g[n].slice();});Object.keys(GP.draft).forEach(function(n){if(!g[n]&&!GP.dirty)delete GP.draft[n];});}}
