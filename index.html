@@ -8858,7 +8858,7 @@ async function bdAIContext(q){
   }catch(e){return '';}
 }
 
-var APP_VERSION='2.32.1',APP_BUILD_DATE='Nov 11, 2026';
+var APP_VERSION='2.32.2',APP_BUILD_DATE='Nov 11, 2026';
 (function(){function s(){var e=document.getElementById('sb-ver');if(e)e.textContent='Vantage v'+APP_VERSION+' · '+APP_BUILD_DATE;}s();document.addEventListener('DOMContentLoaded',s);})();
 
 </script>
@@ -14340,7 +14340,7 @@ function bossField(id,cur){var opts=ORG.ps.map(function(p){return '<option value
  return '<div class="frow" id="'+id+'-row"><label>Reports to</label><input autocomplete="off" id="'+id+'" list="'+id+'-dl" placeholder="Type a name (their manager)" value="'+esc(cur||'')+'"><datalist id="'+id+'-dl">'+opts+'</datalist></div>';}
 function idOf(txt){txt=String(txt||'').trim();if(!txt)return '';var p=ORG.ps.find(function(x){return (x.full_name+(x.group_name?' ('+x.group_name+')':''))===txt||x.full_name===txt;});return p?p.id:null;}
 var orm=window.renderMgmt;
-window.renderMgmt=async function(){await orm.apply(this,arguments);try{await ORG.load();var g=document.getElementById('nu-group');if(g&&!document.getElementById('nu-boss')){var row=g.closest('.frow');row.insertAdjacentHTML('afterend',bossField('nu-boss'));}}catch(e){console.warn('org field',e);}};
+window.renderMgmt=async function(){try{fillGroupSelects();}catch(e){}await orm.apply(this,arguments);try{fillGroupSelects();}catch(e){}try{await ORG.load();var g=document.getElementById('nu-group');if(g&&!document.getElementById('nu-boss')){var row=g.closest('.frow');row.insertAdjacentHTML('afterend',bossField('nu-boss'));}}catch(e){console.warn('org field',e);}};
 var ocu=window.createUser;
 window.createUser=async function(){var t=document.getElementById('nu-boss'),txt=t?t.value:'',id=idOf(txt),msg=document.getElementById('create-msg'),grp=document.getElementById('nu-group')&&document.getElementById('nu-group').value;
  if(txt&&id===null){msg.textContent='Pick the manager from the list (or leave Reports to empty).';msg.style.color='#a32d2d';msg.style.display='block';return;}
